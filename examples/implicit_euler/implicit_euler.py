@@ -58,7 +58,7 @@ class ImplicitEulerMethod(Method):
             dep_on=cb.state_dependencies,
             instructions=cb.instructions)
 
-        from leap.vm.implicit import replace_AssignSolved
+        from leap.implicit import replace_AssignSolved
 
         return replace_AssignSolved(code, {self.SOLVER_EXPRESSION_ID: solver_hook})
 

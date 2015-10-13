@@ -7,7 +7,7 @@ import sys
 
 from leap.method.rk.imex import KennedyCarpenterIMEXARK4Method
 from stiff_test_systems import KapsProblem
-from leap.vm.implicit import ScipySolverGenerator
+from leap.implicit import ScipySolverGenerator
 
 from utils import (  # noqa
         python_method_impl_interpreter as pmi_int,
@@ -54,7 +54,7 @@ def test_convergence(python_method_impl, problem, method, expected_order):
     code = method.generate()
 
     sgen = ScipySolverGenerator(*method.implicit_expression())
-    from leap.vm.implicit import replace_AssignSolved
+    from leap.implicit import replace_AssignSolved
     code = replace_AssignSolved(code, {"solve": sgen})
 
     from pytools.convergence import EOCRecorder
@@ -123,7 +123,7 @@ def test_adaptive(python_method_impl, problem, method):
         code = generator.generate()
 
         sgen = ScipySolverGenerator(*generator.implicit_expression())
-        from leap.vm.implicit import replace_AssignSolved
+        from leap.implicit import replace_AssignSolved
         code = replace_AssignSolved(code, {"solve": sgen})
 
         interp = python_method_impl(code, function_map={

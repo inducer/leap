@@ -107,7 +107,7 @@ def run():
     template = mgen.implicit_expression()[0]
     print("Expression for solver: " + str(template))
     sgen = partial(solver_hook, template=template)
-    from leap.vm.implicit import replace_AssignSolved
+    from leap.implicit import replace_AssignSolved
     code = replace_AssignSolved(code, {"solve": sgen})
     IMEXIntegrator = PythonCodeGenerator("IMEXIntegrator").get_class(code)
 

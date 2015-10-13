@@ -50,7 +50,7 @@ def test_im_euler_accuracy(python_method_impl, show_dag=False,
     component_id = "y"
 
     from implicit_euler import ImplicitEulerMethod
-    from leap.vm.implicit import ScipySolverGenerator
+    from leap.implicit import ScipySolverGenerator
 
     method = ImplicitEulerMethod(component_id)
     sgen = ScipySolverGenerator(*method.implicit_expression())

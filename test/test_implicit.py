@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 from __future__ import division, with_statement
 
-from leap.vm.implicit import ScipySolverGenerator
+from leap.implicit import ScipySolverGenerator
 from dagrt.expression import parse
 import numpy as np
 
