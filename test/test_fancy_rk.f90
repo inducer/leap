@@ -1,11 +1,11 @@
 program test_rkmethod
 
-  use RKMethod, only: leap_state_type, &
+  use RKMethod, only: dagrt_state_type, &
     timestep_initialize => initialize, &
     timestep_run => run, &
     timestep_shutdown => shutdown, &
-    leap_state_func_initialization, &
-    leap_state_func_primary
+    dagrt_state_func_initialization, &
+    dagrt_state_func_primary
 
   use sim_types
 
@@ -16,8 +16,8 @@ program test_rkmethod
 
   type(sim_grid_state_type), pointer, dimension(:) :: initial_condition
 
-  type(leap_state_type), target :: leap_state
-  type(leap_state_type), pointer :: leap_state_ptr
+  type(dagrt_state_type), target :: dagrt_state
+  type(dagrt_state_type), pointer :: dagrt_state_ptr
 
   real*8 t_fin
   integer ntrips, igrid, idof
@@ -27,7 +27,7 @@ program test_rkmethod
 
   ! start code ----------------------------------------------------------------
 
-  leap_state_ptr => leap_state
+  dagrt_state_ptr => dagrt_state
   region_ptr => region
  
   region%n_grids = 2
@@ -46,16 +46,16 @@ program test_rkmethod
 
   call timestep_initialize( &
     region=region_ptr, &
-    leap_state=leap_state_ptr, &
+    dagrt_state=dagrt_state_ptr, &
     state_y=initial_condition, &
     leap_t=0d0, &
     leap_dt=t_fin/20)
 
   do istep = 1,ntrips
-    call timestep_run(region=region_ptr, leap_state=leap_state_ptr)
+    call timestep_run(region=region_ptr, dagrt_state=dagrt_state_ptr)
   enddo
 
-  call timestep_shutdown(region=region_ptr, leap_state=leap_state_ptr)
+  call timestep_shutdown(region=region_ptr, dagrt_state=dagrt_state_ptr)
 
 end program
 

@@ -1,15 +1,15 @@
 program test_rkmethod
-  use RKMethod, only: leap_state_type, &
+  use RKMethod, only: dagrt_state_type, &
     timestep_initialize => initialize, &
     timestep_run => run, &
     timestep_shutdown => shutdown, &
-    leap_state_func_initialization, &
-    leap_state_func_primary
+    dagrt_state_func_initialization, &
+    dagrt_state_func_primary
 
   implicit none
 
-  type(leap_state_type), target :: state
-  type(leap_state_type), pointer :: state_ptr
+  type(dagrt_state_type), target :: state
+  type(dagrt_state_type), pointer :: state_ptr
 
   real*8, dimension(2) :: initial_condition, true_sol
 
@@ -35,19 +35,19 @@ program test_rkmethod
   atol = 1e-6
 
   call timestep_initialize( &
-    leap_state=state_ptr, &
+    dagrt_state=state_ptr, &
     state_y=initial_condition, &
     leap_t=0d0, &
     leap_dt=dt_value)
 
   do istep = 1, ntrips
-    call timestep_run(leap_state=state_ptr)
+    call timestep_run(dagrt_state=state_ptr)
   enddo
 
   true_sol = initial_condition * exp(-2*state%ret_time_y)
   error = sqrt(sum((true_sol-state%ret_state_y)**2))
 
-  call timestep_shutdown(leap_state=state_ptr)
+  call timestep_shutdown(dagrt_state=state_ptr)
   write(*,*) 'done'
 
   if (error>atol) then

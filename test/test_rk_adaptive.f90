@@ -1,15 +1,15 @@
 program test_rkmethod
-  use RKMethod, only: leap_state_type, &
+  use RKMethod, only: dagrt_state_type, &
     timestep_initialize => initialize, &
     timestep_run => run, &
     timestep_shutdown => shutdown, &
-    leap_state_func_initialization, &
-    leap_state_func_primary
+    dagrt_state_func_initialization, &
+    dagrt_state_func_primary
 
   implicit none
 
-  type(leap_state_type), target :: state
-  type(leap_state_type), pointer :: state_ptr
+  type(dagrt_state_type), target :: state
+  type(dagrt_state_type), pointer :: state_ptr
 
   real*8, dimension(2) :: initial_condition
   real*8, dimension(100) :: step_sizes
@@ -36,14 +36,14 @@ program test_rkmethod
   num_small_steps = 0
 
   call timestep_initialize( &
-      leap_state=state_ptr, &
+      dagrt_state=state_ptr, &
       state_y=initial_condition, &
       leap_t=0d0, &
       leap_dt=dt_value)
 
   do istep = 1, nruns
 
-    call timestep_run(leap_state=state_ptr)
+    call timestep_run(dagrt_state=state_ptr)
 
     step_sizes(istep) = state%ret_time_y - old_time
     old_time = state%ret_time_y
@@ -56,7 +56,7 @@ program test_rkmethod
 
   enddo
 
-  call timestep_shutdown(leap_state=state_ptr)
+  call timestep_shutdown(dagrt_state=state_ptr)
   write(*,*) 'done'
 
   big_step_frac = num_big_steps/real(nruns)

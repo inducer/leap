@@ -1,19 +1,6 @@
 #! /usr/bin/env python
 from __future__ import division, with_statement, print_function
 
-import sys
-import pytest
-
-from dagrt.language import YieldState
-from dagrt.language import TimeIntegratorCode, CodeBuilder
-import dagrt.codegen.fortran as f
-from leap.rk import ODE23Method, ODE45Method, LSRK4Method
-
-from leap.ab.multirate.methods import methods as MRAB_METHODS  # noqa
-
-from utils import RawCodeBuilder
-
-
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner, Matt Wala"
 
 __license__ = """
@@ -36,49 +23,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import sys
+import pytest
+
+import dagrt.codegen.fortran as f
+from leap.rk import ODE23Method, ODE45Method, LSRK4Method
+
+from leap.ab.multirate.methods import methods as MRAB_METHODS  # noqa
+
+from dagrt.utils import run_fortran
 
 
-
-
-
-skip = pytest.mark.skipif(True, reason="not fully implemented")
-
-
-def run_fortran(sources, fortran_options=[]):
-    from utils import TemporaryDirectory
-    from os.path import join
-
-    with TemporaryDirectory() as tmpdir:
-        source_names = []
-        for name, contents in sources:
-            source_names.append(name)
-
-            with open(join(tmpdir, name), "w") as srcf:
-                srcf.write(contents)
-
-        from subprocess import check_call, Popen, PIPE
-        check_call(
-                ["gfortran", "-Wall", "-g", "-oruntest"]
-                + fortran_options
-                + list(source_names),
-                cwd=tmpdir)
-
-        p = Popen([join(tmpdir, "runtest")], stdout=PIPE, stderr=PIPE,
-                close_fds=True)
-        stdout_data, stderr_data = p.communicate()
-
-        if stdout_data:
-            print("Fortran code said this on stdout: -----------------------------",
-                    file=sys.stderr)
-            print(stdout_data.decode(), file=sys.stderr)
-            print("---------------------------------------------------------------",
-                    file=sys.stderr)
-
-        if stderr_data:
-            raise RuntimeError("Fortran code has non-empty stderr:\n" +
-                               stderr_data.decode('ascii'))
-
-        return p.returncode, stdout_data, stderr_data
+#skip = pytest.mark.skipif(True, reason="not fully implemented")
 
 
 def read_file(rel_path):
@@ -394,58 +350,6 @@ def test_adaptive_rk_codegen_error():
         ("rkmethod.f90", codegen(code)),
         ("test_rk_adaptive_error.f90", read_file("test_rk_adaptive_error.f90")),
         ])
-
-
-class MatrixInversionFailure(object):
-    pass
-
-
-def test_arrays_and_linalg():
-    from dagrt.function_registry import base_function_registry as freg
-
-    with CodeBuilder(label="primary") as cb:
-        cb("n", "4")
-        cb("nodes", "`<builtin>array`(n)")
-        cb("vdm", "`<builtin>array`(n*n)")
-        cb("identity", "`<builtin>array`(n*n)")
-        cb.fence()
-
-        cb("nodes[i]", "i/n",
-                loops=[("i", 0, "n")])
-        cb("identity[i]", "0",
-                loops=[("i", 0, "n*n")])
-        cb.fence()
-
-        cb("identity[i*n + i]", "1",
-                loops=[("i", 0, "n")])
-        cb("vdm[j*n + i]", "nodes[i]**j",
-                loops=[("i", 0, "n"), ("j", 0, "n")])
-
-        cb.fence()
-
-        cb("vdm_inverse", "`<builtin>linear_solve`(vdm, identity, n, n)")
-        cb("myarray", "`<builtin>matmul`(vdm, vdm_inverse, n, n)")
-
-        cb("myzero", "myarray - identity")
-        cb((), "`<builtin>print`(myzero)")
-        with cb.if_("`<builtin>norm_2`(myzero) > 10**(-8)"):
-            cb.raise_(MatrixInversionFailure)
-
-    code = TimeIntegratorCode.create_with_steady_state(
-        cb.state_dependencies, cb.instructions)
-
-    codegen = f.CodeGenerator(
-            'arrays',
-            function_registry=freg,
-            ode_component_type_map={})
-
-    code_str = codegen(code)
-    print(code_str)
-    run_fortran([
-        ("arrays.f90", code_str),
-        ("test_arrays_and_linalg.f90", read_file("test_arrays_and_linalg.f90")),
-        ],
-        fortran_options=["-llapack", "-lblas"])
 
 
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
