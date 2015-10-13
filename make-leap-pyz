@@ -26,6 +26,7 @@ python $PYZZER_PATH -o leap.pyz \
   $(pymod_location pymbolic) \
   $(pymod_location mako) \
   $(pymod_location leap) \
+  $(pymod_location dagrt) \
   -r \
   -x '\.sw[po]$' \
   -x '\~$'
