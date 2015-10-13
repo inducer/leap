@@ -1,6 +1,18 @@
 #! /usr/bin/env python
-
 from __future__ import division, with_statement, print_function
+
+import sys
+import pytest
+
+from dagrt.vm.language import YieldState
+from dagrt.vm.language import TimeIntegratorCode, CodeBuilder
+import dagrt.vm.codegen.fortran as f
+from leap.method.rk import ODE23Method, ODE45Method, LSRK4Method
+
+from leap.method.ab.multirate.methods import methods as MRAB_METHODS  # noqa
+
+from utils import RawCodeBuilder
+
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner, Matt Wala"
 
@@ -24,41 +36,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import sys
-import pytest
 
-from leap.vm.language import YieldState
-from leap.vm.language import TimeIntegratorCode, CodeBuilder
-import leap.vm.codegen.fortran as f
-from leap.method.rk import ODE23Method, ODE45Method, LSRK4Method
 
-from leap.method.ab.multirate.methods import methods as MRAB_METHODS  # noqa
 
-from utils import RawCodeBuilder
 
 
 skip = pytest.mark.skipif(True, reason="not fully implemented")
-
-
-def test_basic_codegen():
-    """Test whether the code generator returns a working method. The
-    generated method always returns 0."""
-    cbuild = RawCodeBuilder()
-    cbuild.add_and_get_ids(
-        YieldState(id='return', time=0, time_id='final',
-                    expression=0, component_id='state',
-        depends_on=[]))
-    cbuild.commit()
-    code = TimeIntegratorCode.create_with_init_and_step(
-            initialization_dep_on=[],
-            instructions=cbuild.instructions, step_dep_on=['return'])
-    codegen = f.CodeGenerator("simple",
-            ode_component_type_map={
-                "state": f.ArrayType(
-                    (200,),
-                    f.BuiltinType('real (kind=8)'),)
-                })
-    print(codegen(code))
 
 
 def run_fortran(sources, fortran_options=[]):
@@ -122,7 +105,7 @@ def test_rk_codegen(min_order, stepper):
     component_id = 'y'
     rhs_function = '<func>y'
 
-    from leap.vm.function_registry import (
+    from dagrt.vm.function_registry import (
             base_function_registry, register_ode_rhs)
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
@@ -168,7 +151,7 @@ def test_rk_codegen_fancy():
 
     stepper = ODE23Method(component_id, use_high_order=True)
 
-    from leap.vm.function_registry import (
+    from dagrt.vm.function_registry import (
             base_function_registry, register_ode_rhs,
             register_function)
     freg = register_ode_rhs(base_function_registry, component_id,
@@ -255,7 +238,7 @@ def test_multirate_codegen(min_order, method_name):
 
     code = stepper.generate()
 
-    from leap.vm.function_registry import (
+    from dagrt.vm.function_registry import (
             base_function_registry, register_ode_rhs)
 
     freg = base_function_registry
@@ -348,7 +331,7 @@ def test_adaptive_rk_codegen():
 
     stepper = ODE45Method(component_id, use_high_order=False, rtol=1e-6)
 
-    from leap.vm.function_registry import (
+    from dagrt.vm.function_registry import (
             base_function_registry, register_ode_rhs)
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
@@ -386,7 +369,7 @@ def test_adaptive_rk_codegen_error():
 
     stepper = ODE45Method(component_id, use_high_order=False, atol=1e-6)
 
-    from leap.vm.function_registry import (
+    from dagrt.vm.function_registry import (
             base_function_registry, register_ode_rhs)
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
@@ -418,7 +401,7 @@ class MatrixInversionFailure(object):
 
 
 def test_arrays_and_linalg():
-    from leap.vm.function_registry import base_function_registry as freg
+    from dagrt.vm.function_registry import base_function_registry as freg
 
     with CodeBuilder(label="primary") as cb:
         cb("n", "4")
@@ -474,7 +457,7 @@ def test_singlerate_squarewave(min_order):
 
     stepper = AdamsBashforthMethod("y", min_order)
 
-    from leap.vm.function_registry import (
+    from dagrt.vm.function_registry import (
             base_function_registry, register_ode_rhs)
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
@@ -521,7 +504,7 @@ def test_multirate_squarewave(min_order, method_name):
 
     code = stepper.generate()
 
-    from leap.vm.function_registry import (
+    from dagrt.vm.function_registry import (
             base_function_registry, register_ode_rhs)
 
     freg = base_function_registry

@@ -1,4 +1,9 @@
 """Turn timestepper descriptions into source code"""
+from leap.method.rk import ODE23Method
+import numpy as np
+
+import logging
+
 
 __copyright__ = "Copyright (C) 2014 Matt Wala"
 
@@ -22,10 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from leap.method.rk import ODE23Method
-import numpy as np
 
-import logging
 
 
 def main(show_dag=False, plot_solution=False):
@@ -39,10 +41,10 @@ def main(show_dag=False, plot_solution=False):
     code = method.generate()
 
     if show_dag:
-        from leap.vm.language import show_dependency_graph
+        from dagrt.vm.language import show_dependency_graph
         show_dependency_graph(code)
 
-    from leap.vm.exec_numpy import NumpyInterpreter
+    from dagrt.vm.exec_numpy import NumpyInterpreter
 
     def rhs(t, y):
         u, v = y

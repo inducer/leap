@@ -1,6 +1,11 @@
 """Implicit Euler timestepper"""
-
 from __future__ import division
+
+from leap.method import Method
+from dagrt.vm.language import TimeIntegratorCode, CodeBuilder
+from pymbolic import var
+from pymbolic.primitives import CallWithKwargs
+
 
 __copyright__ = "Copyright (C) 2014 Matt Wala"
 
@@ -24,10 +29,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from leap.method import Method
-from leap.vm.language import TimeIntegratorCode, CodeBuilder
-from pymbolic import var
-from pymbolic.primitives import CallWithKwargs
 
 
 class ImplicitEulerMethod(Method):
@@ -36,6 +37,8 @@ class ImplicitEulerMethod(Method):
        state: The value that is integrated
        rhs_func: The right hand side function
     """
+
+    SOLVER_EXPRESSION_ID = 0
 
     def __init__(self, component_id):
         self.component_id = component_id
@@ -57,7 +60,7 @@ class ImplicitEulerMethod(Method):
 
         from leap.vm.implicit import replace_AssignSolved
 
-        return replace_AssignSolved(code, solver_hook)
+        return replace_AssignSolved(code, {self.SOLVER_EXPRESSION_ID: solver_hook})
 
     def _make_primary(self, builder):
         """Add code to drive the primary stage."""
@@ -73,7 +76,8 @@ class ImplicitEulerMethod(Method):
                                })
 
         builder.assign_solved_1(self.state, solve_component,
-                                solve_expression, self.state, 0)
+                                solve_expression, self.state,
+                                self.SOLVER_EXPRESSION_ID)
 
         builder.yield_state(self.state, self.component_id,
                             self.t + self.dt, 'final')
@@ -81,7 +85,7 @@ class ImplicitEulerMethod(Method):
         builder.assign(self.t, self.t + self.dt)
 
     def implicit_expression(self, expression_tag=None):
-        from leap.vm.expression import parse
+        from dagrt.vm.expression import parse
         return (parse("`solve_component` + state + dt * `{rhs}`(t=t,"
                       "{component_id}=`solve_component`)".format(
                           rhs=self.rhs_func.name,

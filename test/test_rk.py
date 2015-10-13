@@ -1,6 +1,22 @@
 #! /usr/bin/env python
-
 from __future__ import division, with_statement, absolute_import
+
+import sys
+import pytest
+
+from leap.method.rk import (
+        ODE23Method, ODE45Method,
+        MidpointMethod, HeunsMethod, RK4Method,
+        LSRK4Method,)
+from leap.method.rk.imex import KennedyCarpenterIMEXARK4Method
+import numpy as np
+
+import logging
+
+from utils import (  # noqa
+        python_method_impl_interpreter as pmi_int,
+        python_method_impl_codegen as pmi_cg)
+
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
@@ -24,22 +40,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import sys
-import pytest
 
-from leap.method.rk import (
-        ODE23Method, ODE45Method,
-        MidpointMethod, HeunsMethod, RK4Method,
-        LSRK4Method,)
-from leap.method.rk.imex import KennedyCarpenterIMEXARK4Method
-import numpy as np
 
-import logging
 logger = logging.getLogger(__name__)
 
-from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
 
 
 # {{{ non-adaptive test
@@ -86,7 +90,7 @@ def test_adaptive_timestep(python_method_impl, method, show_dag=False,
     code = method.generate()
 
     if show_dag:
-        from leap.vm.language import show_dependency_graph
+        from dagrt.vm.language import show_dependency_graph
         show_dependency_graph(code)
 
     from stiff_test_systems import VanDerPolProblem

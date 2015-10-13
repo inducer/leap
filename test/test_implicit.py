@@ -1,6 +1,12 @@
 #! /usr/bin/env python
-
 from __future__ import division, with_statement
+
+from leap.vm.implicit import ScipySolverGenerator
+from dagrt.vm.expression import parse
+import numpy as np
+
+import pytest
+
 
 __copyright__ = "Copyright (C) 2015 Matt Wala"
 
@@ -24,11 +30,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from leap.vm.implicit import ScipySolverGenerator
-from leap.vm.expression import parse
-import numpy as np
 
-import pytest
 
 
 def test_ScipySolverGenerator_code_generation():

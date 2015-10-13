@@ -1,5 +1,4 @@
 """Time integration methods."""
-
 from __future__ import division
 
 __copyright__ = "Copyright (C) 2007-2013 Andreas Kloeckner"
@@ -70,7 +69,7 @@ class TwoOrderAdaptiveMethod(Method):
     def finish_adaptive(self, cb, high_order_estimate, low_order_estimate):
         from pymbolic import var
         from pymbolic.primitives import Comparison, LogicalOr, Max, Min
-        from leap.vm.expression import IfThenElse
+        from dagrt.vm.expression import IfThenElse
 
         norm_start_state = var('norm_start_state')
         norm_end_state = var('norm_end_state')

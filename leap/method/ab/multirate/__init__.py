@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
 
 """Multirate-AB ODE solver."""
-
 from __future__ import division
+
+import numpy
+from pytools import memoize_method
+from leap.method.ab import AdamsBashforthMethodBase
+from leap.method.ab.utils import make_generic_ab_coefficients, linear_comb
+from leap.method.ab.multirate.methods import (HIST_NAMES, HIST_F2F, HIST_S2F,
+                                              HIST_F2S, HIST_S2S)
+from leap.method.ab.multirate.processors import MRABProcessor
+from pymbolic import var
+
 
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
@@ -30,14 +39,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import numpy
-from pytools import memoize_method
-from leap.method.ab import AdamsBashforthMethodBase
-from leap.method.ab.utils import make_generic_ab_coefficients, linear_comb
-from leap.method.ab.multirate.methods import (HIST_NAMES, HIST_F2F, HIST_S2F,
-                                              HIST_F2S, HIST_S2S)
-from leap.method.ab.multirate.processors import MRABProcessor
-from pymbolic import var
 
 
 __doc__ = """
@@ -332,7 +333,7 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
         cb(self.t, self.t + self.dt)
 
     def generate(self):
-        from leap.vm.language import (TimeIntegratorCode, TimeIntegratorState,
+        from dagrt.vm.language import (TimeIntegratorCode, TimeIntegratorState,
                                       CodeBuilder)
 
         # Initialization state

@@ -1,6 +1,11 @@
 """Kennedy-Carpenter implicit/explicit RK."""
-
 from __future__ import division
+
+
+from pymbolic import var
+from leap.method import TwoOrderAdaptiveMethod
+from leap.method.rk import ButcherTableauMethod
+
 
 __copyright__ = """
 Copyright (C) 2010, 2013 Andreas Kloeckner
@@ -28,9 +33,6 @@ THE SOFTWARE.
 """
 
 
-from pymbolic import var
-from leap.method import TwoOrderAdaptiveMethod
-from leap.method.rk import ButcherTableauMethod
 
 
 class KennedyCarpenterIMEXRungeKuttaMethodBase(
@@ -77,7 +79,7 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
         self.use_implicit = use_implicit
 
     def implicit_expression(self, expression_tag=None):
-        from leap.vm.expression import parse
+        from dagrt.vm.expression import parse
         return (parse("`solve_component` - `<func>{implicit_rhs_name}`("
             "t=t, {component_id}="
             "`{state}` + sub_y + coeff * `solve_component`)".format(

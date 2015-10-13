@@ -1,7 +1,14 @@
 #! /usr/bin/env python
-
 from __future__ import division, with_statement, print_function
 
+import sys
+import pytest
+
+from leap.method.rk import ODE23Method, ODE45Method
+import numpy as np
+import numpy.linalg as la
+
+import logging
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner, Matt Wala"
 
 __license__ = """
@@ -24,14 +31,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import sys
-import pytest
 
-from leap.method.rk import ODE23Method, ODE45Method
-import numpy as np
-import numpy.linalg as la
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -48,9 +49,9 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     component_id = 'y'
     code = method.generate()
     if show_dag:
-        from leap.vm.language import show_dependency_graph
+        from dagrt.vm.language import show_dependency_graph
         show_dependency_graph(code)
-    from leap.vm.exec_numpy import StepMatrixFinder, NumpyInterpreter
+    from dagrt.vm.exec_numpy import StepMatrixFinder, NumpyInterpreter
 
     from pymbolic import var
 
@@ -95,7 +96,7 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     stop_values = np.array(
             [interp.context[v] for v in finder.variables])
 
-    from leap.vm.expression import EvaluationMapper
+    from dagrt.vm.expression import EvaluationMapper
     concrete_mat = EvaluationMapper({
         "lambda": lambda_,
         "<dt>": dt,

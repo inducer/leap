@@ -1,6 +1,10 @@
 #! /usr/bin/env python
-
 from __future__ import division, with_statement
+
+import pytest
+import sys
+import numpy as np
+
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner, Matt Wala"
 
@@ -24,20 +28,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import pytest
-import sys
-import numpy as np
 
 
 # Taken from test.utils
 def python_method_impl_interpreter(code, **kwargs):
-    from leap.vm.exec_numpy import NumpyInterpreter
+    from dagrt.vm.exec_numpy import NumpyInterpreter
     return NumpyInterpreter(code, **kwargs)
 
 
 # Taken from test.utils
 def python_method_impl_codegen(code, **kwargs):
-    from leap.vm.codegen import PythonCodeGenerator
+    from dagrt.vm.codegen import PythonCodeGenerator
     codegen = PythonCodeGenerator(class_name='Method')
     return codegen.get_class(code)(**kwargs)
 
@@ -59,7 +60,7 @@ def test_im_euler_accuracy(python_method_impl, show_dag=False,
     expected_order = 1
 
     if show_dag:
-        from leap.vm.language import show_dependency_graph
+        from dagrt.vm.language import show_dependency_graph
         show_dependency_graph(code)
 
     h = -0.5

@@ -1,5 +1,4 @@
 """This example illustrates the use of a custom solver."""
-
 import numpy as np
 
 
@@ -74,7 +73,7 @@ def solver_hook(expression, solve_component, guess, template=None):
     """The solver hook returns an expression that will be used to solve for the
     implicit component.
     """
-    from leap.vm.expression import match, substitute
+    from dagrt.vm.expression import match, substitute
 
     # Match the expression with the template.
     assert template
@@ -97,7 +96,7 @@ def solver_hook(expression, solve_component, guess, template=None):
 def run():
     from functools import partial
     from leap.method.rk.imex import KennedyCarpenterIMEXARK4Method
-    from leap.vm.codegen import PythonCodeGenerator
+    from dagrt.vm.codegen import PythonCodeGenerator
 
     # Construct the method generator.
     mgen = KennedyCarpenterIMEXARK4Method("y", atol=_atol)

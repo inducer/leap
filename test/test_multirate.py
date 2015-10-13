@@ -1,6 +1,16 @@
 # -*- coding: utf-8 -*-
-
 from __future__ import division
+
+import numpy
+import pytest
+from pytools import memoize_method
+from leap.method.ab.multirate.methods import methods as MRAB_METHODS  # noqa
+
+
+from utils import (  # noqa
+        python_method_impl_interpreter as pmi_int,
+        python_method_impl_codegen as pmi_cg)
+
 
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
@@ -27,15 +37,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import numpy
-import pytest
-from pytools import memoize_method
-from leap.method.ab.multirate.methods import methods as MRAB_METHODS  # noqa
 
 
-from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
 
 
 class MultirateTimestepperAccuracyChecker(object):
@@ -120,7 +123,7 @@ class MultirateTimestepperAccuracyChecker(object):
                     - sqrt(self.ode.soln_0(t)**2 + self.ode.soln_1(t)**2))
 
     def show_dag(self):
-        from leap.vm.language import show_dependency_graph
+        from dagrt.vm.language import show_dependency_graph
         show_dependency_graph(self.get_code())
 
     def plot_solution(self, times, values, soln, label=None):

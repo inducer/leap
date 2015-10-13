@@ -1,6 +1,9 @@
 """Adams-Bashforth ODE solvers."""
-
 from __future__ import division
+
+import numpy  # noqa
+from leap.method import Method
+
 
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
@@ -28,8 +31,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import numpy  # noqa
-from leap.method import Method
 
 
 __doc__ = """
@@ -110,7 +111,7 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
         self.dt = var('<dt>')
 
     def generate(self):
-        from leap.vm.language import TimeIntegratorCode, CodeBuilder
+        from dagrt.vm.language import TimeIntegratorCode, CodeBuilder
         from pymbolic import var
 
         # Initialization
@@ -204,7 +205,7 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
             with cb_bootstrap.if_(self.step, "==", steps):
                 cb_bootstrap.state_transition("primary")
 
-        from leap.vm.language import TimeIntegratorState
+        from dagrt.vm.language import TimeIntegratorState
 
         states = {}
         states["initialization"] = TimeIntegratorState.from_cb(cb_init, "bootstrap")

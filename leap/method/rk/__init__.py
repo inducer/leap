@@ -1,6 +1,12 @@
 """Runge-Kutta ODE timestepper."""
-
 from __future__ import division
+
+import numpy as np
+from leap.method import Method, TwoOrderAdaptiveMethod
+from dagrt.vm.language import CodeBuilder, TimeIntegratorCode
+
+from pymbolic import var
+
 
 __copyright__ = """
 Copyright (C) 2007-2013 Andreas Kloeckner
@@ -27,11 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import numpy as np
-from leap.method import Method, TwoOrderAdaptiveMethod
-from leap.vm.language import CodeBuilder, TimeIntegratorCode
 
-from pymbolic import var
 
 
 __doc__ = """
@@ -209,7 +211,7 @@ class ButcherTableauMethod(Method):
                         rhs_expr = rhs_funcs[name](t=t + c*dt, **{comp: state_est})
 
                         if is_implicit:
-                            from leap.vm.expression import collapse_constants
+                            from dagrt.vm.expression import collapse_constants
                             solve_expression = collapse_constants(
                                     my_rhs - rhs_expr,
                                     list(unknowns) + [self.state],
@@ -235,7 +237,7 @@ class ButcherTableauMethod(Method):
                         else:
                             assignees = [unk.name for unk in unknowns]
 
-                        from leap.vm.expression import substitute
+                        from dagrt.vm.expression import substitute
                         subst_dict = dict(
                                 (rhs_var.name, rhs_var_to_unknown[rhs_var].name)
                                 for rhs_var in unknowns)
@@ -606,7 +608,7 @@ class LSRK4Method(Method):
 
         cb_primary = cb
 
-        from leap.vm.language import TimeIntegratorCode
+        from dagrt.vm.language import TimeIntegratorCode
         return TimeIntegratorCode.create_with_init_and_step(
             instructions=cb_init.instructions | cb_primary.instructions,
             initialization_dep_on=cb_init.state_dependencies,
