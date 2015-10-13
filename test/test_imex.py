@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import sys
 
-from leap.method.rk.imex import KennedyCarpenterIMEXARK4Method
+from leap.rk.imex import KennedyCarpenterIMEXARK4Method
 from stiff_test_systems import KapsProblem
 from leap.implicit import ScipySolverGenerator
 

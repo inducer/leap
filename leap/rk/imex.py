@@ -3,8 +3,8 @@ from __future__ import division
 
 
 from pymbolic import var
-from leap.method import TwoOrderAdaptiveMethod
-from leap.method.rk import ButcherTableauMethod
+from leap import TwoOrderAdaptiveMethod
+from leap.rk import ButcherTableauMethod
 
 
 __copyright__ = """

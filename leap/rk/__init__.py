@@ -2,7 +2,7 @@
 from __future__ import division
 
 import numpy as np
-from leap.method import Method, TwoOrderAdaptiveMethod
+from leap import Method, TwoOrderAdaptiveMethod
 from dagrt.language import CodeBuilder, TimeIntegratorCode
 
 from pymbolic import var

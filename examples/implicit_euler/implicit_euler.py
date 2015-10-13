@@ -1,7 +1,7 @@
 """Implicit Euler timestepper"""
 from __future__ import division
 
-from leap.method import Method
+from leap import Method
 from dagrt.language import TimeIntegratorCode, CodeBuilder
 from pymbolic import var
 from pymbolic.primitives import CallWithKwargs

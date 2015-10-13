@@ -11,8 +11,8 @@ partitioned than [0, 1] by a given ratio.
 from __future__ import division
 
 from dagrt.codegen import PythonCodeGenerator
-from leap.method.ab.multirate import TwoRateAdamsBashforthMethod
-import leap.method.ab.multirate.methods
+from leap.ab.multirate import TwoRateAdamsBashforthMethod
+import leap.ab.multirate.methods
 
 import numpy as np
 import scipy.linalg as sla
@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from pytools import DictionaryWithDefault
 
 
-FastestFirst = leap.method.ab.multirate.methods.methods['Fq']
+FastestFirst = leap.ab.multirate.methods.methods['Fq']
 
 
 def make_rhs(matrix, multiply_fast_component):

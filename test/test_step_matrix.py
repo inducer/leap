@@ -4,7 +4,7 @@ from __future__ import division, with_statement, print_function
 import sys
 import pytest
 
-from leap.method.rk import ODE23Method, ODE45Method
+from leap.rk import ODE23Method, ODE45Method
 import numpy as np
 import numpy.linalg as la
 

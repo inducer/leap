@@ -95,7 +95,7 @@ def solver_hook(expression, solve_component, guess, template=None):
 
 def run():
     from functools import partial
-    from leap.method.rk.imex import KennedyCarpenterIMEXARK4Method
+    from leap.rk.imex import KennedyCarpenterIMEXARK4Method
     from dagrt.codegen import PythonCodeGenerator
 
     # Construct the method generator.

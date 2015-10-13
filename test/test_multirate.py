@@ -4,7 +4,7 @@ from __future__ import division
 import numpy
 import pytest
 from pytools import memoize_method
-from leap.method.ab.multirate.methods import methods as MRAB_METHODS  # noqa
+from leap.ab.multirate.methods import methods as MRAB_METHODS  # noqa
 
 
 from utils import (  # noqa
@@ -56,7 +56,7 @@ class MultirateTimestepperAccuracyChecker(object):
 
     @memoize_method
     def get_code(self):
-        from leap.method.ab.multirate import TwoRateAdamsBashforthMethod
+        from leap.ab.multirate import TwoRateAdamsBashforthMethod
         from pytools import DictionaryWithDefault
         order = DictionaryWithDefault(lambda x: self.order)
         stepper = TwoRateAdamsBashforthMethod(self.method, order,
@@ -183,8 +183,8 @@ def test_multirate_accuracy(python_method_impl, order, system, method_name):
 
 
 def test_diagram_generation():
-    from leap.method.ab.multirate.methods import methods
-    from leap.method.ab.multirate.processors import MRABToTeXProcessor
+    from leap.ab.multirate.methods import methods
+    from leap.ab.multirate.processors import MRABToTeXProcessor
 
     for name, method in methods.items():
         mrab2tex = MRABToTeXProcessor(method, 3, no_mixing=True)

@@ -1,5 +1,5 @@
 """Turn timestepper descriptions into source code"""
-from leap.method.rk import ODE23Method
+from leap.rk import ODE23Method
 import numpy as np
 
 import logging

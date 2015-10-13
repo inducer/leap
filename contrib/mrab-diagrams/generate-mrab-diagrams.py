@@ -1,5 +1,5 @@
-from leap.method.ab.multirate.methods import methods
-from leap.method.ab.multirate.processors import MRABToTeXProcessor
+from leap.ab.multirate.methods import methods
+from leap.ab.multirate.processors import MRABToTeXProcessor
 
 for name, method in methods.items():
     #mrab2tex = MRABToTeXProcessor(method, 3, no_mixing=False)

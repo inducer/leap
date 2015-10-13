@@ -4,11 +4,11 @@ from __future__ import division, with_statement, absolute_import
 import sys
 import pytest
 
-from leap.method.rk import (
+from leap.rk import (
         ODE23Method, ODE45Method,
         MidpointMethod, HeunsMethod, RK4Method,
         LSRK4Method,)
-from leap.method.rk.imex import KennedyCarpenterIMEXARK4Method
+from leap.rk.imex import KennedyCarpenterIMEXARK4Method
 import numpy as np
 
 import logging

@@ -2,7 +2,7 @@
 from __future__ import division
 
 import numpy  # noqa
-from leap.method import Method
+from leap import Method
 
 
 __copyright__ = """

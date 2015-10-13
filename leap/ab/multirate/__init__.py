@@ -5,11 +5,11 @@ from __future__ import division
 
 import numpy
 from pytools import memoize_method
-from leap.method.ab import AdamsBashforthMethodBase
-from leap.method.ab.utils import make_generic_ab_coefficients, linear_comb
-from leap.method.ab.multirate.methods import (HIST_NAMES, HIST_F2F, HIST_S2F,
+from leap.ab import AdamsBashforthMethodBase
+from leap.ab.utils import make_generic_ab_coefficients, linear_comb
+from leap.ab.multirate.methods import (HIST_NAMES, HIST_F2F, HIST_S2F,
                                               HIST_F2S, HIST_S2S)
-from leap.method.ab.multirate.processors import MRABProcessor
+from leap.ab.multirate.processors import MRABProcessor
 from pymbolic import var
 
 
@@ -400,7 +400,7 @@ class MRABCodeEmitter(MRABProcessor):
         self.rhss = rhss
 
         y_fast, y_slow = y
-        from leap.method.ab.multirate.methods import CO_FAST, CO_SLOW
+        from leap.ab.multirate.methods import CO_FAST, CO_SLOW
         self.last_y = {CO_FAST: y_fast, CO_SLOW: y_slow}
 
         self.hist_head_time_level = dict((hn, 0) for hn in HIST_NAMES)
@@ -419,13 +419,13 @@ class MRABCodeEmitter(MRABProcessor):
         super(MRABCodeEmitter, self).run()
 
         # Update the slow and fast components.
-        from leap.method.ab.multirate.methods import CO_FAST, CO_SLOW
+        from leap.ab.multirate.methods import CO_FAST, CO_SLOW
         self.cb(self.last_y[CO_SLOW], self.context[self.method.result_slow])
         self.cb(self.last_y[CO_FAST], self.context[self.method.result_fast])
 
     def integrate_in_time(self, insn):
-        from leap.method.ab.multirate.methods import CO_FAST
-        from leap.method.ab.multirate.methods import \
+        from leap.ab.multirate.methods import CO_FAST
+        from leap.ab.multirate.methods import \
             HIST_F2F, HIST_S2F, HIST_F2S, HIST_S2S
         from pymbolic import var
 

@@ -7,9 +7,9 @@ import pytest
 from dagrt.language import YieldState
 from dagrt.language import TimeIntegratorCode, CodeBuilder
 import dagrt.codegen.fortran as f
-from leap.method.rk import ODE23Method, ODE45Method, LSRK4Method
+from leap.rk import ODE23Method, ODE45Method, LSRK4Method
 
-from leap.method.ab.multirate.methods import methods as MRAB_METHODS  # noqa
+from leap.ab.multirate.methods import methods as MRAB_METHODS  # noqa
 
 from utils import RawCodeBuilder
 
@@ -228,7 +228,7 @@ def test_rk_codegen_fancy():
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
 @pytest.mark.parametrize("method_name", list(MRAB_METHODS.keys()))
 def test_multirate_codegen(min_order, method_name):
-    from leap.method.ab.multirate import TwoRateAdamsBashforthMethod
+    from leap.ab.multirate import TwoRateAdamsBashforthMethod
     from pytools import DictionaryWithDefault
 
     orders = DictionaryWithDefault(lambda x: min_order)
@@ -450,7 +450,7 @@ def test_arrays_and_linalg():
 
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
 def test_singlerate_squarewave(min_order):
-    from leap.method.ab import AdamsBashforthMethod
+    from leap.ab import AdamsBashforthMethod
 
     component_id = 'y'
     rhs_function = '<func>y'
@@ -495,7 +495,7 @@ def test_singlerate_squarewave(min_order):
 @pytest.mark.parametrize("method_name", list(MRAB_METHODS.keys()))
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
 def test_multirate_squarewave(min_order, method_name):
-    from leap.method.ab.multirate import TwoRateAdamsBashforthMethod
+    from leap.ab.multirate import TwoRateAdamsBashforthMethod
     from pytools import DictionaryWithDefault
 
     orders = DictionaryWithDefault(lambda x: min_order)
