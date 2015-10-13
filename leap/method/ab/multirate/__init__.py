@@ -333,7 +333,7 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
         cb(self.t, self.t + self.dt)
 
     def generate(self):
-        from dagrt.vm.language import (TimeIntegratorCode, TimeIntegratorState,
+        from dagrt.language import (TimeIntegratorCode, TimeIntegratorState,
                                       CodeBuilder)
 
         # Initialization state

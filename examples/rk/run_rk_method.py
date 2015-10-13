@@ -41,10 +41,10 @@ def main(show_dag=False, plot_solution=False):
     code = method.generate()
 
     if show_dag:
-        from dagrt.vm.language import show_dependency_graph
+        from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
 
-    from dagrt.vm.exec_numpy import NumpyInterpreter
+    from dagrt.exec_numpy import NumpyInterpreter
 
     def rhs(t, y):
         u, v = y

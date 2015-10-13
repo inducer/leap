@@ -123,7 +123,7 @@ class MultirateTimestepperAccuracyChecker(object):
                     - sqrt(self.ode.soln_0(t)**2 + self.ode.soln_1(t)**2))
 
     def show_dag(self):
-        from dagrt.vm.language import show_dependency_graph
+        from dagrt.language import show_dependency_graph
         show_dependency_graph(self.get_code())
 
     def plot_solution(self, times, values, soln, label=None):

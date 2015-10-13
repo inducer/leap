@@ -1,7 +1,7 @@
 """Example of a simple adaptive Runge-Kutta method."""
 from __future__ import division
 
-from dagrt.vm.language import TimeIntegratorCode, CodeBuilder
+from dagrt.language import TimeIntegratorCode, CodeBuilder
 from pymbolic import var
 
 
@@ -84,7 +84,7 @@ def adaptive_rk_method(tol):
                                                        cb.instructions)
 
 if __name__ == "__main__":
-    from dagrt.vm.codegen import PythonCodeGenerator
+    from dagrt.codegen import PythonCodeGenerator
     import numpy as np
 
     def rhs(t, y):

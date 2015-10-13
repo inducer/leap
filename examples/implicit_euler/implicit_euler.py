@@ -2,7 +2,7 @@
 from __future__ import division
 
 from leap.method import Method
-from dagrt.vm.language import TimeIntegratorCode, CodeBuilder
+from dagrt.language import TimeIntegratorCode, CodeBuilder
 from pymbolic import var
 from pymbolic.primitives import CallWithKwargs
 
@@ -85,7 +85,7 @@ class ImplicitEulerMethod(Method):
         builder.assign(self.t, self.t + self.dt)
 
     def implicit_expression(self, expression_tag=None):
-        from dagrt.vm.expression import parse
+        from dagrt.expression import parse
         return (parse("`solve_component` + state + dt * `{rhs}`(t=t,"
                       "{component_id}=`solve_component`)".format(
                           rhs=self.rhs_func.name,

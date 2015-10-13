@@ -49,9 +49,9 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     component_id = 'y'
     code = method.generate()
     if show_dag:
-        from dagrt.vm.language import show_dependency_graph
+        from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
-    from dagrt.vm.exec_numpy import StepMatrixFinder, NumpyInterpreter
+    from dagrt.exec_numpy import StepMatrixFinder, NumpyInterpreter
 
     from pymbolic import var
 
@@ -96,7 +96,7 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     stop_values = np.array(
             [interp.context[v] for v in finder.variables])
 
-    from dagrt.vm.expression import EvaluationMapper
+    from dagrt.expression import EvaluationMapper
     concrete_mat = EvaluationMapper({
         "lambda": lambda_,
         "<dt>": dt,

@@ -79,7 +79,7 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
         self.use_implicit = use_implicit
 
     def implicit_expression(self, expression_tag=None):
-        from dagrt.vm.expression import parse
+        from dagrt.expression import parse
         return (parse("`solve_component` - `<func>{implicit_rhs_name}`("
             "t=t, {component_id}="
             "`{state}` + sub_y + coeff * `solve_component`)".format(

@@ -90,7 +90,7 @@ def test_adaptive_timestep(python_method_impl, method, show_dag=False,
     code = method.generate()
 
     if show_dag:
-        from dagrt.vm.language import show_dependency_graph
+        from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
 
     from stiff_test_systems import VanDerPolProblem

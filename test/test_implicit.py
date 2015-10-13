@@ -2,7 +2,7 @@
 from __future__ import division, with_statement
 
 from leap.vm.implicit import ScipySolverGenerator
-from dagrt.vm.expression import parse
+from dagrt.expression import parse
 import numpy as np
 
 import pytest

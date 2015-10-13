@@ -111,7 +111,7 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
         self.dt = var('<dt>')
 
     def generate(self):
-        from dagrt.vm.language import TimeIntegratorCode, CodeBuilder
+        from dagrt.language import TimeIntegratorCode, CodeBuilder
         from pymbolic import var
 
         # Initialization
@@ -205,7 +205,7 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
             with cb_bootstrap.if_(self.step, "==", steps):
                 cb_bootstrap.state_transition("primary")
 
-        from dagrt.vm.language import TimeIntegratorState
+        from dagrt.language import TimeIntegratorState
 
         states = {}
         states["initialization"] = TimeIntegratorState.from_cb(cb_init, "bootstrap")

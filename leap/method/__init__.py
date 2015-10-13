@@ -69,7 +69,7 @@ class TwoOrderAdaptiveMethod(Method):
     def finish_adaptive(self, cb, high_order_estimate, low_order_estimate):
         from pymbolic import var
         from pymbolic.primitives import Comparison, LogicalOr, Max, Min
-        from dagrt.vm.expression import IfThenElse
+        from dagrt.expression import IfThenElse
 
         norm_start_state = var('norm_start_state')
         norm_end_state = var('norm_end_state')

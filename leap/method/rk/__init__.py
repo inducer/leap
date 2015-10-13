@@ -3,7 +3,7 @@ from __future__ import division
 
 import numpy as np
 from leap.method import Method, TwoOrderAdaptiveMethod
-from dagrt.vm.language import CodeBuilder, TimeIntegratorCode
+from dagrt.language import CodeBuilder, TimeIntegratorCode
 
 from pymbolic import var
 
@@ -211,7 +211,7 @@ class ButcherTableauMethod(Method):
                         rhs_expr = rhs_funcs[name](t=t + c*dt, **{comp: state_est})
 
                         if is_implicit:
-                            from dagrt.vm.expression import collapse_constants
+                            from dagrt.expression import collapse_constants
                             solve_expression = collapse_constants(
                                     my_rhs - rhs_expr,
                                     list(unknowns) + [self.state],
@@ -237,7 +237,7 @@ class ButcherTableauMethod(Method):
                         else:
                             assignees = [unk.name for unk in unknowns]
 
-                        from dagrt.vm.expression import substitute
+                        from dagrt.expression import substitute
                         subst_dict = dict(
                                 (rhs_var.name, rhs_var_to_unknown[rhs_var].name)
                                 for rhs_var in unknowns)
@@ -608,7 +608,7 @@ class LSRK4Method(Method):
 
         cb_primary = cb
 
-        from dagrt.vm.language import TimeIntegratorCode
+        from dagrt.language import TimeIntegratorCode
         return TimeIntegratorCode.create_with_init_and_step(
             instructions=cb_init.instructions | cb_primary.instructions,
             initialization_dep_on=cb_init.state_dependencies,

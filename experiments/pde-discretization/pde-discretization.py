@@ -10,7 +10,7 @@ partitioned than [0, 1] by a given ratio.
 """
 from __future__ import division
 
-from dagrt.vm.codegen import PythonCodeGenerator
+from dagrt.codegen import PythonCodeGenerator
 from leap.method.ab.multirate import TwoRateAdamsBashforthMethod
 import leap.method.ab.multirate.methods
 

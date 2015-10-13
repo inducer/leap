@@ -32,13 +32,13 @@ THE SOFTWARE.
 
 # Taken from test.utils
 def python_method_impl_interpreter(code, **kwargs):
-    from dagrt.vm.exec_numpy import NumpyInterpreter
+    from dagrt.exec_numpy import NumpyInterpreter
     return NumpyInterpreter(code, **kwargs)
 
 
 # Taken from test.utils
 def python_method_impl_codegen(code, **kwargs):
-    from dagrt.vm.codegen import PythonCodeGenerator
+    from dagrt.codegen import PythonCodeGenerator
     codegen = PythonCodeGenerator(class_name='Method')
     return codegen.get_class(code)(**kwargs)
 
@@ -60,7 +60,7 @@ def test_im_euler_accuracy(python_method_impl, show_dag=False,
     expected_order = 1
 
     if show_dag:
-        from dagrt.vm.language import show_dependency_graph
+        from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
 
     h = -0.5

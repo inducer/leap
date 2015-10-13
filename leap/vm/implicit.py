@@ -26,7 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from dagrt.vm.function_registry import base_function_registry
+from dagrt.function_registry import base_function_registry
 from pymbolic import var
 
 
@@ -57,7 +57,7 @@ class ScipySolverGenerator(object):
         :arg function_registry: The `class`:FunctionRegistry to be used for
                                 generating code in the solver function
         """
-        from dagrt.vm.utils import get_variables
+        from dagrt.utils import get_variables
         variables = get_variables(expression_template,
                                   include_function_symbols=True)
 
@@ -88,7 +88,7 @@ class ScipySolverGenerator(object):
         variables -= registered_functions
 
         # Find global arguments.
-        from dagrt.vm.utils import is_state_variable
+        from dagrt.utils import is_state_variable
 
         def is_global(var):
             return is_state_variable(var) or var.startswith("<func>")
@@ -100,7 +100,7 @@ class ScipySolverGenerator(object):
         self.free_args = tuple(sorted(variables))
 
     def _make_fake_name_manager(self):
-        from dagrt.vm.codegen.utils import KeyToUniqueNameMap
+        from dagrt.codegen.utils import KeyToUniqueNameMap
 
         name_map = KeyToUniqueNameMap(
             start={self.solve_component: "var_x",
@@ -128,7 +128,7 @@ class ScipySolverGenerator(object):
         default code generator.
         """
 
-        from dagrt.vm.function_registry import Function
+        from dagrt.function_registry import Function
 
         class PythonCallGenerator(object):
 
@@ -178,7 +178,7 @@ class ScipySolverGenerator(object):
         :arg guess: A pymbolic expression for the guess
         """
 
-        from dagrt.vm.expression import match, substitute
+        from dagrt.expression import match, substitute
         # Rename the solve component in self.expression to solve_component.
         template = substitute(self.expression,
                               {self.solve_component: solve_component})
@@ -200,7 +200,7 @@ class ScipySolverGenerator(object):
         """
 
         from pytools.py_codegen import PythonFunctionGenerator, Indentation
-        from dagrt.vm.codegen.expressions import PythonExpressionMapper
+        from dagrt.codegen.expressions import PythonExpressionMapper
 
         mapper = PythonExpressionMapper(self.name_manager, self.function_registry)
 
@@ -222,7 +222,7 @@ class ScipySolverGenerator(object):
 
     def get_compiled_solver(self, function_name=None,
                             function_registry=base_function_registry):
-        from dagrt.vm.codegen.utils import exec_in_new_namespace, \
+        from dagrt.codegen.utils import exec_in_new_namespace, \
             make_identifier_from_name
         name = function_name or make_identifier_from_name(self.solver_id)
         code = self.get_solver_code(name, function_name)
@@ -237,7 +237,7 @@ def replace_AssignSolved(dag, solver_hooks):
 
     new_instructions = []
 
-    from dagrt.vm.language import AssignExpression, AssignSolved
+    from dagrt.language import AssignExpression, AssignSolved
 
     for insn in dag.instructions:
 
@@ -246,7 +246,7 @@ def replace_AssignSolved(dag, solver_hooks):
             continue
 
         if len(insn.assignees) != 1:
-            from dagrt.vm.utils import TODO
+            from dagrt.utils import TODO
             raise TODO("Implement lowering for AssignSolved instructions returning "
                        "multiple values.")
 
