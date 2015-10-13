@@ -45,17 +45,17 @@ program test_mrabmethod_squarewave
       dagrt_state=state_ptr, &
       state_slow=initial_condition(2:2), &
       state_fast=initial_condition(1:1), &
-      leap_t=0d0, &
-      leap_dt=dt_values(irun))
+      dagrt_t=0d0, &
+      dagrt_dt=dt_values(irun))
 
     k = 0
 
     do
       if (k == 1) then
-        state%leap_dt = dt_values(irun)/4
+        state%dagrt_dt = dt_values(irun)/4
         k = 0
       else
-        state%leap_dt = dt_values(irun)
+        state%dagrt_dt = dt_values(irun)
         k = 1
       endif
       call timestep_run(dagrt_state=state_ptr)

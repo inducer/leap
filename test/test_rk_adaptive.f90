@@ -38,8 +38,8 @@ program test_rkmethod
   call timestep_initialize( &
       dagrt_state=state_ptr, &
       state_y=initial_condition, &
-      leap_t=0d0, &
-      leap_dt=dt_value)
+      dagrt_t=0d0, &
+      dagrt_dt=dt_value)
 
   do istep = 1, nruns
 

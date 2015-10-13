@@ -45,15 +45,15 @@ program test_abmethod_squarewave
     call timestep_initialize( &
       dagrt_state=state_ptr, &
       state_y=initial_condition, &
-      leap_t=0d0, &
-      leap_dt=dt_values(irun))
+      dagrt_t=0d0, &
+      dagrt_dt=dt_values(irun))
 
     do istep = 1,ntrips(irun)
       if (k == 1) then
-        state%leap_dt = dt_values(irun)/4
+        state%dagrt_dt = dt_values(irun)/4
         k = 0
       else
-        state%leap_dt = dt_values(irun)
+        state%dagrt_dt = dt_values(irun)
         k = 1
       endif
       call timestep_run(dagrt_state=state_ptr)

@@ -45,8 +45,8 @@ program test_mrabmethod
       dagrt_state=state_ptr, &
       state_slow=initial_condition(2:2), &
       state_fast=initial_condition(1:1), &
-      leap_t=0d0, &
-      leap_dt=dt_values(irun))
+      dagrt_t=0d0, &
+      dagrt_dt=dt_values(irun))
 
     do
       call timestep_run(dagrt_state=state_ptr)

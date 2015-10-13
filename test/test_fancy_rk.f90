@@ -48,8 +48,8 @@ program test_rkmethod
     region=region_ptr, &
     dagrt_state=dagrt_state_ptr, &
     state_y=initial_condition, &
-    leap_t=0d0, &
-    leap_dt=t_fin/20)
+    dagrt_t=0d0, &
+    dagrt_dt=t_fin/20)
 
   do istep = 1,ntrips
     call timestep_run(region=region_ptr, dagrt_state=dagrt_state_ptr)
