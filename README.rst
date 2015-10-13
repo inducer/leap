@@ -5,11 +5,13 @@ leap
     :target: http://pypi.python.org/pypi/leap
 
 leap describes both implicit and explicit `time stepping methods
-<https://en.wikipedia.org/wiki/Time_stepping>`_ by ways of a small virtual
-machine whose instructions can then be used to either generate code or simply
-execute the time integrator.
+<https://en.wikipedia.org/wiki/Time_stepping>`_. Methods are
+described using a small virtual machine whose instructions can
+then be used to either generate code or simply execute the time
+integrator.
 
-Execution and code generation for many common cases is included. Further
+Execution and code generation is provided by
+`dagrt <https://gitlab.tiker.net/inducer/dagrt>`_. Further
 supported operations include finding of stability regions, building
 of companion matrices, and more.
 
