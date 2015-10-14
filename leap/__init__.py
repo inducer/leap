@@ -25,6 +25,8 @@ THE SOFTWARE.
 """
 
 
+# {{{ command-line generator
+
 def run_script_from_commandline():
     import argparse
     parser = argparse.ArgumentParser()
@@ -45,6 +47,10 @@ def run_script_from_commandline():
     namespace = {"__name__": "__main__"}
     exec(compile(script_contents, args.script, 'exec'), namespace)
 
+# }}}
+
+
+# {{{ method base class
 
 class Method(object):
 
@@ -72,6 +78,10 @@ class Method(object):
         """
         raise NotImplementedError()
 
+# }}}
+
+
+# {{{ two-order adaptivity
 
 class TwoOrderAdaptiveMethod(Method):
     def __init__(self, atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None):
@@ -140,6 +150,8 @@ class TwoOrderAdaptiveMethod(Method):
                Min((0.9 * self.dt * rel_error ** (-1 / self.high_order),
                     self.max_dt_growth * self.dt)))
 
+# }}}
+
 
 # {{{ diagnostics
 
@@ -147,3 +159,5 @@ class TimeStepUnderflow(RuntimeError):
     pass
 
 # }}}
+
+# vim: foldmethod=marker

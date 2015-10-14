@@ -1,22 +1,5 @@
 #! /usr/bin/env python
-from __future__ import division, with_statement, absolute_import
-
-import sys
-import pytest
-
-from leap.rk import (
-        ODE23Method, ODE45Method,
-        MidpointMethod, HeunsMethod, RK4Method,
-        LSRK4Method,)
-from leap.rk.imex import KennedyCarpenterIMEXARK4Method
-import numpy as np
-
-import logging
-
-from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
-
+from __future__ import division, with_statement, absolute_import, print_function
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
@@ -40,10 +23,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import sys
+import pytest
 
+from leap.rk import (
+        ODE23Method, ODE45Method,
+        MidpointMethod, HeunsMethod, RK4Method,
+        LSRK4Method,)
+from leap.rk.imex import KennedyCarpenterIMEXARK4Method
+import numpy as np
+
+import logging
+
+from utils import (  # noqa
+        python_method_impl_interpreter as pmi_int,
+        python_method_impl_codegen as pmi_cg)
 
 logger = logging.getLogger(__name__)
-
 
 
 # {{{ non-adaptive test
@@ -88,6 +84,8 @@ def test_adaptive_timestep(python_method_impl, method, show_dag=False,
 
     component_id = method.component_id
     code = method.generate()
+    print(code)
+    #1/0
 
     if show_dag:
         from dagrt.language import show_dependency_graph
@@ -117,6 +115,9 @@ def test_adaptive_timestep(python_method_impl, method, show_dag=False,
             new_values.append(event.state_component)
             new_times.append(event.t)
         elif isinstance(event, interp.StepCompleted):
+            if not new_times:
+                continue
+
             step_sizes.append(event.t - last_t)
             last_t = event.t
 
@@ -132,6 +133,7 @@ def test_adaptive_timestep(python_method_impl, method, show_dag=False,
 
     times = np.array(times)
     values = np.array(values)
+    step_sizes = np.array(step_sizes)
 
     if plot:
         import matplotlib.pyplot as pt
@@ -144,10 +146,10 @@ def test_adaptive_timestep(python_method_impl, method, show_dag=False,
     small_step_frac = len(np.nonzero(step_sizes < 0.01)[0]) / len(step_sizes)
     big_step_frac = len(np.nonzero(step_sizes > 0.05)[0]) / len(step_sizes)
 
-    print(small_step_frac)
-    print(big_step_frac)
-    assert small_step_frac <= 0.35
-    assert big_step_frac >= 0.16
+    print("small_step_frac (<0.01): %g - big_step_frac (>.05): %g"
+            % (small_step_frac, big_step_frac))
+    assert small_step_frac <= 0.35, small_step_frac
+    assert big_step_frac >= 0.16, big_step_frac
 
 # }}}
 

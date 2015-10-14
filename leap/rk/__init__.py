@@ -1,12 +1,6 @@
 """Runge-Kutta ODE timestepper."""
+
 from __future__ import division
-
-import numpy as np
-from leap import Method, TwoOrderAdaptiveMethod
-from dagrt.language import CodeBuilder, TimeIntegratorCode
-
-from pymbolic import var
-
 
 __copyright__ = """
 Copyright (C) 2007-2013 Andreas Kloeckner
@@ -33,7 +27,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import numpy as np
+from leap import Method, TwoOrderAdaptiveMethod
+from dagrt.language import CodeBuilder, TimeIntegratorCode
 
+from pymbolic import var
 
 
 __doc__ = """
