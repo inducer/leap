@@ -27,6 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import six
 import numpy as np
 from leap import Method, TwoOrderAdaptiveMethod
 from dagrt.language import CodeBuilder, TimeIntegratorCode
@@ -73,7 +74,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 
             and all(
                 coeff_set[-1]
-                for coeff_set in coeff_sets)
+                for coeff_set in six.itervalues(coeff_sets))
 
             and output_stage_coefficients
 
@@ -81,7 +82,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
                 _truncate_final_zeros(coeff_set[-1])
                 ==
                 _truncate_final_zeros(output_stage_coefficients)
-                for coeff_set in coeff_sets))
+                for coeff_set in six.itervalues(coeff_sets)))
 
 # }}}
 
@@ -91,7 +92,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 class ButcherTableauMethod(Method):
     """Explicit and implicit Runge-Kutta methods."""
 
-    def __init__(self, component_id, limiter_name=None):
+    def __init__(self, component_id, limiter_name=None, state_filter_name=None):
 
         self.component_id = component_id
 
@@ -99,12 +100,15 @@ class ButcherTableauMethod(Method):
         self.t = var('<t>')
         self.state = var('<state>' + component_id)
 
-        self.limiter_name = limiter_name
-
-        if self.limiter_name is not None:
-            self.limiter = var("<func>" + self.limiter_name)
+        if limiter_name is not None:
+            self.limiter = var("<func>" + limiter_name)
         else:
             self.limiter = None
+
+        if state_filter_name is not None:
+            self.state_filter = var("<func>" + state_filter_name)
+        else:
+            self.state_filter = None
 
     def generate_butcher(self, stage_coeff_set_names, stage_coeff_sets, rhs_funcs,
             estimate_coeff_set_names, estimate_coeff_sets):
@@ -170,6 +174,8 @@ class ButcherTableauMethod(Method):
 
         # {{{ stage loop
 
+        last_state_est_var = cb.fresh_var("last_state_est")
+
         with CodeBuilder(label="primary") as cb:
             equations = []
             unknowns = set()
@@ -206,6 +212,12 @@ class ButcherTableauMethod(Method):
                                 state_increment += dt * coeff * rhsval
 
                         state_est = state + state_increment
+                        if self.state_filter is not None:
+                            state_est = self.state_filter(state_est)
+                        if istage + 1 == nstages:
+                            cb(last_state_est_var, state_est)
+                            state_est = last_state_est_var
+
                         rhs_expr = rhs_funcs[name](t=t + c*dt, **{comp: state_est})
 
                         if is_implicit:
@@ -274,9 +286,7 @@ class ButcherTableauMethod(Method):
 
                 if _is_last_stage_same_as_output(self.c,
                         stage_coeff_sets, out_coeffs):
-                    cb(
-                            estimate_vars,
-                            stage_rhs_vars[stage_coeff_set_names[-1]][-1])
+                    state_est = last_state_est_var
 
                 else:
                     state_increment = 0
@@ -285,9 +295,14 @@ class ButcherTableauMethod(Method):
                                     coeff * stage_rhs_vars[src_name][src_istage]
                                     for src_istage, coeff in enumerate(out_coeffs))
 
-                    cb(
-                            estimate_vars[iest],
-                            state + dt*state_increment)
+                    state_est = state + dt*state_increment
+
+                    if self.state_filter is not None:
+                        state_est = self.state_filter(state_est)
+
+                cb(
+                        estimate_vars[iest],
+                        state_est)
 
             cb.fence()
 
@@ -390,12 +405,14 @@ class EmbeddedButcherTableauMethod(ButcherTableauMethod, TwoOrderAdaptiveMethod)
         <func> + component_id: The right hand side function
     """
 
-    def __init__(self, component_id, use_high_order=True, limiter_name=None,
+    def __init__(self, component_id, use_high_order=True,
+            limiter_name=None, state_filter_name=None,
             atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None):
         ButcherTableauMethod.__init__(
                 self,
                 component_id=component_id,
-                limiter_name=limiter_name)
+                limiter_name=limiter_name,
+                state_filter_name=state_filter_name)
 
         TwoOrderAdaptiveMethod.__init__(
                 self,

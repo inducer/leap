@@ -33,8 +33,6 @@ THE SOFTWARE.
 """
 
 
-
-
 class KennedyCarpenterIMEXRungeKuttaMethodBase(
         TwoOrderAdaptiveMethod, ButcherTableauMethod):
     """
@@ -50,14 +48,16 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
         <func>rhs_impl_ + component_id: The implicit right hand side function
     """
 
-    def __init__(self, component_id, use_high_order=True, limiter_name=None,
+    def __init__(self, component_id, use_high_order=True,
+            limiter_name=None, state_filter_name=None,
             use_explicit=True, use_implicit=True,
             atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None,
             implicit_rhs_name=None, explicit_rhs_name=None):
         ButcherTableauMethod.__init__(
                 self,
                 component_id=component_id,
-                limiter_name=limiter_name)
+                limiter_name=limiter_name,
+                state_filter_name=state_filter_name)
 
         TwoOrderAdaptiveMethod.__init__(
                 self,

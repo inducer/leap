@@ -104,12 +104,14 @@ def test_rk_codegen_fancy():
 
     component_id = 'y'
     rhs_function = '<func>y'
+    state_filter_name = 'state_filter_y'
 
-    stepper = ODE23Method(component_id, use_high_order=True)
+    stepper = ODE23Method(component_id, use_high_order=True,
+            state_filter_name=state_filter_name)
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs,
-            register_function)
+            register_function, ODEComponent)
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
     freg = freg.register_codegen(rhs_function, "fortran",
@@ -139,6 +141,27 @@ def test_rk_codegen_fancy():
     freg = freg.register_codegen("notify_post_state_update", "fortran",
             f.CallCode("""
                 write(*,*) 'after state update'
+                """))
+
+    freg = register_function(freg, "<func>"+state_filter_name, ("y",),
+            result_names=("result",), result_kinds=(ODEComponent("y"),))
+    freg = freg.register_codegen("<func>"+state_filter_name, "fortran",
+            f.CallCode("""
+                ! mess with state
+                <%
+
+                igrid = declare_new("integer", "igrid")
+                i = declare_new("integer", "i")
+
+                %>
+
+                do ${igrid} = 1, region%n_grids
+                  do ${i} = 1, region%n_grid_dofs(${igrid})
+                    ${result}(${igrid})%conserved_var(${i}) = &
+                     0.95*${y}(${igrid})%conserved_var(${i})
+                  end do
+                end do
+
                 """))
 
     code = stepper.generate()
