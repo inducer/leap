@@ -212,8 +212,15 @@ class ButcherTableauMethod(Method):
                                 state_increment += dt * coeff * rhsval
 
                         state_est = state + state_increment
-                        if self.state_filter is not None:
+                        if (self.state_filter is not None
+                                and not (
+                                    # reusing last output state
+                                    c == 0
+                                    and all(
+                                        len(stage_coeff_sets[src_name][istage]) == 0
+                                        for src_name in stage_coeff_set_names))):
                             state_est = self.state_filter(state_est)
+
                         if istage + 1 == nstages:
                             cb(last_state_est_var, state_est)
                             state_est = last_state_est_var
