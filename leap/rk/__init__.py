@@ -92,18 +92,13 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 class ButcherTableauMethod(Method):
     """Explicit and implicit Runge-Kutta methods."""
 
-    def __init__(self, component_id, limiter_name=None, state_filter_name=None):
+    def __init__(self, component_id, state_filter_name=None):
 
         self.component_id = component_id
 
         self.dt = var('<dt>')
         self.t = var('<t>')
         self.state = var('<state>' + component_id)
-
-        if limiter_name is not None:
-            self.limiter = var("<func>" + limiter_name)
-        else:
-            self.limiter = None
 
         if state_filter_name is not None:
             self.state_filter = var("<func>" + state_filter_name)
@@ -236,8 +231,6 @@ class ButcherTableauMethod(Method):
                             equations.append(solve_expression)
 
                         else:
-                            if self.limiter is not None:
-                                rhs_expr = self.limiter(rhs_expr)
                             cb(my_rhs, rhs_expr)
                             make_known(my_rhs)
 
@@ -245,14 +238,7 @@ class ButcherTableauMethod(Method):
 
                     if unknowns and len(unknowns) == len(equations):
                         # got a square system, let's solve
-                        if self.limiter is not None:
-                            temp_vars = [
-                                    cb.fresh_var(unk.name + "_pre_lim")
-                                    for unk in unknowns]
-
-                            assignees = [tv.name for tv in temp_vars]
-                        else:
-                            assignees = [unk.name for unk in unknowns]
+                        assignees = [unk.name for unk in unknowns]
 
                         from dagrt.expression import substitute
                         subst_dict = dict(
@@ -272,10 +258,6 @@ class ButcherTableauMethod(Method):
                                 other_params={
                                     "guess": state},
                                 solver_id="solve")
-
-                        if self.limiter is not None:
-                            for unk, tv in zip(unknowns, temp_vars):
-                                cb(unk, tv)
 
                         del equations[:]
                         knowns.update(unknowns)
@@ -412,13 +394,11 @@ class EmbeddedButcherTableauMethod(ButcherTableauMethod, TwoOrderAdaptiveMethod)
         <func> + component_id: The right hand side function
     """
 
-    def __init__(self, component_id, use_high_order=True,
-            limiter_name=None, state_filter_name=None,
+    def __init__(self, component_id, use_high_order=True, state_filter_name=None,
             atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None):
         ButcherTableauMethod.__init__(
                 self,
                 component_id=component_id,
-                limiter_name=limiter_name,
                 state_filter_name=state_filter_name)
 
         TwoOrderAdaptiveMethod.__init__(
@@ -576,7 +556,7 @@ class LSRK4Method(Method):
 
     adaptive = False
 
-    def __init__(self, component_id, limiter_name=None):
+    def __init__(self, component_id, state_filter_name=None):
         """
         :arg component_id: an identifier to be used for the single state
             component supported.
@@ -587,10 +567,10 @@ class LSRK4Method(Method):
 
         self.component_id = component_id
 
-        if limiter_name is not None:
-            self.limiter = var("<func>" + self.limiter_name)
+        if state_filter_name is not None:
+            self.state_filter = var("<func>" + state_filter_name)
         else:
-            self.limiter = None
+            self.state_filter = None
 
     def generate(self):
         comp_id = self.component_id
@@ -618,8 +598,8 @@ class LSRK4Method(Method):
                 cb(residual, a*residual + dt*rhs_val)
                 new_state_expr = state + b * residual
 
-                if self.limiter is not None:
-                    new_state_expr = self.limiter(**{comp_id: new_state_expr})
+                if self.state_filter is not None:
+                    new_state_expr = self.state_filter(**{comp_id: new_state_expr})
 
                 cb.fence()
                 cb(state, new_state_expr)
