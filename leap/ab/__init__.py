@@ -31,8 +31,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
-
 __doc__ = """
 .. autoclass:: AdamsBashforthMethod
 """
@@ -90,7 +88,7 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
         <func> + component_id: The right hand side
     """
 
-    def __init__(self, component_id, order):
+    def __init__(self, component_id, order, state_filter_name=None):
         super(AdamsBashforthMethod, self).__init__()
         self.order = order
 
@@ -109,6 +107,11 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
         self.state = var('<state>' + component_id)
         self.t = var('<t>')
         self.dt = var('<dt>')
+
+        if state_filter_name is not None:
+            self.state_filter = var("<func>" + state_filter_name)
+        else:
+            self.state_filter = None
 
     def generate(self):
         from dagrt.language import TimeIntegratorCode, CodeBuilder
@@ -175,7 +178,12 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
             cb_primary.fence()
             history = self.history + [self.rhs]
             ab_sum = sum(new_coeffs_pyvar[i] * history[i] for i in range(steps))
-            cb_primary(self.state, self.state + ab_sum)
+
+            state_est = self.state + ab_sum
+            if self.state_filter is not None:
+                state_est = self.state_filter(state_est)
+            cb_primary(self.state, state_est)
+
             # Rotate history and time history.
             for i in range(len(self.history)):
                 cb_primary.fence()
@@ -255,10 +263,18 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
                                          for (j, coeff)
                                          in enumerate(coeffs))
 
+                if self.state_filter is not None:
+                    stage = self.state_filter(stage)
+
                 cb(rhss[stage_num], self.eval_rhs(self.t + c * self.dt, stage))
 
         # Merge the values of the RHSs.
         rk_comb = sum(coeff * rhss[j] for j, coeff in enumerate(rk_coeffs))
         cb.fence()
+
+        state_est = self.state + self.dt * rk_comb
+        if self.state_filter is not None:
+            state_est = self.state_filter(state_est)
+
         # Assign the value of the new state.
-        cb(self.state, self.state + self.dt * rk_comb)
+        cb(self.state, state_est)
