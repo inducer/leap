@@ -62,7 +62,7 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
         <func>f2s: The fast-to-slow coupling
     """
 
-    def __init__(self, method, orders, substep_count):
+    def __init__(self, method, orders, substep_count, state_filter_name=None):
         super(TwoRateAdamsBashforthMethod, self).__init__()
         self.method = method
 
@@ -72,6 +72,11 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
         self.t = var('<t>')
         self.dt = var('<dt>')
         self.step = var('<p>step')
+
+        if state_filter_name is not None:
+            self.state_filter = var("<func>" + state_filter_name)
+        else:
+            self.state_filter = None
 
         # Slow and fast components
         self.slow = var('<state>slow')
@@ -251,10 +256,16 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
                                            stage_rhss[HIST_F2S][k])
                                           for k, coeff in enumerate(coeffs))
 
+                if self.state_filter is not None:
+                   stage_s = self.state_filter(stage_s)
+
                 stage_f = self.fast + sum(self.small_dt * coeff *
                                           (stage_rhss[HIST_S2F][k] +
                                            stage_rhss[HIST_F2F][k])
                                           for k, coeff in enumerate(coeffs))
+
+                if self.state_filter is not None:
+                   stage_f = self.state_filter(stage_f)
 
                 for component, function in self.component_functions.items():
                     cb(stage_rhss[component][stage_number],
@@ -262,15 +273,23 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
 
         cb.fence()
 
-        cb(self.slow, self.slow + self.small_dt *
-                      sum(coeff * (stage_rhss[HIST_F2S][k] +
-                                    stage_rhss[HIST_S2S][k])
-                      for k, coeff in enumerate(rk_coeffs)))
+        slow_est = self.slow + self.small_dt * sum(coeff * (stage_rhss[HIST_F2S][k] +
+                                stage_rhss[HIST_S2S][k])
+                    for k, coeff in enumerate(rk_coeffs))
 
-        cb(self.fast, self.fast + self.small_dt *
-                      sum(coeff * (stage_rhss[HIST_F2F][k] +
-                                   stage_rhss[HIST_S2F][k])
-                      for k, coeff in enumerate(rk_coeffs)))
+        if self.state_filter is not None:
+            slow_est = self.state_filter(slow_est)
+
+        cb(self.slow, slow_est)
+
+        fast_est = self.fast + self.small_dt * sum(coeff * (stage_rhss[HIST_F2F][k] +
+                                stage_rhss[HIST_S2F][k])
+                    for k, coeff in enumerate(rk_coeffs))
+
+        if self.state_filter is not None:
+            fast_est = self.state_filter(fast_est)
+
+        cb(self.fast, fast_est)
 
         for hist_component, function in self.component_functions.items():
             assignee = self.current_rhss[hist_component]
@@ -613,9 +632,12 @@ class MRABCodeEmitter(MRABProcessor):
 
         # Perform the linear combination to obtain our new_y
 
-        self.cb(new_y_var,
-                my_y + linear_comb(new_cross_coeffs_py, cross_history)
-                + linear_comb(new_self_coeffs_py, self_history))
+        combo = my_y + linear_comb(new_cross_coeffs_py, cross_history) + linear_comb(new_self_coeffs_py, self_history)
+
+        if self.stepper.state_filter is not None:
+            combo = self.stepper.state_filter(combo)
+
+        self.cb(new_y_var, combo)
         self.cb.fence()
 
         self.context[insn.result_name] = new_y_var
