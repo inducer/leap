@@ -3,16 +3,6 @@
 """Multirate-AB ODE solver."""
 from __future__ import division
 
-import numpy
-from pytools import memoize_method
-from leap.ab import AdamsBashforthMethodBase
-from leap.ab.utils import make_generic_ab_coefficients, linear_comb
-from leap.ab.multirate.methods import (HIST_NAMES, HIST_F2F, HIST_S2F,
-                                              HIST_F2S, HIST_S2S)
-from leap.ab.multirate.processors import MRABProcessor
-from pymbolic import var
-
-
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
 Copyright (C) 2014, 2015 Matt Wala
@@ -39,6 +29,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import numpy
+from pytools import memoize_method
+from leap.ab import AdamsBashforthMethodBase
+from leap.ab.utils import make_generic_ab_coefficients, linear_comb
+from leap.ab.multirate.methods import (HIST_NAMES, HIST_F2F, HIST_S2F,
+                                              HIST_F2S, HIST_S2S)
+from leap.ab.multirate.processors import MRABProcessor
+from pymbolic import var
 
 
 __doc__ = """
@@ -62,7 +60,8 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
         <func>f2s: The fast-to-slow coupling
     """
 
-    def __init__(self, method, orders, substep_count, slow_state_filter_name=None, fast_state_filter_name=None):
+    def __init__(self, method, orders, substep_count,
+            slow_state_filter_name=None, fast_state_filter_name=None):
         super(TwoRateAdamsBashforthMethod, self).__init__()
         self.method = method
 
@@ -82,7 +81,6 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
             self.fast_state_filter = var("<func>" + fast_state_filter_name)
         else:
             self.fast_state_filter = None
-
 
         # Slow and fast components
         self.slow = var('<state>slow')
@@ -263,7 +261,7 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
                                           for k, coeff in enumerate(coeffs))
 
                 if self.slow_state_filter is not None:
-                   stage_s = self.slow_state_filter(stage_s)
+                    stage_s = self.slow_state_filter(stage_s)
 
                 stage_f = self.fast + sum(self.small_dt * coeff *
                                           (stage_rhss[HIST_S2F][k] +
@@ -271,7 +269,7 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
                                           for k, coeff in enumerate(coeffs))
 
                 if self.fast_state_filter is not None:
-                   stage_f = self.fast_state_filter(stage_f)
+                    stage_f = self.fast_state_filter(stage_f)
 
                 for component, function in self.component_functions.items():
                     cb(stage_rhss[component][stage_number],
@@ -638,14 +636,16 @@ class MRABCodeEmitter(MRABProcessor):
 
         # Perform the linear combination to obtain our new_y
 
-        combo = my_y + linear_comb(new_cross_coeffs_py, cross_history) + linear_comb(new_self_coeffs_py, self_history)
+        combo = (my_y
+                + linear_comb(new_cross_coeffs_py, cross_history)
+                + linear_comb(new_self_coeffs_py, self_history))
 
         if self.stepper.hist_is_fast[self_hn]:
-          if self.stepper.fast_state_filter is not None:
-              combo = self.stepper.fast_state_filter(combo)
+            if self.stepper.fast_state_filter is not None:
+                combo = self.stepper.fast_state_filter(combo)
         else:
-          if self.stepper.slow_state_filter is not None:
-              combo = self.stepper.slow_state_filter(combo)
+            if self.stepper.slow_state_filter is not None:
+                combo = self.stepper.slow_state_filter(combo)
 
         self.cb(new_y_var, combo)
         self.cb.fence()
