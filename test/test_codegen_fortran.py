@@ -213,12 +213,15 @@ def test_multirate_codegen(min_order, method_name):
     orders = DictionaryWithDefault(lambda x: min_order)
 
     stepper = TwoRateAdamsBashforthMethod(
-            MRAB_METHODS[method_name], orders, 4)
+            MRAB_METHODS[method_name], orders, 4,
+            slow_state_filter_name="slow_filt",
+            fast_state_filter_name="fast_filt")
 
     code = stepper.generate()
 
     from dagrt.function_registry import (
-            base_function_registry, register_ode_rhs)
+            base_function_registry, register_ode_rhs,
+            ODEComponent, register_function)
 
     freg = base_function_registry
     for func_name in [
@@ -252,6 +255,22 @@ def test_multirate_codegen(min_order, method_name):
       f.CallCode("""
           ${result} = -cos(2*${t})*${s}
           """))
+
+    freg = register_function(freg, "<func>slow_filt", ("arg",),
+            result_names=("result",), result_kinds=(ODEComponent("slow"),))
+    freg = freg.register_codegen("<func>slow_filt", "fortran",
+            f.CallCode("""
+                ! mess with state
+                ${result} = ${arg}
+                """))
+
+    freg = register_function(freg, "<func>fast_filt", ("arg",),
+            result_names=("result",), result_kinds=(ODEComponent("fast"),))
+    freg = freg.register_codegen("<func>fast_filt", "fortran",
+            f.CallCode("""
+                ! mess with state
+                ${result} = ${arg}
+                """))
 
     codegen = f.CodeGenerator(
             'MRAB',
