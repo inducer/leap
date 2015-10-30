@@ -17,8 +17,8 @@ def main(save_pdfs=False):
     import matplotlib.pyplot as pt
     pt.rc("font", size=20)
     #title("Stability Region")
-    pt.xlabel(r"Re $\lambda$")
-    pt.ylabel(r"Im $\lambda$")
+    pt.xlabel(r"Re $\lambda$ / RHS calls")
+    pt.ylabel(r"Im $\lambda$ / RHS calls")
     pt.grid()
 
     import leap.rk as rk
@@ -27,14 +27,15 @@ def main(save_pdfs=False):
     for label, method, factor in [
             #("ode23", rk.ODE23Method("y", use_high_order=True), 1),
             #("ab2", ab.AdamsBashforthMethod("y", 2), 1),
-            ("5*ab3", ab.AdamsBashforthMethod("y", 3), 5),
+            ("ab3", ab.AdamsBashforthMethod("y", 3), 1),
             #("ab4", ab.AdamsBashforthMethod("y", 4), 1),
-            ("lserk", rk.LSRK4Method("y"), 1),
-            ("rk4", rk.RK4Method("y"), 1),
+            ("lserk", rk.LSRK4Method("y"), 1/5),
+            ("rk4", rk.RK4Method("y"), 1/4),
             ]:
 
         code = method.generate()
-        plot_stability_region(code, label=label, alpha=0.3, scale_factor=factor)
+        plot_stability_region(code, label=label, alpha=0.3, scale_factor=factor,
+                parallel=True)
 
     pt.legend(labelspacing=0.1, borderpad=0.3, loc="best")
     if save_pdfs:
