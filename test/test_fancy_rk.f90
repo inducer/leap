@@ -3,6 +3,7 @@ program test_rkmethod
   use RKMethod, only: dagrt_state_type, &
     timestep_initialize => initialize, &
     timestep_run => run, &
+    timestep_print_profile => print_profile, &
     timestep_shutdown => shutdown, &
     dagrt_state_func_initialization, &
     dagrt_state_func_primary
@@ -55,6 +56,7 @@ program test_rkmethod
     call timestep_run(region=region_ptr, dagrt_state=dagrt_state_ptr)
   enddo
 
+  call timestep_print_profile(dagrt_state=dagrt_state_ptr)
   call timestep_shutdown(region=region_ptr, dagrt_state=dagrt_state_ptr)
 
 end program

@@ -184,6 +184,8 @@ def test_rk_codegen_fancy():
             function_registry=freg,
             module_preamble="""
                 use sim_types
+                use timing
+
                 """,
             call_before_state_update="notify_pre_state_update",
             call_after_state_update="notify_post_state_update",
@@ -191,13 +193,16 @@ def test_rk_codegen_fancy():
             extra_argument_decl="""
                 type(region_type), pointer :: region
                 """,
-            parallel_do_preamble="!dir$ simd")
+            parallel_do_preamble="!dir$ simd",
+            emit_instrumentation=True,
+            timing_function="get_time")
 
     code_str = codegen(code)
     print(code_str)
 
     run_fortran([
         ("sim_types.f90", read_file("sim_types.f90")),
+        ("timing.f90", read_file("timing.f90")),
         ("rkmethod.f90", code_str),
         ("test_fancy_rk.f90", read_file("test_fancy_rk.f90")),
         ])
