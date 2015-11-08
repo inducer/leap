@@ -30,39 +30,53 @@ THE SOFTWARE.
 """
 
 import numpy
-from pytools import memoize_method
+from pytools import memoize_method, Record
 from leap.ab import AdamsBashforthMethodBase
 from leap.ab.utils import make_generic_ab_coefficients, linear_comb
-from leap.ab.multirate.methods import (HIST_NAMES, HIST_F2F, HIST_S2F,
-                                              HIST_F2S, HIST_S2S)
 from leap.ab.multirate.processors import MRABProcessor
 from pymbolic import var
 
 
 __doc__ = """
-.. autoclass:: TwoRateAdamsBashforthMethod
+.. autoclass:: MultiRateAdamsBashforthMethod
 """
 
 
-class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
-    """Simultaneously timesteps two parts of an ODE system,
-    the first with a small timestep, the second with a large timestep.
+class rhs_mode:
+    late = 0
+    early = 1
+    early_and_late = 2
+
+
+class RHS(Record):
+    def __init__(self, rate, func_name, arguments=None, order=None,
+            mode=rhs_mode.late):
+        """
+        :arg order:
+        super(RHS, self).__init__(
+                rate=rate,
+                func_name=func_name,
+                arguments=arguments,
+                order=order,
+                rhs_mode=rhs_mode)
+
+
+class MultiRateAdamsBashforthMethod(AdamsBashforthMethodBase):
+    """Simultaneously timesteps multiple parts of an ODE system,
+    each with adjustable orders, rates, and dependencies.
 
     [1] C.W. Gear and D.R. Wells, "Multirate linear multistep methods," BIT
     Numerical Mathematics,  vol. 24, Dec. 1984,pg. 484-502.
-
-    User-supplied context:
-        <state>slow: The slow value to be integrated
-        <state>fast: The fast value to be integrated
-        <func>f2f: The fast-to-fast coupling
-        <func>s2f: The slow-to-fast coupling
-        <func>s2s: The slow-to-slow coupling
-        <func>f2s: The fast-to-slow coupling
     """
 
-    def __init__(self, method, orders, substep_count,
-            slow_state_filter_name=None, fast_state_filter_name=None):
-        super(TwoRateAdamsBashforthMethod, self).__init__()
+    def __init__(self, default_order, component_names,
+            rhs_matrix,
+            state_filter_names=None):
+        """
+        :arg default_order: The order to be used for right
+        :arg component_names: A tuple of names
+        """
+        super(MultiRateAdamsBashforthMethod, self).__init__()
         self.method = method
 
         # Variables
