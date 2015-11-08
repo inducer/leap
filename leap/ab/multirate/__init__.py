@@ -31,8 +31,8 @@ THE SOFTWARE.
 
 import numpy
 from pytools import memoize_method
-from leap.ab import AdamsBashforthMethodBase
-from leap.ab.utils import make_generic_ab_coefficients, linear_comb
+import six.moves
+from leap import Method
 from leap.ab.multirate.methods import (HIST_NAMES, HIST_F2F, HIST_S2F,
                                               HIST_F2S, HIST_S2S)
 from leap.ab.multirate.processors import MRABProcessor
@@ -44,7 +44,14 @@ __doc__ = """
 """
 
 
-class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
+def _linear_comb(coefficients, vectors):
+    from operator import add
+    return six.moves.reduce(add,
+            (coeff * v for coeff, v in
+                zip(coefficients, vectors)))
+
+
+class TwoRateAdamsBashforthMethod(Method):
     """Simultaneously timesteps two parts of an ODE system,
     the first with a small timestep, the second with a large timestep.
 
@@ -236,7 +243,10 @@ class TwoRateAdamsBashforthMethod(AdamsBashforthMethodBase):
     def emit_small_rk_step(self, cb, t, name_prefix):
         """Emit a single step of an RK method."""
 
-        rk_tableau, rk_coeffs = self.get_rk_tableau_and_coeffs(self.max_order)
+        from leap.rk import ORDER_TO_RK_METHOD
+        rk_method = ORDER_TO_RK_METHOD[self.max_order]
+        rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
+        rk_coeffs = rk_method.output_coeffs
 
         def make_stage_history(prefix):
             return [var(prefix + str(i)) for i in range(len(rk_tableau))]
@@ -637,8 +647,8 @@ class MRABCodeEmitter(MRABProcessor):
         # Perform the linear combination to obtain our new_y
 
         combo = (my_y
-                + linear_comb(new_cross_coeffs_py, cross_history)
-                + linear_comb(new_self_coeffs_py, self_history))
+                + _linear_comb(new_cross_coeffs_py, cross_history)
+                + _linear_comb(new_self_coeffs_py, self_history))
 
         if self.stepper.hist_is_fast[self_hn]:
             if self.stepper.fast_state_filter is not None:

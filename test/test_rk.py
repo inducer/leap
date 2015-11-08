@@ -28,7 +28,8 @@ import pytest
 
 from leap.rk import (
         ODE23Method, ODE45Method,
-        MidpointMethod, HeunsMethod, RK4Method,
+        MidpointMethod, HeunsMethod,
+        RK3Method, RK4Method, RK5Method,
         LSRK4Method,)
 from leap.rk.imex import KennedyCarpenterIMEXARK4Method
 import numpy as np
@@ -54,7 +55,9 @@ logger = logging.getLogger(__name__)
     (ODE45Method("y", use_high_order=True), 5),
     (MidpointMethod("y"), 2),
     (HeunsMethod("y"), 2),
+    (RK3Method("y"), 3),
     (RK4Method("y"), 4),
+    (RK5Method("y"), 5),
     (LSRK4Method("y"), 4),
     (KennedyCarpenterIMEXARK4Method("y", use_implicit=False,
         explicit_rhs_name="y"), 4),
