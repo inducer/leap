@@ -190,7 +190,8 @@ def test_rk_codegen_fancy():
             extra_arguments="region",
             extra_argument_decl="""
                 type(region_type), pointer :: region
-                """)
+                """,
+            parallel_do_preamble="!dir$ simd")
 
     code_str = codegen(code)
     print(code_str)
