@@ -31,8 +31,8 @@ THE SOFTWARE.
 
 import numpy
 from pytools import memoize_method, Record
-from leap.ab import AdamsBashforthMethodBase
-from leap.ab.utils import make_generic_ab_coefficients, linear_comb
+from leap import Method
+import six.moves
 from leap.ab.multirate.processors import MRABProcessor
 from pymbolic import var
 
@@ -40,6 +40,13 @@ from pymbolic import var
 __doc__ = """
 .. autoclass:: MultiRateAdamsBashforthMethod
 """
+
+
+def _linear_comb(coefficients, vectors):
+    from operator import add
+    return six.moves.reduce(add,
+            (coeff * v for coeff, v in
+                zip(coefficients, vectors)))
 
 
 class rhs_mode:
@@ -53,6 +60,7 @@ class RHS(Record):
             mode=rhs_mode.late):
         """
         :arg order:
+        """
         super(RHS, self).__init__(
                 rate=rate,
                 func_name=func_name,
@@ -61,7 +69,7 @@ class RHS(Record):
                 rhs_mode=rhs_mode)
 
 
-class MultiRateAdamsBashforthMethod(AdamsBashforthMethodBase):
+class MultiRateAdamsBashforthMethod(Method):
     """Simultaneously timesteps multiple parts of an ODE system,
     each with adjustable orders, rates, and dependencies.
 
@@ -77,7 +85,6 @@ class MultiRateAdamsBashforthMethod(AdamsBashforthMethodBase):
         :arg component_names: A tuple of names
         """
         super(MultiRateAdamsBashforthMethod, self).__init__()
-        self.method = method
 
         # Variables
         from pymbolic import var
@@ -250,7 +257,10 @@ class MultiRateAdamsBashforthMethod(AdamsBashforthMethodBase):
     def emit_small_rk_step(self, cb, t, name_prefix):
         """Emit a single step of an RK method."""
 
-        rk_tableau, rk_coeffs = self.get_rk_tableau_and_coeffs(self.max_order)
+        from leap.rk import ORDER_TO_RK_METHOD
+        rk_method = ORDER_TO_RK_METHOD[self.max_order]
+        rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
+        rk_coeffs = rk_method.output_coeffs
 
         def make_stage_history(prefix):
             return [var(prefix + str(i)) for i in range(len(rk_tableau))]
@@ -651,8 +661,8 @@ class MRABCodeEmitter(MRABProcessor):
         # Perform the linear combination to obtain our new_y
 
         combo = (my_y
-                + linear_comb(new_cross_coeffs_py, cross_history)
-                + linear_comb(new_self_coeffs_py, self_history))
+                + _linear_comb(new_cross_coeffs_py, cross_history)
+                + _linear_comb(new_self_coeffs_py, self_history))
 
         if self.stepper.hist_is_fast[self_hn]:
             if self.stepper.fast_state_filter is not None:

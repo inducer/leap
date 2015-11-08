@@ -42,7 +42,11 @@ __doc__ = """
 
 .. autoclass:: MidpointMethod
 .. autoclass:: HeunsMethod
+.. autoclass:: RK3Method
 .. autoclass:: RK4Method
+.. autoclass:: RK5Method
+
+.. autodata:: ORDER_TO_RK_METHOD
 
 .. autoclass:: LSRK4Method
 """
@@ -368,6 +372,24 @@ class HeunsMethod(SimpleButcherTableauMethod):
     recycle_last_stage_coeff_set_names = ()
 
 
+class RK3Method(SimpleButcherTableauMethod):
+    """
+    Source: J. C. Butcher, Numerical Methods for Ordinary Differential
+    Equations, 2nd ed., pages 94 - 99
+    """
+
+    c = (0, 2/3, 2/3)
+
+    a_explicit = (
+        (),
+        (2/3,),
+        (1/3, 1/3),
+        )
+
+    output_coeffs = (1/4, 0, 3/4)
+    recycle_last_stage_coeff_set_names = ()
+
+
 class RK4Method(SimpleButcherTableauMethod):
     c = (0, 1/2, 1/2, 1)
 
@@ -381,6 +403,36 @@ class RK4Method(SimpleButcherTableauMethod):
     output_coeffs = (1/6, 1/3, 1/3, 1/6)
 
     recycle_last_stage_coeff_set_names = ()
+
+
+class RK5Method(SimpleButcherTableauMethod):
+    """
+    Source: J. C. Butcher, Numerical Methods for Ordinary Differential
+    Equations, 2nd ed., pages 94 - 99
+    """
+
+    c = (0, 1/4, 1/4, 1/2, 3/4, 1,)
+
+    a_explicit = (
+        (),
+        (1/4,),
+        (1/8, 1/8),
+        (0, 0, 1/2),
+        (3/16, -3/8, 3/8, 9/16),
+        (-3/7, 8/7, 6/7, -12/7, 8/7),
+    )
+
+    output_coeffs = (7/90, 0, 32/90, 12/90, 32/90, 7/90)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+ORDER_TO_RK_METHOD = {
+        2: MidpointMethod,
+        3: RK3Method,
+        4: RK4Method,
+        5: RK5Method,
+        }
 
 # }}}
 

@@ -1,9 +1,6 @@
 """Adams-Bashforth ODE solvers."""
+
 from __future__ import division
-
-import numpy  # noqa
-from leap import Method
-
 
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
@@ -31,57 +28,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import numpy  # noqa
+from leap import Method
+
+
 __doc__ = """
 .. autoclass:: AdamsBashforthMethod
 """
 
 
-class AdamsBashforthMethodBase(Method):
-
-    @staticmethod
-    def get_rk_tableau_and_coeffs(order):
-        """
-        Source: J. C. Butcher, Numerical Methods for Ordinary Differential
-        Equations, 2nd ed., pages 94 - 99
-        """
-        # TODO: Move the tabular data to its own module.
-        if order == 2:
-            butcher_tableau = [
-                (0, []),
-                (1/2, [1/2]),
-            ]
-            coeffs = [0, 1]
-        elif order == 3:
-            butcher_tableau = [
-                (0, []),
-                (2/3, [2/3]),
-                (2/3, [1/3, 1/3])
-            ]
-            coeffs = [1/4, 0, 3/4]
-        elif order == 4:
-            butcher_tableau = [
-                (0, []),
-                (1/2, [1/2]),
-                (1/2, [0, 1/2]),
-                (1, [0, 0, 1])
-            ]
-            coeffs = [1/6, 1/3, 1/3, 1/6]
-        elif order == 5:
-            butcher_tableau = [
-                (0, []),
-                (1/4, [1/4]),
-                (1/4, [1/8, 1/8]),
-                (1/2, [0, 0, 1/2]),
-                (3/4, [3/16, -3/8, 3/8, 9/16]),
-                (1, [-3/7, 8/7, 6/7, -12/7, 8/7]),
-            ]
-            coeffs = [7/90, 0, 32/90, 12/90, 32/90, 7/90]
-        else:
-            raise ValueError('Unsupported order: %s' % order)
-        return (butcher_tableau, coeffs)
-
-
-class AdamsBashforthMethod(AdamsBashforthMethodBase):
+class AdamsBashforthMethod(Method):
     """
     User-supplied context:
         <state> + component_id: The value that is integrated
@@ -249,7 +205,10 @@ class AdamsBashforthMethod(AdamsBashforthMethodBase):
             with cb.if_(self.step, "==", i + 1):
                 cb(self.time_history[i], self.t)
 
-        rk_tableau, rk_coeffs = self.get_rk_tableau_and_coeffs(self.order)
+        from leap.rk import ORDER_TO_RK_METHOD
+        rk_method = ORDER_TO_RK_METHOD[self.order]
+        rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
+        rk_coeffs = rk_method.output_coeffs
 
         # Stage loop (taken from EmbeddedButcherTableauMethod)
         from pymbolic import var
