@@ -1,17 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 
-import numpy
-import pytest
-from pytools import memoize_method
-from leap.ab.multirate.methods import methods as MRAB_METHODS  # noqa
-
-
-from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
-
-
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
 Copyright (C) 2014 Matt Wala
@@ -37,8 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import numpy
+import pytest
+from pytools import memoize_method
+#from leap.ab.multirate.methods import methods as MRAB_METHODS  # noqa
 
 
+from utils import (  # noqa
+        python_method_impl_interpreter as pmi_int,
+        python_method_impl_codegen as pmi_cg)
 
 
 class MultirateTimestepperAccuracyChecker(object):
