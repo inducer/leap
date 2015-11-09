@@ -786,7 +786,9 @@ class TwoRateAdamsBashforthMethod(MultiRateAdamsBashforthMethod):
             "F"
             ]
 
-    def __init__(self, method, order, step_ratio):
+    def __init__(self, method, order, step_ratio,
+            slow_state_filter_name=None,
+            fast_state_filter_name=None):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
                 "longer be used. Use the fully general "
@@ -831,6 +833,8 @@ class TwoRateAdamsBashforthMethod(MultiRateAdamsBashforthMethod):
                         RHS(step_ratio, "<func>s2s", ("fast", "slow",),
                             rhs_mode=s2s_mode),
                         ),),
+
+                state_filter_names=(fast_state_filter_name, slow_state_filter_name),
 
                 # This is a hack to avoid having to change the 2RAB test
                 # cases, which use these arguments
