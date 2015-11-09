@@ -40,6 +40,8 @@ __doc__ = """
 
 .. autoclass:: ODE45Method
 
+.. autoclass:: ForwardEulerMethod
+.. autoclass:: BackwardEulerMethod
 .. autoclass:: MidpointMethod
 .. autoclass:: HeunsMethod
 .. autoclass:: RK3Method
@@ -346,6 +348,30 @@ class SimpleButcherTableauMethod(ButcherTableauMethod):
                     })
 
 
+class ForwardEulerMethod(SimpleButcherTableauMethod):
+    c = (0,)
+
+    a_explicit = (
+            (),
+            )
+
+    output_coeffs = (1,)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class BackwardEulerMethod(SimpleButcherTableauMethod):
+    c = (0,)
+
+    a_explicit = (
+            (1,),
+            )
+
+    output_coeffs = (1,)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
 class MidpointMethod(SimpleButcherTableauMethod):
     c = [0, 1/2]
 
@@ -428,6 +454,7 @@ class RK5Method(SimpleButcherTableauMethod):
 
 
 ORDER_TO_RK_METHOD = {
+        1: ForwardEulerMethod,
         2: MidpointMethod,
         3: RK3Method,
         4: RK4Method,

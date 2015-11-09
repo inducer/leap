@@ -28,6 +28,7 @@ import pytest
 
 from leap.rk import (
         ODE23Method, ODE45Method,
+        ForwardEulerMethod,
         MidpointMethod, HeunsMethod,
         RK3Method, RK4Method, RK5Method,
         LSRK4Method,)
@@ -53,6 +54,7 @@ logger = logging.getLogger(__name__)
     (ODE23Method("y", use_high_order=True), 3),
     (ODE45Method("y", use_high_order=False), 4),
     (ODE45Method("y", use_high_order=True), 5),
+    (ForwardEulerMethod("y"), 1),
     (MidpointMethod("y"), 2),
     (HeunsMethod("y"), 2),
     (RK3Method("y"), 3),
