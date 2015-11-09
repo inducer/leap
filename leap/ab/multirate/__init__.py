@@ -754,6 +754,36 @@ class MultiRateAdamsBashforthMethod(Method):
 # {{{ two-rate compatibility shim
 
 class TwoRateAdamsBashforthMethod(MultiRateAdamsBashforthMethod):
+    methods = [
+            "Sqrs",
+            "Sqr",
+            "Sqs",
+            "Sq",
+
+            "Srsf",
+            "Srs",
+            "Srf",
+            "Sr",
+
+            "Ssf",
+            "Ss",
+            "Sf",
+            "S",
+
+            "Fqsr",
+            "Fqs",
+            "Fq",
+
+            "Fsfr",
+            "Fsf",
+            "Fsr",
+            "Fs",
+
+            "Ffr",
+            "Ff",
+            "F"
+            ]
+
     def __init__(self, method, order, step_ratio):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
@@ -761,17 +791,43 @@ class TwoRateAdamsBashforthMethod(MultiRateAdamsBashforthMethod):
                 "MultiRateAdamsBashforthMethod interface instead.",
                 DeprecationWarning, stacklevel=2)
 
+        if "S" in method:
+            s2s_mode = rhs_mode.late
+        else:
+            s2s_mode = rhs_mode.early
+
+        if "r" in method:
+            s2s_mode = rhs_mode.early_and_late
+
+        if "q" in method:
+            s2f_interval = 1
+        else:
+            s2f_interval = step_ratio
+
+        if "s" in method:
+            f2s_mode = rhs_mode.early
+        else:
+            f2s_mode = rhs_mode.late
+
+        if "f" in method:
+            s2f_mode = rhs_mode.early
+        else:
+            s2f_mode = rhs_mode.late
+
         super(TwoRateAdamsBashforthMethod, self).__init__(
                 order,
                 component_names=("fast", "slow",),
                 rhss=(
                     (
                         RHS(1, "<func>f2f", ("fast", "slow",)),
-                        RHS(1, "<func>s2f", ("fast", "slow",)),
+                        RHS(s2f_interval, "<func>s2f", ("fast", "slow",),
+                            rhs_mode=s2f_mode),
                         ),
                     (
-                        RHS(step_ratio, "<func>f2s", ("fast", "slow",)),
-                        RHS(step_ratio, "<func>s2s", ("fast", "slow",)),
+                        RHS(step_ratio, "<func>f2s", ("fast", "slow",),
+                            rhs_mode=f2s_mode),
+                        RHS(step_ratio, "<func>s2s", ("fast", "slow",),
+                            rhs_mode=s2s_mode),
                         ),),
 
                 # This is a hack to avoid having to change the 2RAB test

@@ -29,7 +29,7 @@ THE SOFTWARE.
 import numpy
 import pytest
 from pytools import memoize_method
-#from leap.ab.multirate.methods import methods as MRAB_METHODS  # noqa
+from leap.ab.multirate import TwoRateAdamsBashforthMethod
 
 
 from utils import (  # noqa
@@ -52,10 +52,7 @@ class MultirateTimestepperAccuracyChecker(object):
 
     @memoize_method
     def get_code(self):
-        from leap.ab.multirate import TwoRateAdamsBashforthMethod
-        from pytools import DictionaryWithDefault
-        order = DictionaryWithDefault(lambda x: self.order)
-        stepper = TwoRateAdamsBashforthMethod(self.method, order,
+        stepper = TwoRateAdamsBashforthMethod(self.method, self.order,
                                                        self.step_ratio)
         return stepper.generate()
 
@@ -74,6 +71,7 @@ class MultirateTimestepperAccuracyChecker(object):
                 self.ode.f2f_rhs, self.ode.s2f_rhs, self.ode.f2s_rhs,
                 self.ode.s2s_rhs)}
 
+        #print(self.get_code())
         method = self.method_impl(self.get_code(), function_map=function_map)
 
         t = self.ode.t_start
@@ -99,6 +97,12 @@ class MultirateTimestepperAccuracyChecker(object):
                     fast.append(event.state_component)
 
         assert abs(times[-1] - final_t) < 1e-10
+
+        if 0:
+            import matplotlib.pyplot as pt
+            pt.plot(times, slow)
+            pt.plot(times, self.ode.soln_1(times))
+            pt.show()
 
         t = times[-1]
         y = (fast[-1], slow[-1])
@@ -160,8 +164,8 @@ class MultirateTimestepperAccuracyChecker(object):
         #"Comp",
         #"Tria"
         ])
-@pytest.mark.parametrize("method_name", list(MRAB_METHODS.keys()))
-def test_multirate_accuracy(python_method_impl, order, system, method_name):
+@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
+def test_multirate_accuracy(method_name, order, system):
     """Check that the multirate timestepper has the advertised accuracy"""
 
     import multirate_test_systems
@@ -173,9 +177,10 @@ def test_multirate_accuracy(python_method_impl, order, system, method_name):
     print("------------------------------------------------------")
     print("METHOD: %s" % method_name)
     print("------------------------------------------------------")
+
     MultirateTimestepperAccuracyChecker(
-        MRAB_METHODS[method_name], order, step_ratio, ode=system(),
-        method_impl=python_method_impl)()
+        method_name, order, step_ratio, ode=system(),
+        method_impl=pmi_cg)()
 
 
 if __name__ == "__main__":
