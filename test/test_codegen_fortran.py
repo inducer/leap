@@ -300,26 +300,21 @@ def test_multirate_codegen(min_order, method_name):
             outf.write(code_str)
 
     if min_order == 3:
-        run_fortran([
-            ("abmethod.f90", code_str),
-            ("test_mrab.f90", (
-                read_file("test_mrab.f90")
-                .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
-                .replace("NUM_TRIPS_ONE", str(200))
-                .replace("NUM_TRIPS_TWO", str(300)))),
-            ],
-            fortran_options=["-llapack", "-lblas"])
-
+        num_trips_one = 200
+        num_trips_two = 300
     else:
-        run_fortran([
-            ("abmethod.f90", code_str),
-            ("test_mrab.f90", (
-                read_file("test_mrab.f90")
-                .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
-                .replace("NUM_TRIPS_ONE", str(100))
-                .replace("NUM_TRIPS_TWO", str(150)))),
-            ],
-            fortran_options=["-llapack", "-lblas"])
+        num_trips_one = 100
+        num_trips_two = 150
+
+    run_fortran([
+        ("abmethod.f90", code_str),
+        ("test_mrab.f90", (
+            read_file("test_mrab.f90")
+            .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
+            .replace("NUM_TRIPS_ONE", str(num_trips_one))
+            .replace("NUM_TRIPS_TWO", str(num_trips_two)))),
+        ],
+        fortran_options=["-llapack", "-lblas"])
 
 
 def test_adaptive_rk_codegen():
