@@ -723,7 +723,7 @@ class MultiRateAdamsBashforthMethod(Method):
     # {{{ generation entrypoint
 
     def generate(self):
-        from dagrt.language import (TimeIntegratorCode, TimeIntegratorState,
+        from dagrt.language import (DAGCode, ExecutionState,
                                       CodeBuilder)
 
         # Initialization state
@@ -738,11 +738,11 @@ class MultiRateAdamsBashforthMethod(Method):
             self.emit_rk_bootstrap(cb_bootstrap)
 
         states = {}
-        states["initialization"] = TimeIntegratorState.from_cb(cb_init, "bootstrap")
-        states["bootstrap"] = TimeIntegratorState.from_cb(cb_bootstrap, "bootstrap")
-        states["primary"] = TimeIntegratorState.from_cb(cb_primary, "primary")
+        states["initialization"] = ExecutionState.from_cb(cb_init, "bootstrap")
+        states["bootstrap"] = ExecutionState.from_cb(cb_bootstrap, "bootstrap")
+        states["primary"] = ExecutionState.from_cb(cb_primary, "primary")
 
-        return TimeIntegratorCode(
+        return DAGCode(
             instructions=cb_init.instructions | cb_bootstrap.instructions |
             cb_primary.instructions,
             states=states,

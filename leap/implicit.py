@@ -231,7 +231,7 @@ class ScipySolverGenerator(object):
 
 def replace_AssignSolved(dag, solver_hooks):
     """
-    :arg dag: The :class:`TimeIntegratorCode` instance
+    :arg dag: The :class:`DAGCode` instance
     :arg solver_hooks: A map from solver names to expression generators
     """
 

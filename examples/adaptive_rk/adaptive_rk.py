@@ -1,7 +1,7 @@
 """Example of a simple adaptive Runge-Kutta method."""
 from __future__ import division
 
-from dagrt.language import TimeIntegratorCode, CodeBuilder
+from dagrt.language import DAGCode, CodeBuilder
 from pymbolic import var
 
 
@@ -80,7 +80,7 @@ def adaptive_rk_method(tol):
             cb(y, y_h)
             cb(t, t + dt_old)
 
-    return TimeIntegratorCode.create_with_steady_state(cb.state_dependencies,
+    return DAGCode.create_with_steady_state(cb.state_dependencies,
                                                        cb.instructions)
 
 if __name__ == "__main__":

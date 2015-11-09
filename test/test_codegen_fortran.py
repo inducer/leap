@@ -111,7 +111,7 @@ def test_rk_codegen_fancy():
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs,
-            register_function, ODEComponent)
+            register_function, UserType)
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
     freg = freg.register_codegen(rhs_function, "fortran",
@@ -144,7 +144,7 @@ def test_rk_codegen_fancy():
                 """))
 
     freg = register_function(freg, "<func>"+state_filter_name, ("y",),
-            result_names=("result",), result_kinds=(ODEComponent("y"),))
+            result_names=("result",), result_kinds=(UserType("y"),))
     freg = freg.register_codegen("<func>"+state_filter_name, "fortran",
             f.CallCode("""
                 ! mess with state
@@ -224,7 +224,7 @@ def test_multirate_codegen(min_order, method_name):
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs,
-            ODEComponent, register_function)
+            UserType, register_function)
 
     freg = base_function_registry
     for func_name in [
@@ -260,7 +260,7 @@ def test_multirate_codegen(min_order, method_name):
           """))
 
     freg = register_function(freg, "<func>slow_filt", ("arg",),
-            result_names=("result",), result_kinds=(ODEComponent("slow"),))
+            result_names=("result",), result_kinds=(UserType("slow"),))
     freg = freg.register_codegen("<func>slow_filt", "fortran",
             f.CallCode("""
                 ! mess with state
@@ -268,7 +268,7 @@ def test_multirate_codegen(min_order, method_name):
                 """))
 
     freg = register_function(freg, "<func>fast_filt", ("arg",),
-            result_names=("result",), result_kinds=(ODEComponent("fast"),))
+            result_names=("result",), result_kinds=(UserType("fast"),))
     freg = freg.register_codegen("<func>fast_filt", "fortran",
             f.CallCode("""
                 ! mess with state

@@ -61,7 +61,7 @@ class Method(object):
         :arg solver_hooks: A list of callbacks that generate expressions
         for calling user-supplied implicit solvers
 
-        :return: A `TimeIntegratorCode` instance
+        :return: A `DAGCode` instance
         """
         raise NotImplementedError()
 

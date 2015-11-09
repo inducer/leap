@@ -70,7 +70,7 @@ class AdamsBashforthMethod(Method):
             self.state_filter = None
 
     def generate(self):
-        from dagrt.language import TimeIntegratorCode, CodeBuilder
+        from dagrt.language import DAGCode, CodeBuilder
         from pymbolic import var
 
         # Initialization
@@ -153,7 +153,7 @@ class AdamsBashforthMethod(Method):
 
         if steps == 1:
             # The first order method requires no bootstrapping.
-            return TimeIntegratorCode.create_with_init_and_step(
+            return DAGCode.create_with_init_and_step(
                 instructions=cb_init.instructions | cb_primary.instructions,
                 initialization_dep_on=cb_init.state_dependencies,
                 step_dep_on=cb_primary.state_dependencies)
@@ -169,14 +169,14 @@ class AdamsBashforthMethod(Method):
             with cb_bootstrap.if_(self.step, "==", steps):
                 cb_bootstrap.state_transition("primary")
 
-        from dagrt.language import TimeIntegratorState
+        from dagrt.language import ExecutionState
 
         states = {}
-        states["initialization"] = TimeIntegratorState.from_cb(cb_init, "bootstrap")
-        states["bootstrap"] = TimeIntegratorState.from_cb(cb_bootstrap, "bootstrap")
-        states["primary"] = TimeIntegratorState.from_cb(cb_primary, "primary")
+        states["initialization"] = ExecutionState.from_cb(cb_init, "bootstrap")
+        states["bootstrap"] = ExecutionState.from_cb(cb_bootstrap, "bootstrap")
+        states["primary"] = ExecutionState.from_cb(cb_primary, "primary")
 
-        return TimeIntegratorCode(
+        return DAGCode(
             instructions=cb_init.instructions | cb_bootstrap.instructions |
             cb_primary.instructions,
             states=states,

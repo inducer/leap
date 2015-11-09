@@ -30,7 +30,7 @@ THE SOFTWARE.
 import six
 import numpy as np
 from leap import Method, TwoOrderAdaptiveMethod
-from dagrt.language import CodeBuilder, TimeIntegratorCode
+from dagrt.language import CodeBuilder, DAGCode
 
 from pymbolic import var
 
@@ -319,7 +319,7 @@ class ButcherTableauMethod(Method):
 
         # }}}
 
-        return TimeIntegratorCode.create_with_init_and_step(
+        return DAGCode.create_with_init_and_step(
             instructions=cb_init.instructions | cb_primary.instructions,
             initialization_dep_on=cb_init.state_dependencies,
             step_dep_on=cb_primary.state_dependencies)
@@ -689,8 +689,8 @@ class LSRK4Method(Method):
 
         cb_primary = cb
 
-        from dagrt.language import TimeIntegratorCode
-        return TimeIntegratorCode.create_with_init_and_step(
+        from dagrt.language import DAGCode
+        return DAGCode.create_with_init_and_step(
             instructions=cb_init.instructions | cb_primary.instructions,
             initialization_dep_on=cb_init.state_dependencies,
             step_dep_on=cb_primary.state_dependencies)

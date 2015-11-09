@@ -2,7 +2,7 @@
 from __future__ import division
 
 from leap import Method
-from dagrt.language import TimeIntegratorCode, CodeBuilder
+from dagrt.language import DAGCode, CodeBuilder
 from pymbolic import var
 from pymbolic.primitives import CallWithKwargs
 
@@ -54,7 +54,7 @@ class ImplicitEulerMethod(Method):
         with CodeBuilder(label="primary") as cb:
             self._make_primary(cb)
 
-        code = TimeIntegratorCode.create_with_steady_state(
+        code = DAGCode.create_with_steady_state(
             dep_on=cb.state_dependencies,
             instructions=cb.instructions)
 
