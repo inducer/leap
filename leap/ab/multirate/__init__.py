@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
+"""Multirate-AB ODE method."""
 
-"""Multirate-AB ODE solver."""
 from __future__ import division
 
 __copyright__ = """
@@ -29,18 +28,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import numpy
-from pytools import memoize_method, Record
+from pytools import Record
 from leap import Method
 import six.moves
-from leap.ab.multirate.processors import MRABProcessor
 from pymbolic import var
 
 
 __doc__ = """
+.. autoclass:: rhs_mode
+.. autoclass:: RHS
 .. autoclass:: MultiRateAdamsBashforthMethod
 """
 
+
+# {{{ utilities
 
 def _linear_comb(coefficients, vectors):
     from operator import add
@@ -48,6 +49,10 @@ def _linear_comb(coefficients, vectors):
             (coeff * v for coeff, v in
                 zip(coefficients, vectors)))
 
+# }}}
+
+
+# {{{ system description
 
 class rhs_mode:
     late = 0
@@ -56,18 +61,34 @@ class rhs_mode:
 
 
 class RHS(Record):
-    def __init__(self, rate, func_name, arguments=None, order=None,
-            mode=rhs_mode.late):
+    def __init__(self, interval, func_name, arguments=None, order=None,
+            rhs_mode=rhs_mode.late, invalidate_computed_state=False):
         """
-        :arg order:
+        :arg interval: An integer indicating the interval (relative to the
+            smallest available timestep) at which this right-hand side
+            function is to be called.
+        :arg arguments: A tuple of component names
+            (see :class:`MultiRateAdamsBashforthMethod`)
+            which are passed to this right-hand side function.
+        :arg order: The AB approximation order to be used for this RHS
+            history, or None if the method default is to be used.
+        :arg rhs_mode: One of the constants in :class:`rhs_mode`
+        :arg invalidate_dependent_state: Whether evaluating this
+            right-hand side should force a recomputation of any
+            state that depended upon now-superseded state.
         """
         super(RHS, self).__init__(
-                rate=rate,
+                interval=interval,
                 func_name=func_name,
                 arguments=arguments,
                 order=order,
-                rhs_mode=rhs_mode)
+                rhs_mode=rhs_mode,
+                invalidate_computed_state=invalidate_computed_state)
 
+# }}}
+
+
+# {{{ method
 
 class MultiRateAdamsBashforthMethod(Method):
     """Simultaneously timesteps multiple parts of an ODE system,
@@ -77,12 +98,26 @@ class MultiRateAdamsBashforthMethod(Method):
     Numerical Mathematics,  vol. 24, Dec. 1984,pg. 484-502.
     """
 
+    # {{{ constructor
+
     def __init__(self, default_order, component_names,
-            rhs_matrix,
-            state_filter_names=None):
+            rhss,
+            state_filter_names=None,
+            component_arg_names=None):
         """
-        :arg default_order: The order to be used for right
-        :arg component_names: A tuple of names
+        :arg default_order: The order to be used for right-hand sides
+            where no differing order is specified.
+        :arg component_names: A tuple of names of the components
+            of the ODE system to be integrated.
+        :arg rhss: A tuple of the same length as *component_names*,
+            where each entry in the tuple is a further tuple
+            of :class:`RHS` instances indicating the right-hand-sides
+            contributing to this component.
+        :arg state_filter_names: *None* or a tuple of state filter names
+            (or *None* values) of the same length as *component_names*.
+        :arg component_arg_names: A tuple of names of the components
+            to be used as keywords for passing arguments to the right
+            hand sides in *rhss*.
         """
         super(MultiRateAdamsBashforthMethod, self).__init__()
 
@@ -91,170 +126,123 @@ class MultiRateAdamsBashforthMethod(Method):
 
         self.t = var('<t>')
         self.dt = var('<dt>')
-        self.step = var('<p>step')
+        self.bootstrap_step = var('<p>bootstrap_step')
 
-        if slow_state_filter_name is not None:
-            self.slow_state_filter = var("<func>" + slow_state_filter_name)
-        else:
-            self.slow_state_filter = None
+        if len(rhss) != len(component_names):
+            raise ValueError("rhss and component_names must have the same length")
 
-        if fast_state_filter_name is not None:
-            self.fast_state_filter = var("<func>" + fast_state_filter_name)
-        else:
-            self.fast_state_filter = None
+        if state_filter_names is None:
+            state_filter_names = (None,) * len(component_names)
 
-        # Slow and fast components
-        self.slow = var('<state>slow')
-        self.fast = var('<state>fast')
+        if len(state_filter_names) != len(component_names):
+            raise ValueError("rhss and component_names must have the same length")
 
-        # Individual component functions
-        self.f2f = var('<func>f2f')
-        self.s2f = var('<func>s2f')
-        self.s2s = var('<func>s2s')
-        self.f2s = var('<func>f2s')
+        self.state_filters = tuple(
+                var("<func>" + state_filter_name)
+                if state_filter_name is not None
+                else None
+                for state_filter_name in state_filter_names)
 
-        # Current values of components
-        self.current_rhss = {
-            HIST_F2F: var('<p>f2f_n'),
-            HIST_S2F: var('<p>s2f_n'),
-            HIST_F2S: var('<p>f2s_n'),
-            HIST_S2S: var('<p>s2s_n')
-            }
+        # {{{ prepropcess rhss
 
-        self.component_functions = {
-            HIST_F2S: var('<func>f2s'),
-            HIST_F2F: var('<func>f2f'),
-            HIST_S2S: var('<func>s2s'),
-            HIST_S2F: var('<func>s2f')
-            }
+        new_rhss = []
+        for component_rhss in rhss:
+            new_component_rhss = []
+            for rhs in component_rhss:
+                order = rhs.order
+                if order is None:
+                    order = default_order
 
-        self.large_dt = self.dt
-        self.small_dt = self.dt / substep_count
-        self.substep_count = substep_count
+                arguments = rhs.arguments
+                if arguments is None:
+                    arguments = self.arguments
 
-        self.orders = {
-                HIST_F2F: orders['f2f'],
-                HIST_S2F: orders['s2f'],
-                HIST_F2S: orders['f2s'],
-                HIST_S2S: orders['s2s'],
-                }
+                new_component_rhss.append(
+                        rhs.copy(
+                            order=order,
+                            arguments=arguments))
 
-        self.max_order = max(self.orders.values())
+            new_rhss.append(tuple(new_component_rhss))
 
-        self.histories = {}
+        self.rhss = new_rhss
+        del new_rhss
+        del rhss
 
-        for component in HIST_NAMES:
-            name = component().__class__.__name__.lower()
-            var_names = [self.current_rhss[component]]
-            for past in range(1, self.orders[component]):
-                var_names.append(var('<p>' + name + '_n_minus_' + str(past)))
-            self.histories[component] = var_names
+        # }}}
 
-        self.time_histories = {}
+        self.component_names = component_names
 
-        for component in HIST_NAMES:
-            name = component().__class__.__name__.lower()
-            time_var_names = [var('<p>' + 'time' + name + '_n')]
-            for past in range(1, self.orders[component]):
-                time_var_names.append(var(
-                    '<p>' + 'time' + name + '_n_minus_' + str(past)))
-            self.time_histories[component] = time_var_names
+        if component_arg_names is None:
+            component_arg_names = component_names
 
-        self.hist_is_fast = {
-                HIST_F2F: True,
-                HIST_S2F: self.method.s2f_hist_is_fast,
-                HIST_S2S: False,
-                HIST_F2S: False
-                }
+        self.comp_name_to_kwarg_name = dict(
+                zip(component_names, component_arg_names))
 
-    @memoize_method
-    def get_coefficients(self, for_fast_history, hist_head_time_level,
-                         start_level, end_level, order):
+        self.max_order = max(rhs.order
+                for component_rhss in self.rhss
+                for rhs in component_rhss)
 
-        history_times = numpy.arange(0, -order, -1, dtype=numpy.float64)
+        # {{{ process intervals
 
-        if for_fast_history:
-            history_times /= self.substep_count
+        intervals = sorted(rhs.interval
+                for component_rhss in self.rhss
+                for rhs in component_rhss)
 
-        history_times += hist_head_time_level/self.substep_count
+        substep_counts = []
+        for i in range(1, len(intervals)):
+            last_interval = intervals[i-1]
+            interval = intervals[i]
 
-        t_start = start_level / self.substep_count
-        t_end = end_level / self.substep_count
+            if interval % last_interval != 0:
+                raise ValueError(
+                        "intervals are not integer multiples of each other: "
+                        + ", ".join(str(intv) for intv in intervals))
 
-        return make_generic_ab_coefficients(history_times, t_start, t_end)
+            substep_counts.append(interval // last_interval)
 
-    def compute_history_assignments(self):
-        """
-        Compute how history values should be assigned during RK initialization.
+        if min(intervals) != 1:
+            raise ValueError("the smallest interval is not 1")
 
-        Return a list `assign_before`, where each `assign_before[i]` maps
-        variable names to RHS components. If `var` is in `assign_before[i]`,
-        then before initialization step `i` is executed, `var` should be
-        assigned the value of the RHS component `assign_before[i][var]`.
-        """
+        self.intervals = intervals
+        self.substep_counts = substep_counts
 
-        initialization_steps = self.max_order - 1
-        total_substeps = initialization_steps * self.substep_count
+        # }}}
 
-        assign_before = [{} for step in range(total_substeps)]
-        for component in HIST_NAMES:
-            history = list(range(total_substeps + 1))
-            history.reverse()
-            if not self.hist_is_fast[component]:
-                history = history[::self.substep_count]
-            history = history[:self.orders[component]]
-            for index, entry in enumerate(history):
-                if index == 0:
-                    # We don't store the most recent entry, this is already
-                    # assumed to be initialized.
-                    continue
-                variable = self.histories[component][index]
-                assign_before[entry][variable] = component
-            assert len(self.histories[component]) == self.orders[component]
+        self.time_vars = {}
+        self.history_vars = {}
 
-        return assign_before
+        for comp_name, component_rhss in zip(self.component_names, self.rhss):
+            for irhs, rhs in enumerate(component_rhss):
+                key = comp_name, irhs
 
-    def compute_time_history_assignments(self):
-        """
-        Compute how time history values should be assigned during RK initialization.
-        """
+                t_vars = []
+                hist_vars = []
+                for past in range(rhs.order):
+                    t_vars.insert(0, var(
+                        '<p>t_%s_rhs%d_hist_%d_ago' % (comp_name, irhs, past)))
+                    hist_vars.insert(0, var(
+                        '<p>hist_%s_rhs%d_hist_%d_ago' % (comp_name, irhs, past)))
 
-        initialization_steps = self.max_order - 1
-        total_substeps = initialization_steps * self.substep_count
+                self.time_vars[key] = t_vars
+                self.history_vars[key] = hist_vars
 
-        assign_before_time = [{} for step in range(total_substeps)]
-        for component in HIST_NAMES:
-            time_history = list(range(total_substeps + 1))
-            time_history.reverse()
-            if not self.hist_is_fast[component]:
-                time_history = time_history[::self.substep_count]
-            time_history = time_history[:self.orders[component]]
-            for index, entry in enumerate(time_history):
-                if index == 0:
-                    # We don't store the most recent entry, this is already
-                    # assumed to be initialized.
-                    continue
-                variable = self.time_histories[component][index]
-                assign_before_time[entry][variable] = component
-            assert len(self.time_histories[component]) == self.orders[component]
+        self.state_vars = tuple(
+                var("<state>" + comp_name) for comp_name in self.component_names)
 
-        return assign_before_time
+    # }}}
+
+    @property
+    def nsubsteps(self):
+        return max(self.intervals)
 
     def emit_initialization(self, cb):
         """Initialize method variables."""
-        cb(self.step, 0)
-        # Initial value of RK derivatives
-        for hist_component, function in self.component_functions.items():
-            assignee = self.current_rhss[hist_component]
-            cb(assignee, function(t=self.t, s=self.slow, f=self.fast))
 
-        for hn in HIST_NAMES:
-            time_hist = self.time_histories[hn]
-            for i in range(len(time_hist)):
-                cb(time_hist[i], 0)
-                cb.fence()
+        cb(self.bootstrap_step, 0)
 
-    def emit_small_rk_step(self, cb, t, name_prefix):
+    # {{{ rk bootstrap: step
+
+    def emit_small_rk_step(self, cb, name_prefix, name_gen, entry_rhss):
         """Emit a single step of an RK method."""
 
         from leap.rk import ORDER_TO_RK_METHOD
@@ -263,121 +251,474 @@ class MultiRateAdamsBashforthMethod(Method):
         rk_coeffs = rk_method.output_coeffs
 
         def make_stage_history(prefix):
-            return [var(prefix + str(i)) for i in range(len(rk_tableau))]
+            return [var(prefix + "_stage" + str(i)) for i in range(len(rk_tableau))]
 
-        stage_rhss = {
-            HIST_F2F: make_stage_history(name_prefix + '_rk_f2f_'),
-            HIST_S2F: make_stage_history(name_prefix + '_rk_s2f_'),
-            HIST_F2S: make_stage_history(name_prefix + '_rk_f2s_'),
-            HIST_S2S: make_stage_history(name_prefix + '_rk_s2s_')
-            }
+        stage_rhss = {}
+        for comp_name, component_rhss in zip(self.component_names, self.rhss):
+            for irhs, rhs in enumerate(component_rhss):
+                stage_rhss[comp_name, irhs] = make_stage_history(
+                        "{name_prefix}_rk_{comp_name}_rhs{irhs}"
+                        .format(
+                            name_prefix=name_prefix,
+                            comp_name=comp_name,
+                            irhs=irhs))
 
-        for stage_number, (c, coeffs) in enumerate(rk_tableau):
+        for istage, (c, coeffs) in enumerate(rk_tableau):
             if len(coeffs) == 0:
                 assert c == 0
-                for component in HIST_NAMES:
-                    cb(stage_rhss[component][stage_number],
-                       self.current_rhss[component])
+                for comp_name, component_rhss in zip(
+                        self.component_names, self.rhss):
+                    for irhs, rhs in enumerate(component_rhss):
+                        cb(stage_rhss[comp_name, irhs][istage],
+                                entry_rhss[comp_name, irhs])
+
             else:
-                stage_s = self.slow + sum(self.small_dt * coeff *
-                                          (stage_rhss[HIST_S2S][k] +
-                                           stage_rhss[HIST_F2S][k])
-                                          for k, coeff in enumerate(coeffs))
+                component_state_ests = {}
 
-                if self.slow_state_filter is not None:
-                    stage_s = self.slow_state_filter(stage_s)
+                for icomp, (comp_name, component_rhss) in enumerate(
+                        zip(self.component_names, self.rhss)):
 
-                stage_f = self.fast + sum(self.small_dt * coeff *
-                                          (stage_rhss[HIST_S2F][k] +
-                                           stage_rhss[HIST_F2F][k])
-                                          for k, coeff in enumerate(coeffs))
+                    contribs = []
+                    for irhs, rhs in enumerate(component_rhss):
+                        state_contrib_var = var(
+                                name_gen(
+                                    "state_contrib_{comp_name}_rhs{irhs}"
+                                    .format(comp_name=comp_name, irhs=irhs)))
 
-                if self.fast_state_filter is not None:
-                    stage_f = self.fast_state_filter(stage_f)
+                        contribs.append(state_contrib_var)
 
-                for component, function in self.component_functions.items():
-                    cb(stage_rhss[component][stage_number],
-                       function(t=t + c * self.small_dt, s=stage_s, f=stage_f))
+                        cb(state_contrib_var,
+                                _linear_comb(coeffs, stage_rhss[comp_name, irhs]))
+
+                    state_var = var(
+                            name_gen(
+                                "state_{comp_name}_st{istage}"
+                                .format(comp_name=comp_name, istage=istage)))
+
+                    state_expr = (
+                            var("<state>" + comp_name)
+                            + (self.dt/self.nsubsteps) * sum(contribs))
+                    if self.state_filters[icomp] is not None:
+                        state_expr = self.state_filters[icomp](state_expr)
+
+                    cb(state_var, state_expr)
+
+                    component_state_ests[comp_name] = state_var
+
+                for comp_name, component_rhss in zip(
+                        self.component_names, self.rhss):
+                    for irhs, rhs in enumerate(component_rhss):
+                        kwargs = dict(
+                                (self.comp_name_to_kwarg_name[arg_comp_name],
+                                    component_state_ests[arg_comp_name])
+                                for arg_comp_name in rhs.arguments)
+                        cb(stage_rhss[comp_name, irhs][istage],
+                                var(rhs.func_name)(
+                                    t=self.t + (c/self.nsubsteps) * self.dt,
+                                    **kwargs))
 
         cb.fence()
 
-        slow_est = self.slow + self.small_dt * sum(coeff * (stage_rhss[HIST_F2S][k] +
-                                stage_rhss[HIST_S2S][k])
-                    for k, coeff in enumerate(rk_coeffs))
+        component_state_ests = {}
 
-        if self.slow_state_filter is not None:
-            slow_est = self.slow_state_filter(slow_est)
+        for icomp, (comp_name, component_rhss) in enumerate(
+                zip(self.component_names, self.rhss)):
 
-        cb(self.slow, slow_est)
+            contribs = []
+            for irhs, rhs in enumerate(component_rhss):
+                state_contrib_var = var(
+                        name_gen(
+                            "state_contrib_{comp_name}_rhs{irhs}"
+                            .format(comp_name=comp_name, irhs=irhs)))
 
-        fast_est = self.fast + self.small_dt * sum(coeff * (stage_rhss[HIST_F2F][k] +
-                                stage_rhss[HIST_S2F][k])
-                    for k, coeff in enumerate(rk_coeffs))
+                contribs.append(state_contrib_var)
 
-        if self.fast_state_filter is not None:
-            fast_est = self.fast_state_filter(fast_est)
+                cb(state_contrib_var,
+                        _linear_comb(rk_coeffs, stage_rhss[comp_name, irhs]))
 
-        cb(self.fast, fast_est)
+            state_var = var(
+                    name_gen(
+                        "state_{comp_name}_final"
+                        .format(comp_name=comp_name)))
 
-        for hist_component, function in self.component_functions.items():
-            assignee = self.current_rhss[hist_component]
-            cb(assignee, function(t=t + self.small_dt, s=self.slow,
-                                  f=self.fast))
+            state_expr = (
+                    var("<state>" + comp_name)
+                    + (self.dt/self.nsubsteps) * sum(contribs))
+            if self.state_filters[icomp] is not None:
+                state_expr = self.state_filters[icomp](state_expr)
 
-    def emit_rk_startup(self, cb):
+            cb(state_var, state_expr)
+
+            component_state_ests[comp_name] = state_var
+
+        cb.fence()
+
+        for component_name in self.component_names:
+            state = component_state_ests[component_name]
+            cb.yield_state(
+                    state,
+                    component_name, self.t + self.dt/self.nsubsteps,
+                    "bootstrap")
+
+            cb(var("<state>"+component_name), state)
+
+        cb.fence()
+
+        cb(self.t, self.t + self.dt/self.nsubsteps)
+
+    # }}}
+
+    # {{{ rk bootstrap: overall control
+
+    def emit_rk_bootstrap(self, cb):
         """Initialize the stepper with an RK method. Return the code that
         computes the startup history."""
 
-        initialization_steps = self.max_order - 1
-        assert initialization_steps > 0
+        bootstrap_steps = self.max_order - 1
 
-        assign_before = self.compute_history_assignments()
-        assign_before_time = self.compute_time_history_assignments()
+        final_iglobal_substep = bootstrap_steps * self.nsubsteps
 
-        for substep_index in range(self.substep_count):
+        from pytools import UniqueNameGenerator
+        name_gen = UniqueNameGenerator()
 
-            time = self.t + substep_index * self.small_dt
+        for isubstep in range(self.nsubsteps + 1):
+            name_prefix = 'substep' + str(isubstep)
 
-            # Add any assignments that need to be run ahead of this
-            # substep.
-            for step in range(initialization_steps):
-                substep = step * self.substep_count + substep_index
-                if not assign_before[substep]:
+            # {{{ compute current_rhss
+
+            current_rhss = {}
+
+            for comp_name, component_rhss in zip(
+                    self.component_names, self.rhss):
+                for irhs, rhs in enumerate(component_rhss):
+                    rhs_var = var(
+                        name_gen(
+                            "{name_prefix}_start_{comp_name}_rhs{irhs}"
+                            .format(name_prefix=name_prefix, comp_name=comp_name,
+                                irhs=irhs)))
+
+                    kwargs = dict(
+                            (self.comp_name_to_kwarg_name[arg_comp_name],
+                                var("<state>" + arg_comp_name))
+                            for arg_comp_name in rhs.arguments)
+
+                    cb(rhs_var, var(rhs.func_name)(t=self.t, **kwargs))
+
+                    current_rhss[comp_name, irhs] = rhs_var
+
+            # }}}
+
+            # {{{ collect time/rhs history
+
+            for test_step in range(bootstrap_steps + 1):
+                if test_step == bootstrap_steps and isubstep > 0:
                     continue
-                with cb.if_(self.step, "==", step):
-                    for name, component in assign_before[substep].items():
-                        cb(name, self.current_rhss[component])
 
-            for step in range(initialization_steps):
-                substep = step * self.substep_count + substep_index
-                if not assign_before_time[substep]:
-                    continue
-                with cb.if_(self.step, "==", step):
-                    for name, component in assign_before_time[substep].items():
-                        cb(name, time)
+                test_iglobal_substep = test_step * self.nsubsteps + isubstep
 
-            # Emit the RK substep body.
-            name_prefix = 'substep' + str(substep_index)
-            self.emit_small_rk_step(cb, time, name_prefix)
+                substeps_from_start = final_iglobal_substep - test_iglobal_substep
 
-        # Increment the current step after taking all the substeps.
-        cb(self.step, self.step + 1)
+                for comp_name, component_rhss in zip(
+                        self.component_names, self.rhss):
+                    for irhs, rhs in enumerate(component_rhss):
+                        if (substeps_from_start % rhs.interval == 0
+                                and (substeps_from_start // rhs.interval
+                                    < rhs.order)):
+
+                            intervals_from_start = (
+                                    substeps_from_start // rhs.interval)
+
+                            i = rhs.order - 1 - intervals_from_start
+                            assert i >= 0
+
+                            with cb.if_(self.bootstrap_step, "==", test_step):
+                                cb(self.time_vars[comp_name, irhs][i], self.t)
+                                cb(self.history_vars[comp_name, irhs][i],
+                                        current_rhss[comp_name, irhs])
+
+            # }}}
+
+            if isubstep == self.nsubsteps:
+                cb.fence()
+                cb(self.bootstrap_step, self.bootstrap_step + 1)
+                break
+
+            if isubstep == 0:
+                with cb.if_(self.bootstrap_step, "==", bootstrap_steps):
+                    cb.state_transition("primary")
+
+            cb.fence()
+
+            self.emit_small_rk_step(cb, name_prefix, name_gen, current_rhss)
 
         return cb
 
-    def emit_ab_method(self, cb):
-        """Add code for the main Adams-Bashforth method."""
-        rhss = [self.f2f, self.s2f, self.f2s, self.s2s]
-        codegen = MRABCodeEmitter(self, cb, (self.fast, self.slow), self.t, rhss)
-        codegen.run()
+    # }}}
 
-    def emit_epilogue(self, cb):
-        """Add code that finished a timestep."""
-        cb.yield_state(self.slow, "slow", self.t + self.dt, "final")
-        cb.yield_state(self.fast, "fast", self.t + self.dt, "final")
+    # {{{ main method generation
+
+    def emit_ab_method(self, cb):
+        from pytools import UniqueNameGenerator
+        name_gen = UniqueNameGenerator()
+
+        # {{{ make temporary copies of time/hist_vars for "early" rhs_mode
+
+        temp_time_vars = {}
+        temp_hist_vars = {}
+
+        def fill_temp_hist_vars():
+            for comp_name, component_rhss in zip(self.component_names, self.rhss):
+                for irhs, rhs in enumerate(component_rhss):
+                    key = comp_name, irhs
+
+                    temp_time_vars[key] = self.time_vars[key][:]
+                    temp_hist_vars[key] = self.history_vars[key][:]
+
+        fill_temp_hist_vars()
+
+        # }}}
+
+        # A mapping from component_name to a list of tuples
+        # (substep_level, state_var). This mapping is ordered
+        # by substep_level.
+        computed_states = dict(
+                (comp_name, [
+                    (0, state_var)
+                    ])
+                for comp_name, state_var in zip(
+                    self.component_names, self.state_vars))
+
+        # {{{ get_state
+
+        def get_state(comp_name, isubstep):
+            states = computed_states[comp_name]
+
+            # {{{ see if we've got that state ready to go
+
+            for istate_substep, state_var in states:
+                if istate_substep == isubstep:
+                    return state_var
+
+            # }}}
+
+            latest_state_substep, latest_state = states[-1]
+
+            comp_index = self.component_names.index(comp_name)
+            rhss = self.rhss[comp_index]
+
+            array = var("<builtin>array")
+            linear_solve = var("<builtin>linear_solve")
+
+            contribs = []
+            for irhs, rhs in enumerate(rhss):
+                cb.fence()
+                n = rhs.order
+
+                # {{{ compute AB coefficients
+
+                # use:
+                # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
+
+                vdmt = var(name_gen("vdm_transpose"))
+                cb(vdmt, array(n*n))
+
+                coeff_rhs = var(name_gen("coeff_rhs"))
+                cb(coeff_rhs, array(n))
+
+                i = var(name_gen("vdm_i"))
+                j = var(name_gen("vdm_j"))
+
+                relevant_time_hist = temp_time_vars[comp_name, irhs][-n:][::-1]
+                time_hist_var = var(name_gen("time_hist"))
+                cb(time_hist_var, array(n))
+
+                for ii in range(n):
+                    cb(time_hist_var[ii], relevant_time_hist[ii] - self.t)
+
+                cb(vdmt[i + j*n], time_hist_var[j]**i,
+                    loops=[(i.name, 0, n), (j.name, 0, n)])
+
+                t_start = self.t + self.dt * latest_state_substep / self.nsubsteps
+                t_end = self.t + self.dt * isubstep / self.nsubsteps
+
+                cb(coeff_rhs[i],
+                        1/(i+1) * (t_end**(i+1) - t_start**(i+1)),
+                        loops=[(i.name, 0, n)])
+
+                ab_coeffs = var(name_gen("ab_coeffs"))
+                cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, n, 1))
+
+                # }}}
+
+                state_contrib_var = var(
+                        name_gen(
+                            "state_contrib_{comp_name}_rhs{irhs}"
+                            .format(comp_name=comp_name, irhs=irhs)))
+
+                cb(state_contrib_var,
+                        _linear_comb(
+                            [ab_coeffs[ii] for ii in range(n)],
+                            temp_hist_vars[comp_name, irhs][-n:][::-1]))
+
+                contribs.append(state_contrib_var)
+
+                cb.fence()
+
+            state_var = var(
+                    name_gen(
+                        "state_{comp_name}_sub{isubstep}"
+                        .format(comp_name=comp_name, isubstep=isubstep)))
+
+            state_expr = latest_state + sum(contribs)
+            if self.state_filters[comp_index] is not None:
+                state_expr = self.state_filters[comp_index](state_expr)
+            cb(state_var, state_expr)
+
+            states.append((isubstep, state_var))
+
+            return state_var
+
+        # }}}
+
+        # {{{ update_hist
+
+        def update_hist(comp_idx, irhs, isubstep):
+            comp_name = self.component_names[comp_idx]
+
+            rhs = self.rhss[comp_idx][irhs]
+
+            # {{{ get arguments together
+
+            t_var = var(
+                    name_gen(
+                        "t_{comp_name}_rhs{irhs}_sub{isubstep}"
+                        .format(comp_name=comp_name, irhs=irhs, isubstep=isubstep)))
+            t_expr = self.t + self.dt * isubstep / self.nsubsteps
+            cb(t_var, t_expr)
+
+            kwargs = dict(
+                    (self.comp_name_to_kwarg_name[arg_comp_name],
+                        get_state(arg_comp_name, isubstep))
+                    for arg_comp_name in rhs.arguments)
+
+            rhs_var = var(
+                    name_gen(
+                        "rhs_{comp_name}_rhs{irhs}_sub{isubstep}"
+                        .format(comp_name=comp_name, irhs=irhs, isubstep=isubstep)))
+
+            cb(rhs_var, var(rhs.func_name)(t=t_expr, **kwargs))
+
+            temp_time_vars[comp_name, irhs].append(t_var)
+            temp_hist_vars[comp_name, irhs].append(rhs_var)
+
+            # }}}
+
+            # {{{ invalidate computed states, if requested
+
+            if rhs.invalidate_computed_state:
+                for other_comp_name, other_component_rhss in zip(
+                        self.component_names, self.rhss):
+                    do_invalidate = False
+                    for other_rhs in enumerate(other_component_rhss):
+                        if comp_name in rhs.arguments:
+                            do_invalidate = True
+                            break
+
+                    if do_invalidate:
+                        computed_states[other_comp_name][:] = [
+                                (istate_substep, state)
+
+                                for istate_substep, state in
+                                computed_states[other_comp_name]
+
+                                # Only earlier states live.
+                                if istate_substep < isubstep
+                                ]
+
+            # }}}
+
+        # }}}
+
+        # {{{ run_substep_loop
+
+        def run_substep_loop():
+            for isubstep in range(self.nsubsteps+1):
+                for comp_idx, component_rhss in enumerate(self.rhss):
+                    for irhs, rhs in enumerate(component_rhss):
+                        if isubstep % rhs.interval != 0:
+                            continue
+
+                        if isubstep > 0:
+                            # {{{ finish up prior step
+
+                            if rhs.rhs_mode == rhs_mode.early_and_late:
+                                update_hist(comp_idx, irhs, isubstep + rhs.interval)
+
+                            if rhs.rhs_mode in [
+                                    rhs_mode.early_and_late, rhs_mode.late]:
+                                update_hist(comp_idx, irhs, isubstep)
+
+                            # }}}
+
+                        if isubstep < self.nsubsteps:
+                            # {{{ start up a new substep
+
+                            if rhs.rhs_mode in [
+                                    rhs_mode.early, rhs_mode.early_and_late]:
+                                update_hist(comp_idx, irhs, isubstep + rhs.interval)
+
+                            # }}}
+
+        run_substep_loop()
+
+        # }}}
+
+        cb.fence()
+
+        end_states = [
+            get_state(component_name, self.nsubsteps)
+            for component_name in self.component_names]
+
+        cb.fence()
+
+        # {{{ commit temp history to permanent history
+
+        def commit_temp_hist_vars():
+            for comp_name, component_rhss in zip(self.component_names, self.rhss):
+                for irhs, rhs in enumerate(component_rhss):
+                    key = comp_name, irhs
+
+                    for time_var, time_expr in zip(
+                            self.time_vars[key],
+                            temp_time_vars[comp_name, irhs][-rhs.order:]):
+                        cb(time_var, time_expr)
+                        cb.fence()
+
+                    for hist_var, hist_expr in zip(
+                            self.history_vars[key],
+                            temp_hist_vars[comp_name, irhs][-rhs.order:]):
+                        cb(hist_var, hist_expr)
+                        cb.fence()
+
+        commit_temp_hist_vars()
+
+        # }}}
+
+        # TODO: Figure out more spots to yield intermediate state
+        for component_name, state in zip(self.component_names, end_states):
+            cb.yield_state(
+                    state,
+                    component_name, self.t + self.dt, "final")
+
+            cb(var("<state>"+component_name), state)
+
         cb.fence()
 
         cb(self.t, self.t + self.dt)
+
+    # }}}
+
+    # {{{ generation entrypoint
 
     def generate(self):
         from dagrt.language import (TimeIntegratorCode, TimeIntegratorState,
@@ -390,30 +731,9 @@ class MultiRateAdamsBashforthMethod(Method):
         # Primary state
         with CodeBuilder(label="primary") as cb_primary:
             self.emit_ab_method(cb_primary)
-            self.emit_epilogue(cb_primary)
 
-        bootstrap_steps = self.max_order - 1
-
-        if bootstrap_steps == 0:
-            # No need for bootstrapping - just return the primary code.
-            return TimeIntegratorCode.create_with_init_and_step(
-                instructions=cb_init.instructions | cb_primary.instructions,
-                initialization_dep_on=cb_init.state_dependencies,
-                step_dep_on=cb_primary.state_dependencies)
-
-        # Bootstrap state
         with CodeBuilder(label="bootstrap") as cb_bootstrap:
-
-            self.emit_rk_startup(cb_bootstrap)
-
-            # Tack on the new time history point
-            for component in HIST_NAMES:
-                cb_bootstrap(self.time_histories[component][0], self.t + self.dt)
-                cb_bootstrap.fence()
-
-            self.emit_epilogue(cb_bootstrap)
-            with cb_bootstrap.if_(self.step, "==", bootstrap_steps):
-                cb_bootstrap.state_transition("primary")
+            self.emit_rk_bootstrap(cb_bootstrap)
 
         states = {}
         states["initialization"] = TimeIntegratorState.from_cb(cb_init, "bootstrap")
@@ -426,297 +746,38 @@ class MultiRateAdamsBashforthMethod(Method):
             states=states,
             initial_state="initialization")
 
-
-class MRABCodeEmitter(MRABProcessor):
-
-    def __init__(self, stepper, cb, y, t, rhss):
-        MRABProcessor.__init__(self, stepper.method, stepper.substep_count)
-        self.stepper = stepper
-        self.cb = cb
-        self.t_start = t
-
-        # Mapping from method variable names to code variable names
-        self.name_to_variable = {}
-
-        self.context = {}
-        self.var_time_level = {}
-
-        # Names of instructions that were generated in the previous step
-        self.last_step = []
-
-        self.rhss = rhss
-
-        y_fast, y_slow = y
-        from leap.ab.multirate.methods import CO_FAST, CO_SLOW
-        self.last_y = {CO_FAST: y_fast, CO_SLOW: y_slow}
-
-        self.hist_head_time_level = dict((hn, 0) for hn in HIST_NAMES)
-
-    def get_variable(self, name):
-        """Return a variable for a name found in the method description."""
-
-        if name not in self.name_to_variable:
-            from string import ascii_letters
-            from pymbolic import var
-            prefix = "".join([c for c in name if c in ascii_letters])
-            self.name_to_variable[name] = var(self.cb.fresh_var_name(prefix))
-        return self.name_to_variable[name]
-
-    def run(self):
-        super(MRABCodeEmitter, self).run()
-
-        # Update the slow and fast components.
-        from leap.ab.multirate.methods import CO_FAST, CO_SLOW
-        self.cb(self.last_y[CO_SLOW], self.context[self.method.result_slow])
-        self.cb(self.last_y[CO_FAST], self.context[self.method.result_fast])
-
-    def integrate_in_time(self, insn):
-        from leap.ab.multirate.methods import CO_FAST
-        from leap.ab.multirate.methods import \
-            HIST_F2F, HIST_S2F, HIST_F2S, HIST_S2S
-        from pymbolic import var
-
-        if insn.component == CO_FAST:
-            self_hn, cross_hn = HIST_F2F, HIST_S2F
-        else:
-            self_hn, cross_hn = HIST_S2S, HIST_F2S
-
-        # Build levels
-
-        start_time_level = self.eval_expr(insn.start)
-        end_time_level = self.eval_expr(insn.end)
-
-        levels_self = self.stepper.time_histories[self_hn]
-        levels_cross = self.stepper.time_histories[cross_hn]
-
-        self.cb("n_cross", len(levels_cross))
-        self.cb("n_self", len(levels_self))
-
-        self.cb.fence()
-
-        if self.stepper.orders[self_hn] == 1:
-            time_index_self = 0
-        else:
-            time_index_self = 1
-
-        if self.stepper.orders[cross_hn] == 1:
-            time_index_cross = 0
-        else:
-            time_index_cross = 1
-
-        if self.stepper.hist_is_fast[self_hn]:
-            self.cb("start_time_self", self.stepper.time_histories[self_hn][0])
-            self.cb.fence()
-            self.cb("end_time_self",
-                    self.t_start
-                    + end_time_level*self.stepper.large_dt/self.substep_count)
-            self.cb.fence()
-        else:
-            self.cb("time_self_cond",
-                    self.stepper.time_histories[self_hn][0])
-            self.cb.fence()
-            self.cb("time_self_cond2",
-                    self.stepper.time_histories[HIST_F2F][0])
-            self.cb.fence()
-            with self.cb.if_("time_self_cond > time_self_cond2"):
-                self.cb("start_time_self",
-                        self.stepper.time_histories[self_hn][time_index_self])
-                self.cb.fence()
-                self.cb("end_time_self",
-                        self.stepper.time_histories[self_hn][time_index_self]
-                        + end_time_level * self.stepper.large_dt/self.substep_count)
-                self.cb.fence()
-            with self.cb.else_():
-                self.cb("start_time_self", self.stepper.time_histories[self_hn][0])
-                self.cb.fence()
-                self.cb("end_time_self",
-                        self.stepper.time_histories[self_hn][0]
-                        + end_time_level * self.stepper.large_dt/self.substep_count)
-                self.cb.fence()
-
-        if self.stepper.hist_is_fast[cross_hn]:
-            self.cb("start_time_cross", self.stepper.time_histories[cross_hn][0])
-            self.cb.fence()
-            self.cb("end_time_cross",
-                    self.t_start
-                    + end_time_level*self.stepper.large_dt/self.substep_count)
-            self.cb.fence()
-        else:
-            self.cb("time_cross_cond", self.stepper.time_histories[cross_hn][0])
-            self.cb.fence()
-            self.cb("time_cross_cond2", self.stepper.time_histories[HIST_F2F][0])
-            self.cb.fence()
-            with self.cb.if_("time_cross_cond > time_cross_cond2"):
-                self.cb("start_time_cross",
-                        self.stepper.time_histories[cross_hn][time_index_cross])
-                self.cb.fence()
-                self.cb("end_time_cross",
-                        self.stepper.time_histories[cross_hn][time_index_cross]
-                        + end_time_level * self.stepper.large_dt/self.substep_count)
-                self.cb.fence()
-            with self.cb.else_():
-                self.cb("start_time_cross", self.stepper.time_histories[cross_hn][0])
-                self.cb.fence()
-                self.cb("end_time_cross", self.stepper.time_histories[cross_hn][0]
-                        + end_time_level * self.stepper.large_dt/self.substep_count)
-                self.cb.fence()
-            if self.stepper.hist_is_fast[self_hn]:
-                self.cb("start_time_cross", "start_time_self")
-                self.cb.fence()
-                self.cb("end_time_cross", "end_time_self")
-                self.cb.fence()
-
-        self.cb.fence()
-        self.cb("levels_cross", "`<builtin>array`(n_cross)")
-        self.cb("levels_self", "`<builtin>array`(n_self)")
-        self.cb.fence()
-
-        for i in range(len(levels_self)):
-            self.cb("levels_self[{0}]".format(i), levels_self[i])
-            self.cb.fence()
-
-        for i in range(len(levels_cross)):
-            self.cb("levels_cross[{0}]".format(i), levels_cross[i])
-            self.cb.fence()
-
-        self.cb("point_eval_vec_cross", "`<builtin>array`(n_cross)")
-        self.cb("point_eval_vec_self", "`<builtin>array`(n_self)")
-
-        self.cb("vdm_transpose_cross", "`<builtin>array`(n_cross*n_cross)")
-        self.cb("vdm_transpose_self", "`<builtin>array`(n_self*n_self)")
-        self.cb.fence()
-
-        self.cb("point_eval_vec_cross[g]",
-            "1 / (g + 1) * (end_time_cross ** (g+1) - start_time_cross ** (g+1)) ",
-            loops=[("g", 0, "n_cross")])
-        self.cb("point_eval_vec_self[g]",
-            "1 / (g + 1) * (end_time_self ** (g+1)- start_time_self ** (g+1)) ",
-            loops=[("g", 0, "n_self")])
-        self.cb("vdm_transpose_cross[g*n_cross + h]", "levels_cross[g]**h",
-            loops=[("g", 0, "n_cross"), ("h", 0, "n_cross")])
-        self.cb("vdm_transpose_self[g*n_self + h]", "levels_self[g]**h",
-            loops=[("g", 0, "n_self"), ("h", 0, "n_self")])
-
-        self.cb.fence()
-
-        self.cb("new_cross_coeffs",
-                "`<builtin>linear_solve`("
-                "vdm_transpose_cross, point_eval_vec_cross, n_cross, 1)")
-        self.cb("new_self_coeffs",
-                "`<builtin>linear_solve`("
-                "vdm_transpose_self, point_eval_vec_self, n_self, 1)")
-
-        self.cb.fence()
-
-        # We can complete the integration by then performing the necessary
-        # linear combination, again using new built-ins
-
-        if start_time_level == 0 or (insn.result_name not in self.context):
-            my_y = self.last_y[insn.component]
-            assert start_time_level == 0
-        else:
-            my_y = self.context[insn.result_name]
-            assert start_time_level == self.var_time_level[insn.result_name]
-
-        # Define the self and cross histories
-
-        hists = self.stepper.histories
-        self_history = hists[self_hn][:]
-        cross_history = hists[cross_hn][:]
-
-        # Define a Python-side vector for the calculated coefficients (will be
-        # used with linear_comb)
-
-        new_self_coeffs_pyvar = var("newself")
-        new_cross_coeffs_pyvar = var("newcross")
-
-        self.cb.fence()
-
-        new_self_coeffs_py = [
-                new_self_coeffs_pyvar[i] for i in range(len(levels_self))]
-        new_cross_coeffs_py = [
-                new_cross_coeffs_pyvar[i] for i in range(len(levels_cross))]
-
-        # Use loops to assign each element of this vector to an element from
-        # our newly calculated coeff vector (Fortran-side)
-
-        self.cb("newself", "`<builtin>array`(n_self)")
-        self.cb("newcross", "`<builtin>array`(n_cross)")
-        self.cb.fence()
-
-        for i in range(len(levels_self)):
-            self.cb(new_self_coeffs_py[i], "new_self_coeffs[{0}]".format(i))
-            self.cb.fence()
-
-        for i in range(len(levels_cross)):
-            self.cb(new_cross_coeffs_py[i], "new_cross_coeffs[{0}]".format(i))
-            self.cb.fence()
-
-        needs_fence = insn.result_name in self.name_to_variable
-        new_y_var = self.get_variable(insn.result_name)
-
-        if needs_fence:
-            self.cb.fence()
-
-        # Perform the linear combination to obtain our new_y
-
-        combo = (my_y
-                + _linear_comb(new_cross_coeffs_py, cross_history)
-                + _linear_comb(new_self_coeffs_py, self_history))
-
-        if self.stepper.hist_is_fast[self_hn]:
-            if self.stepper.fast_state_filter is not None:
-                combo = self.stepper.fast_state_filter(combo)
-        else:
-            if self.stepper.slow_state_filter is not None:
-                combo = self.stepper.slow_state_filter(combo)
-
-        self.cb(new_y_var, combo)
-        self.cb.fence()
-
-        self.context[insn.result_name] = new_y_var
-        self.var_time_level[insn.result_name] = end_time_level
-
-        MRABProcessor.integrate_in_time(self, insn)
-
-    def history_update(self, insn):
-        time_slow = self.var_time_level[insn.slow_arg]
-
-        t = (self.t_start
-                + self.stepper.large_dt*time_slow/self.stepper.substep_count)
-
-        rhs = self.rhss[HIST_NAMES.index(insn.which)]
-
-        hist = self.stepper.histories[insn.which]
-
-        reverse_hist = hist[::-1]
-
-        # Move all the histories by one step forward
-        for h, h_next in zip(reverse_hist, reverse_hist[1:]):
-            self.cb.fence()
-            self.cb(h, h_next)
-
-        time_hist = self.stepper.time_histories[insn.which]
-
-        reverse_time_hist = time_hist[::-1]
-
-        # Move time histories by one step forward
-        for th, th_next in zip(reverse_time_hist, reverse_time_hist[1:]):
-            self.cb.fence()
-            self.cb(th, th_next)
-
-        # Tack on the new time
-        self.cb.fence()
-        self.cb(time_hist[0], t)
-
-        # Compute the new RHS
-        self.cb.fence()
-        self.cb(hist[0], rhs(t=t, f=self.context[insn.fast_arg],
-                             s=self.context[insn.slow_arg]))
-
-        if self.stepper.hist_is_fast[insn.which]:
-            self.hist_head_time_level[insn.which] += 1
-        else:
-            self.hist_head_time_level[insn.which] += self.stepper.substep_count
-
-        MRABProcessor.history_update(self, insn)
+        # }}}
+
+# }}}
+
+
+# {{{ two-rate compatibility shim
+
+class TwoRateAdamsBashforthMethod(MultiRateAdamsBashforthMethod):
+    def __init__(self, method, order, step_ratio):
+        from warnings import warn
+        warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
+                "longer be used. Use the fully general "
+                "MultiRateAdamsBashforthMethod interface instead.",
+                DeprecationWarning, stacklevel=2)
+
+        super(TwoRateAdamsBashforthMethod, self).__init__(
+                order,
+                component_names=("fast", "slow",),
+                rhss=(
+                    (
+                        RHS(1, "<func>f2f", ("fast", "slow",)),
+                        RHS(1, "<func>s2f", ("fast", "slow",)),
+                        ),
+                    (
+                        RHS(step_ratio, "<func>f2s", ("fast", "slow",)),
+                        RHS(step_ratio, "<func>s2s", ("fast", "slow",)),
+                        ),),
+
+                # This is a hack to avoid having to change the 2RAB test
+                # cases, which use these arguments
+                component_arg_names=("f", "s"))
+
+# }}}
+
+# vim: foldmethod=marker
