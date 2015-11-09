@@ -29,7 +29,7 @@ import pytest
 import dagrt.codegen.fortran as f
 from leap.rk import ODE23Method, ODE45Method, LSRK4Method
 
-from leap.ab.multirate.methods import methods as MRAB_METHODS  # noqa
+from leap.ab.multirate import TwoRateAdamsBashforthMethod
 
 from dagrt.utils import run_fortran
 
@@ -211,15 +211,12 @@ def test_rk_codegen_fancy():
 
 
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
-@pytest.mark.parametrize("method_name", list(MRAB_METHODS.keys()))
+@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 def test_multirate_codegen(min_order, method_name):
     from leap.ab.multirate import TwoRateAdamsBashforthMethod
-    from pytools import DictionaryWithDefault
-
-    orders = DictionaryWithDefault(lambda x: min_order)
 
     stepper = TwoRateAdamsBashforthMethod(
-            MRAB_METHODS[method_name], orders, 4,
+            method_name, min_order, 4,
             slow_state_filter_name="slow_filt",
             fast_state_filter_name="fast_filt")
 
@@ -444,15 +441,14 @@ def test_singlerate_squarewave(min_order):
         fortran_options=["-llapack", "-lblas"])
 
 
-@pytest.mark.parametrize("method_name", list(MRAB_METHODS.keys()))
+@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
 def test_multirate_squarewave(min_order, method_name):
-    from leap.ab.multirate import TwoRateAdamsBashforthMethod
     from pytools import DictionaryWithDefault
 
     orders = DictionaryWithDefault(lambda x: min_order)
 
-    stepper = TwoRateAdamsBashforthMethod(MRAB_METHODS[method_name], orders, 4)
+    stepper = TwoRateAdamsBashforthMethod(method_name, orders, 4)
 
     code = stepper.generate()
 
