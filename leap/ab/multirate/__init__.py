@@ -643,7 +643,8 @@ class MultiRateAdamsBashforthMethod(Method):
 
         def run_substep_loop():
             for isubstep in range(self.nsubsteps+1):
-                for comp_idx, component_rhss in enumerate(self.rhss):
+                for comp_idx, (comp_name, component_rhss) in enumerate(
+                        zip(self.component_names, self.rhss)):
                     for irhs, rhs in enumerate(component_rhss):
                         if isubstep % rhs.interval != 0:
                             continue
@@ -652,7 +653,8 @@ class MultiRateAdamsBashforthMethod(Method):
                             # {{{ finish up prior step
 
                             if rhs.rhs_mode == rhs_mode.early_and_late:
-                                update_hist(comp_idx, irhs, isubstep + rhs.interval)
+                                temp_time_vars[comp_name, irhs].pop()
+                                temp_hist_vars[comp_name, irhs].pop()
 
                             if rhs.rhs_mode in [
                                     rhs_mode.early_and_late, rhs_mode.late]:
