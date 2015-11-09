@@ -538,8 +538,8 @@ class MultiRateAdamsBashforthMethod(Method):
                 cb(vdmt[i + j*n], time_hist_var[j]**i,
                     loops=[(i.name, 0, n), (j.name, 0, n)])
 
-                t_start = self.t + self.dt * latest_state_substep / self.nsubsteps
-                t_end = self.t + self.dt * isubstep / self.nsubsteps
+                t_start = self.dt * latest_state_substep / self.nsubsteps
+                t_end = self.dt * isubstep / self.nsubsteps
 
                 cb(coeff_rhs[i],
                         1/(i+1) * (t_end**(i+1) - t_start**(i+1)),
