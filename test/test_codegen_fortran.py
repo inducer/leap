@@ -244,19 +244,19 @@ def test_multirate_codegen(min_order, method_name):
 
     freg = freg.register_codegen("<func>s2f", "fortran",
         f.CallCode("""
-            ${result} = (sin(2*${t}) - 1)*${s}
+            ${result} = (sin(2d0*${t}) - 1d0)*${s}
             """))
     freg = freg.register_codegen("<func>f2s", "fortran",
       f.CallCode("""
-          ${result} = (sin(2*${t}) + 1)*${f}
+          ${result} = (sin(2d0*${t}) + 1d0)*${f}
           """))
     freg = freg.register_codegen("<func>f2f", "fortran",
       f.CallCode("""
-          ${result} = cos(2*${t})*${f}
+          ${result} = cos(2d0*${t})*${f}
           """))
     freg = freg.register_codegen("<func>s2s", "fortran",
       f.CallCode("""
-          ${result} = -cos(2*${t})*${s}
+          ${result} = -cos(2d0*${t})*${s}
           """))
 
     freg = register_function(freg, "<func>slow_filt", ("arg",),
@@ -299,12 +299,9 @@ def test_multirate_codegen(min_order, method_name):
         with open("abmethod.f90", "wt") as outf:
             outf.write(code_str)
 
-    if min_order == 3:
-        num_trips_one = 200
-        num_trips_two = 300
-    else:
-        num_trips_one = 100
-        num_trips_two = 150
+    fac = 3
+    num_trips_one = 10*fac
+    num_trips_two = 100*fac
 
     run_fortran([
         ("abmethod.f90", code_str),
