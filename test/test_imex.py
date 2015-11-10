@@ -1,19 +1,6 @@
 #! /usr/bin/env python
 from __future__ import division, with_statement
 
-import numpy as np
-import pytest
-import sys
-
-from leap.rk.imex import KennedyCarpenterIMEXARK4Method
-from stiff_test_systems import KapsProblem
-from leap.implicit import ScipySolverGenerator
-
-from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
-
-
 __copyright__ = "Copyright (C) 2014 Matt Wala"
 
 __license__ = """
@@ -37,7 +24,17 @@ THE SOFTWARE.
 """
 
 
+import numpy as np
+import pytest
+import sys
 
+from leap.rk.imex import KennedyCarpenterIMEXARK4Method
+from stiff_test_systems import KapsProblem
+from leap.implicit import ScipySolverGenerator
+
+from utils import (  # noqa
+        python_method_impl_interpreter as pmi_int,
+        python_method_impl_codegen as pmi_cg)
 
 
 _component_id = "y"
