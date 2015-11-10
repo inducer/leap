@@ -176,6 +176,7 @@ class ButcherTableauMethod(Method):
         # {{{ stage loop
 
         last_state_est_var = cb.fresh_var("last_state_est")
+        last_state_est_var_valid = False
 
         with CodeBuilder(label="primary") as cb:
             equations = []
@@ -222,13 +223,9 @@ class ButcherTableauMethod(Method):
                                         for src_name in stage_coeff_set_names))):
                             state_est = self.state_filter(state_est)
 
-                        if istage + 1 == nstages:
-                            cb(last_state_est_var, state_est)
-                            state_est = last_state_est_var
-
-                        rhs_expr = rhs_funcs[name](t=t + c*dt, **{comp: state_est})
-
                         if is_implicit:
+                            rhs_expr = rhs_funcs[name](t=t + c*dt, **{comp: state_est})
+
                             from dagrt.expression import collapse_constants
                             solve_expression = collapse_constants(
                                     my_rhs - rhs_expr,
@@ -236,7 +233,17 @@ class ButcherTableauMethod(Method):
                                     cb.assign, cb.fresh_var)
                             equations.append(solve_expression)
 
+                            if istage + 1 == nstages:
+                                last_state_est_var_valid = False
+
                         else:
+                            if istage + 1 == nstages:
+                                cb(last_state_est_var, state_est)
+                                state_est = last_state_est_var
+                                last_state_est_var_valid = True
+
+                            rhs_expr = rhs_funcs[name](t=t + c*dt, **{comp: state_est})
+
                             cb(my_rhs, rhs_expr)
                             make_known(my_rhs)
 
@@ -279,8 +286,11 @@ class ButcherTableauMethod(Method):
             for iest, name in enumerate(estimate_coeff_set_names):
                 out_coeffs = estimate_coeff_sets[name]
 
-                if _is_last_stage_same_as_output(self.c,
-                        stage_coeff_sets, out_coeffs):
+                if (
+                        last_state_est_var_valid
+                        and
+                        _is_last_stage_same_as_output(self.c,
+                            stage_coeff_sets, out_coeffs)):
                     state_est = last_state_est_var
 
                 else:
