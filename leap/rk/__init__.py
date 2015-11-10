@@ -224,7 +224,8 @@ class ButcherTableauMethod(Method):
                             state_est = self.state_filter(state_est)
 
                         if is_implicit:
-                            rhs_expr = rhs_funcs[name](t=t + c*dt, **{comp: state_est})
+                            rhs_expr = rhs_funcs[name](
+                                    t=t + c*dt, **{comp: state_est})
 
                             from dagrt.expression import collapse_constants
                             solve_expression = collapse_constants(
@@ -242,7 +243,8 @@ class ButcherTableauMethod(Method):
                                 state_est = last_state_est_var
                                 last_state_est_var_valid = True
 
-                            rhs_expr = rhs_funcs[name](t=t + c*dt, **{comp: state_est})
+                            rhs_expr = rhs_funcs[name](
+                                    t=t + c*dt, **{comp: state_est})
 
                             cb(my_rhs, rhs_expr)
                             make_known(my_rhs)
