@@ -17,7 +17,7 @@ program test_mrabmethod_squarewave
 
   integer run_count, k
   real*8 t_fin
-  parameter (run_count=2, t_fin=1d0)
+  parameter (run_count=2, t_fin=11d0)
 
   real*8, dimension(run_count):: dt_values, error_slow, error_fast
 

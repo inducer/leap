@@ -434,13 +434,9 @@ def test_singlerate_squarewave(min_order):
 
 
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
-@pytest.mark.parametrize("min_order", [2, 3, 4, 5])
+@pytest.mark.parametrize("min_order", [5, 4, 3, 2])
 def test_multirate_squarewave(min_order, method_name):
-    from pytools import DictionaryWithDefault
-
-    orders = DictionaryWithDefault(lambda x: min_order)
-
-    stepper = TwoRateAdamsBashforthMethod(method_name, orders, 4)
+    stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4)
 
     code = stepper.generate()
 
@@ -503,50 +499,24 @@ def test_multirate_squarewave(min_order, method_name):
     # Build in conditionals to alter the timestep based on order such that all
     # tests pass
 
-    if min_order == 3:
-        run_fortran([
-            ("abmethod.f90", code_str),
-            ("test_mrab_squarewave.f90", (
-                read_file("test_mrab_squarewave.f90")
-                .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
-                .replace("NUM_TRIPS_ONE", str(200))
-                .replace("NUM_TRIPS_TWO", str(300)))),
-            ],
-            fortran_options=["-llapack", "-lblas"])
-    elif min_order == 5:
-        if method_name == 'Sqrs':
-            # This is an especially problematic test in that it has errors that
-            # are too low to achieve order convergence.
-            run_fortran([
-                ("abmethod.f90", code_str),
-                ("test_mrab_squarewave.f90", (
-                    read_file("test_mrab_squarewave.f90")
-                    .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
-                    .replace("NUM_TRIPS_ONE", str(5))
-                    .replace("NUM_TRIPS_TWO", str(10)))),
-                ],
-                fortran_options=["-llapack", "-lblas"])
-
-        else:
-            run_fortran([
-                ("abmethod.f90", code_str),
-                ("test_mrab_squarewave.f90", (
-                    read_file("test_mrab_squarewave.f90")
-                    .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
-                    .replace("NUM_TRIPS_ONE", str(130))
-                    .replace("NUM_TRIPS_TWO", str(200)))),
-                ],
-                fortran_options=["-llapack", "-lblas"])
+    if min_order == 5:
+        fac = 5
+    elif min_order == 2:
+        fac = 200
     else:
-        run_fortran([
-            ("abmethod.f90", code_str),
-            ("test_mrab_squarewave.f90", (
-                read_file("test_mrab_squarewave.f90")
-                .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
-                .replace("NUM_TRIPS_ONE", str(100))
-                .replace("NUM_TRIPS_TWO", str(150)))),
-            ],
-            fortran_options=["-llapack", "-lblas"])
+        fac = 12
+    num_trips_one = 100*fac
+    num_trips_two = 150*fac
+
+    run_fortran([
+        ("abmethod.f90", code_str),
+        ("test_mrab_squarewave.f90", (
+            read_file("test_mrab_squarewave.f90")
+            .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
+            .replace("NUM_TRIPS_ONE", str(num_trips_one))
+            .replace("NUM_TRIPS_TWO", str(num_trips_two)))),
+        ],
+        fortran_options=["-llapack", "-lblas"])
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
