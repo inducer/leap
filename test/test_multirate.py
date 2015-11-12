@@ -195,11 +195,8 @@ def test_multirate_accuracy(method_name, order, system):
 def test_scheme_explainers(method_name, explainer):
     stepper = TwoRateAdamsBashforthMethod(
             method_name, order=3, step_ratio=3)
-
-    from leap.ab.multirate import TextualSchemeExplainer
-    expl = TextualSchemeExplainer()
-    stepper.generate(explainer=expl)
-    print(expl)
+    stepper.generate(explainer=explainer)
+    print(explainer)
 
 
 if __name__ == "__main__":
