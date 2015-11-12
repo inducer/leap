@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 import sys
 import pytest
-from leap.ab import AdamsBashforthMethod
+from leap.multistep import AdamsBashforthMethod
 
 from utils import (  # noqa
         python_method_impl_interpreter as pmi_int,

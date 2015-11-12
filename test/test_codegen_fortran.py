@@ -29,7 +29,7 @@ import pytest
 import dagrt.codegen.fortran as f
 from leap.rk import ODE23Method, ODE45Method, LSRK4Method
 
-from leap.ab.multirate import TwoRateAdamsBashforthMethod
+from leap.multistep.multirate import TwoRateAdamsBashforthMethod
 
 from dagrt.utils import run_fortran
 
@@ -213,7 +213,7 @@ def test_rk_codegen_fancy():
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 def test_multirate_codegen(min_order, method_name):
-    from leap.ab.multirate import TwoRateAdamsBashforthMethod
+    from leap.multistep.multirate import TwoRateAdamsBashforthMethod
 
     stepper = TwoRateAdamsBashforthMethod(
             method_name, min_order, 4,
@@ -391,7 +391,7 @@ def test_adaptive_rk_codegen_error():
 
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
 def test_singlerate_squarewave(min_order):
-    from leap.ab import AdamsBashforthMethod
+    from leap.multistep import AdamsBashforthMethod
 
     component_id = 'y'
     rhs_function = '<func>y'
