@@ -40,7 +40,7 @@ Multi-rate time integration
 
 .. autoclass:: rhs_mode
 .. autoclass:: RHS
-.. autoclass:: MultiRateAdamsBashforthMethod
+.. autoclass:: MultiRateMultiStepMethod
 
 Scheme explanation
 ------------------
@@ -78,7 +78,7 @@ class RHS(Record):
             smallest available timestep) at which this right-hand side
             function is to be called.
         :arg arguments: A tuple of component names
-            (see :class:`MultiRateAdamsBashforthMethod`)
+            (see :class:`MultiRateMultiStepMethod`)
             which are passed to this right-hand side function.
         :arg order: The AB approximation order to be used for this RHS
             history, or None if the method default is to be used.
@@ -100,7 +100,7 @@ class RHS(Record):
 
 # {{{ method
 
-class MultiRateAdamsBashforthMethod(Method):
+class MultiRateMultiStepMethod(Method):
     """Simultaneously timesteps multiple parts of an ODE system,
     each with adjustable orders, rates, and dependencies.
 
@@ -129,7 +129,7 @@ class MultiRateAdamsBashforthMethod(Method):
             to be used as keywords for passing arguments to the right
             hand sides in *rhss*.
         """
-        super(MultiRateAdamsBashforthMethod, self).__init__()
+        super(MultiRateMultiStepMethod, self).__init__()
 
         # Variables
         from pymbolic import var
@@ -804,7 +804,7 @@ class MultiRateAdamsBashforthMethod(Method):
 
 # {{{ two-rate compatibility shim
 
-class TwoRateAdamsBashforthMethod(MultiRateAdamsBashforthMethod):
+class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
     methods = [
             "Sqrs",
             "Sqr",
@@ -841,7 +841,7 @@ class TwoRateAdamsBashforthMethod(MultiRateAdamsBashforthMethod):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
                 "longer be used. Use the fully general "
-                "MultiRateAdamsBashforthMethod interface instead.",
+                "MultiRateMultiStepMethod interface instead.",
                 DeprecationWarning, stacklevel=2)
 
         if "S" in method:
