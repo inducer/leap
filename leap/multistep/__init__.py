@@ -169,12 +169,10 @@ class AdamsBashforthMethod(Method):
             with cb_bootstrap.if_(self.step, "==", steps):
                 cb_bootstrap.state_transition("primary")
 
-        from dagrt.language import ExecutionState
-
         states = {}
-        states["initialization"] = ExecutionState.from_cb(cb_init, "bootstrap")
-        states["bootstrap"] = ExecutionState.from_cb(cb_bootstrap, "bootstrap")
-        states["primary"] = ExecutionState.from_cb(cb_primary, "primary")
+        states["initialization"] = cb_init.as_execution_state("bootstrap")
+        states["bootstrap"] = cb_bootstrap.as_execution_state("bootstrap")
+        states["primary"] = cb_primary.as_execution_state("primary")
 
         return DAGCode(
             instructions=cb_init.instructions | cb_bootstrap.instructions |

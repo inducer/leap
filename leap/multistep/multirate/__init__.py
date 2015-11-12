@@ -782,14 +782,11 @@ class MultiRateMultiStepMethod(Method):
         if explainer is None:
             explainer = SchemeExplainerBase()
 
-        from dagrt.language import (DAGCode, ExecutionState,
-                                      CodeBuilder)
+        from dagrt.language import DAGCode, CodeBuilder
 
-        # Initialization state
         with CodeBuilder(label="initialization") as cb_init:
             self.emit_initialization(cb_init)
 
-        # Primary state
         with CodeBuilder(label="primary") as cb_primary:
             self.emit_ab_method(cb_primary, explainer)
 
@@ -797,9 +794,9 @@ class MultiRateMultiStepMethod(Method):
             self.emit_rk_bootstrap(cb_bootstrap)
 
         states = {}
-        states["initialization"] = ExecutionState.from_cb(cb_init, "bootstrap")
-        states["bootstrap"] = ExecutionState.from_cb(cb_bootstrap, "bootstrap")
-        states["primary"] = ExecutionState.from_cb(cb_primary, "primary")
+        states["initialization"] = cb_init.as_execution_state("bootstrap")
+        states["bootstrap"] = cb_bootstrap.as_execution_state("bootstrap")
+        states["primary"] = cb_primary.as_execution_state("primary")
 
         return DAGCode(
             instructions=cb_init.instructions | cb_bootstrap.instructions |
