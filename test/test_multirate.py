@@ -29,7 +29,7 @@ THE SOFTWARE.
 import numpy
 import pytest
 from pytools import memoize_method
-from leap.ab.multirate import (
+from leap.multistep.multirate import (
         TwoRateAdamsBashforthMethod,
         TextualSchemeExplainer,
         TeXDiagramSchemeExplainer)

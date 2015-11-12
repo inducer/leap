@@ -11,17 +11,12 @@ partitioned than [0, 1] by a given ratio.
 from __future__ import division
 
 from dagrt.codegen import PythonCodeGenerator
-from leap.ab.multirate import TwoRateAdamsBashforthMethod
-import leap.ab.multirate.methods
+from leap.multistep.multirate import TwoRateAdamsBashforthMethod
 
 import numpy as np
 import scipy.linalg as sla
 from mpl_toolkits.mplot3d import axes3d  # noqa
 import matplotlib.pyplot as plt
-from pytools import DictionaryWithDefault
-
-
-FastestFirst = leap.ab.multirate.methods.methods['Fq']
 
 
 def make_rhs(matrix, multiply_fast_component):
@@ -111,8 +106,8 @@ def run_multirate_method(method, y_fast, y_slow, dt, t_start, t_end):
 def make_multirate_method(f2f, s2f, f2s, s2s, ratio=2, order=3):
     """Return the object that drives the multirate method for the given
     parameters."""
-    orders = DictionaryWithDefault(lambda x: order)
-    code = TwoRateAdamsBashforthMethod(FastestFirst, orders, ratio).generate()
+    FastestFirst = "Fq"
+    code = TwoRateAdamsBashforthMethod(FastestFirst, order, ratio).generate()
     MRABMethod = PythonCodeGenerator(class_name='MRABMethod').get_class(code)
 
     rhs_map = {'<func>f2f': f2f, '<func>s2f': s2f, '<func>f2s': f2s,
