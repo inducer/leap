@@ -29,7 +29,10 @@ THE SOFTWARE.
 import numpy
 import pytest
 from pytools import memoize_method
-from leap.ab.multirate import TwoRateAdamsBashforthMethod
+from leap.ab.multirate import (
+        TwoRateAdamsBashforthMethod,
+        TextualSchemeExplainer,
+        TeXDiagramSchemeExplainer)
 
 
 from utils import (  # noqa
@@ -54,6 +57,7 @@ class MultirateTimestepperAccuracyChecker(object):
     def get_code(self):
         stepper = TwoRateAdamsBashforthMethod(self.method, self.order,
                                                        self.step_ratio)
+
         return stepper.generate()
 
     def initialize_method(self, dt):
@@ -181,6 +185,21 @@ def test_multirate_accuracy(method_name, order, system):
     MultirateTimestepperAccuracyChecker(
         method_name, order, step_ratio, ode=system(),
         method_impl=pmi_cg)()
+
+
+@pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
+@pytest.mark.parametrize("explainer", [
+    TextualSchemeExplainer(),
+    TeXDiagramSchemeExplainer(),
+    ])
+def test_scheme_explainers(method_name, explainer):
+    stepper = TwoRateAdamsBashforthMethod(
+            method_name, order=3, step_ratio=3)
+
+    from leap.ab.multirate import TextualSchemeExplainer
+    expl = TextualSchemeExplainer()
+    stepper.generate(explainer=expl)
+    print(expl)
 
 
 if __name__ == "__main__":

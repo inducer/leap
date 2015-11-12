@@ -35,9 +35,19 @@ from pymbolic import var
 
 
 __doc__ = """
+Multi-rate time integration
+===========================
+
 .. autoclass:: rhs_mode
 .. autoclass:: RHS
 .. autoclass:: MultiRateAdamsBashforthMethod
+
+Scheme explanation
+------------------
+
+.. autoclass:: SchemeExplainerBase
+.. autoclass:: TextualSchemeExplainer
+.. autoclass:: TeXDiagramSchemeExplainer
 """
 
 
@@ -455,14 +465,18 @@ class MultiRateAdamsBashforthMethod(Method):
 
     # }}}
 
+    class StateContribExplanation(Record):
+        pass
+
     # {{{ main method generation
 
-    def emit_ab_method(self, cb):
+    def emit_ab_method(self, cb, explainer):
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
-        # {{{ make temporary copies of time/hist_vars for "early" rhs_mode
+        # {{{ make temporary copies of time/hist_vars
 
+        temp_hist_substeps = {}
         temp_time_vars = {}
         temp_hist_vars = {}
 
@@ -471,12 +485,23 @@ class MultiRateAdamsBashforthMethod(Method):
                 for irhs, rhs in enumerate(component_rhss):
                     key = comp_name, irhs
 
+                    temp_hist_substeps[key] = list(range(
+                        0, -rhs.interval*rhs.order, -rhs.interval))
                     temp_time_vars[key] = self.time_vars[key][:]
                     temp_hist_vars[key] = self.history_vars[key][:]
 
         fill_temp_hist_vars()
 
         # }}}
+
+        def log_hist_state():
+            explainer.log_hist_state(dict(
+                (rhs.func_name, (temp_hist_substeps[comp_name, irhs],
+                    [v.name for v in temp_hist_vars[comp_name, irhs]]))
+                for comp_name, component_rhss in zip(self.component_names, self.rhss)
+                for irhs, rhs in enumerate(component_rhss)))
+
+        log_hist_state()
 
         # A mapping from component_name to a list of tuples
         # (substep_level, state_var). This mapping is ordered
@@ -510,9 +535,15 @@ class MultiRateAdamsBashforthMethod(Method):
             linear_solve = var("<builtin>linear_solve")
 
             contribs = []
+            contrib_explanations = []
+
             for irhs, rhs in enumerate(rhss):
                 cb.fence()
                 n = rhs.order
+
+                relv_hist_substeps = temp_hist_substeps[comp_name, irhs][-n:][::-1]
+                relv_time_hist = temp_time_vars[comp_name, irhs][-n:][::-1]
+                relv_hist_vars = temp_hist_vars[comp_name, irhs][-n:][::-1]
 
                 # {{{ compute AB coefficients
 
@@ -528,12 +559,11 @@ class MultiRateAdamsBashforthMethod(Method):
                 i = var(name_gen("vdm_i"))
                 j = var(name_gen("vdm_j"))
 
-                relevant_time_hist = temp_time_vars[comp_name, irhs][-n:][::-1]
                 time_hist_var = var(name_gen("time_hist"))
                 cb(time_hist_var, array(n))
 
                 for ii in range(n):
-                    cb(time_hist_var[ii], relevant_time_hist[ii] - self.t)
+                    cb(time_hist_var[ii], relv_time_hist[ii] - self.t)
 
                 cb(vdmt[i + j*n], time_hist_var[j]**i,
                     loops=[(i.name, 0, n), (j.name, 0, n)])
@@ -558,9 +588,14 @@ class MultiRateAdamsBashforthMethod(Method):
                 cb(state_contrib_var,
                         _linear_comb(
                             [ab_coeffs[ii] for ii in range(n)],
-                            temp_hist_vars[comp_name, irhs][-n:][::-1]))
+                            relv_hist_vars))
 
                 contribs.append(state_contrib_var)
+                contrib_explanations.append(
+                        self.StateContribExplanation(
+                            rhs=rhs.func_name,
+                            from_substeps=relv_hist_substeps,
+                            using=relv_hist_vars))
 
                 cb.fence()
 
@@ -575,6 +610,9 @@ class MultiRateAdamsBashforthMethod(Method):
             cb(state_var, state_expr)
 
             states.append((isubstep, state_var))
+            explainer.integrate_to(comp_name, state_var.name,
+                    latest_state_substep, isubstep, latest_state,
+                    contrib_explanations)
 
             return state_var
 
@@ -601,6 +639,8 @@ class MultiRateAdamsBashforthMethod(Method):
                         get_state(arg_comp_name, isubstep))
                     for arg_comp_name in rhs.arguments)
 
+            # }}}
+
             rhs_var = var(
                     name_gen(
                         "rhs_{comp_name}_rhs{irhs}_sub{isubstep}"
@@ -608,10 +648,12 @@ class MultiRateAdamsBashforthMethod(Method):
 
             cb(rhs_var, var(rhs.func_name)(t=t_expr, **kwargs))
 
+            temp_hist_substeps[comp_name, irhs].append(isubstep)
             temp_time_vars[comp_name, irhs].append(t_var)
             temp_hist_vars[comp_name, irhs].append(rhs_var)
 
-            # }}}
+            explainer.eval_rhs(
+                    rhs_var.name, comp_name, rhs.func_name, isubstep, kwargs)
 
             # {{{ invalidate computed states, if requested
 
@@ -653,8 +695,10 @@ class MultiRateAdamsBashforthMethod(Method):
                             # {{{ finish up prior step
 
                             if rhs.rhs_mode == rhs_mode.early_and_late:
+                                temp_hist_substeps[comp_name, irhs].pop()
                                 temp_time_vars[comp_name, irhs].pop()
                                 temp_hist_vars[comp_name, irhs].pop()
+                                explainer.roll_back_history(rhs.func_name)
 
                             if rhs.rhs_mode in [
                                     rhs_mode.early_and_late, rhs_mode.late]:
@@ -676,6 +720,8 @@ class MultiRateAdamsBashforthMethod(Method):
         # }}}
 
         cb.fence()
+
+        log_hist_state()
 
         end_states = [
             get_state(component_name, self.nsubsteps)
@@ -722,7 +768,10 @@ class MultiRateAdamsBashforthMethod(Method):
 
     # {{{ generation entrypoint
 
-    def generate(self):
+    def generate(self, explainer=None):
+        if explainer is None:
+            explainer = SchemeExplainerBase()
+
         from dagrt.language import (DAGCode, ExecutionState,
                                       CodeBuilder)
 
@@ -732,7 +781,7 @@ class MultiRateAdamsBashforthMethod(Method):
 
         # Primary state
         with CodeBuilder(label="primary") as cb_primary:
-            self.emit_ab_method(cb_primary)
+            self.emit_ab_method(cb_primary, explainer)
 
         with CodeBuilder(label="bootstrap") as cb_bootstrap:
             self.emit_rk_bootstrap(cb_bootstrap)
@@ -841,5 +890,97 @@ class TwoRateAdamsBashforthMethod(MultiRateAdamsBashforthMethod):
                 component_arg_names=("f", "s"))
 
 # }}}
+
+
+# {{{ scheme explainers
+
+class SchemeExplainerBase(object):
+    """
+    .. automethod:: evaluate_rhs
+    .. automethod:: integrate
+    """
+
+    def log_hist_state(self, hist_substeps):
+        pass
+
+    def integrate_to(self, component_name, var_name,
+            from_substep, to_substep, latest_state,
+            contrib_explanations):
+        pass
+
+    def eval_rhs(self, rhs_var, comp_name, rhs_name, isubstep, kwargs):
+        pass
+
+    def roll_back_history(self, rhs_name):
+        pass
+
+
+class TextualSchemeExplainer(SchemeExplainerBase):
+    def __init__(self):
+        self.lines = []
+
+    def __str__(self):
+        return "\n".join(self.lines)
+
+    def log_hist_state(self, hist_substeps):
+        self.lines.append("HISTORY:")
+        for rhs_name, rhs_hist_substeps_and_vars in hist_substeps.items():
+            self.lines.append(
+                    "    {rhs}: {substeps}"
+                    .format(
+                        rhs=rhs_name.replace("<func>", ""),
+                        substeps=", ".join(
+                            str(i)+":"+var
+                            for i, var in zip(*rhs_hist_substeps_and_vars))))
+
+    def integrate_to(self, component_name, var_name,
+            from_substep, to_substep, latest_state,
+            contrib_explanations):
+        self.lines.append(
+                "INTEGRATE: {var_name} <- "
+                "FROM {from_substep} ({latest_state}) TO {to_substep}:"
+                .format(
+                    var_name=var_name,
+                    from_substep=from_substep,
+                    to_substep=to_substep,
+                    latest_state=latest_state,
+                    ))
+
+        for contrib in contrib_explanations:
+            self.lines.append(
+                    "    {rhs}: {states}"
+                    .format(
+                        rhs=contrib.rhs.replace("<func>", ""),
+                        states=" ".join(
+                            "%d:%s" % (substep, name)
+                            for substep, name in zip(
+                                contrib.from_substeps, contrib.using))))
+
+    def eval_rhs(self, rhs_var, comp_name, rhs_name, isubstep, kwargs):
+        self.lines.append(
+                "EVAL {rhs_var} <- {rhs_name}(t={isubstep}, {kwargs})"
+                .format(
+                    rhs_var=rhs_var,
+                    comp_name=comp_name,
+                    rhs_name=rhs_name.replace("<func>", ""),
+                    isubstep=isubstep,
+                    kwargs=", ".join(
+                        "%s=%s" % (k, v)
+                        for k, v in sorted(kwargs.items()))))
+
+    def roll_back_history(self, rhs_name):
+        self.lines.append("ROLL BACK %s" % rhs_name)
+
+
+class TeXDiagramSchemeExplainer(SchemeExplainerBase):
+    def __init__(self):
+        self.lines = []
+
+    def __str__(self):
+        return "\n".join(self.lines)
+
+
+# }}}
+
 
 # vim: foldmethod=marker
