@@ -857,9 +857,9 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
                 DeprecationWarning, stacklevel=2)
 
         if "S" in method:
-            s2s_policy = rhs_policy.late
-        else:
             s2s_policy = rhs_policy.early
+        else:
+            s2s_policy = rhs_policy.late
 
         if "r" in method:
             s2s_policy = rhs_policy.early_and_late
