@@ -95,6 +95,10 @@ class RHS(Record):
                 rhs_mode=rhs_mode,
                 invalidate_computed_state=invalidate_computed_state)
 
+    @property
+    def history_length(self):
+        return self.order
+
 # }}}
 
 
@@ -225,9 +229,10 @@ class MultiRateMultiStepMethod(Method):
             for irhs, rhs in enumerate(component_rhss):
                 key = comp_name, irhs
 
+                # These are organized latest-last.
                 t_vars = []
                 hist_vars = []
-                for past in range(rhs.order):
+                for past in range(rhs.history_length):
                     t_vars.insert(0, var(
                         '<p>t_%s_rhs%d_hist_%d_ago' % (comp_name, irhs, past)))
                     hist_vars.insert(0, var(
@@ -476,6 +481,7 @@ class MultiRateMultiStepMethod(Method):
 
         # {{{ make temporary copies of time/hist_vars
 
+        # maps from (component_name, irhs) to latest-last list of values
         temp_hist_substeps = {}
         temp_time_vars = {}
         temp_hist_vars = {}
@@ -486,7 +492,7 @@ class MultiRateMultiStepMethod(Method):
                     key = comp_name, irhs
 
                     temp_hist_substeps[key] = list(range(
-                        0, -rhs.interval*rhs.order, -rhs.interval))
+                        -rhs.interval*(rhs.order-1), 1, rhs.interval))
                     temp_time_vars[key] = self.time_vars[key][:]
                     temp_hist_vars[key] = self.history_vars[key][:]
 
@@ -496,8 +502,11 @@ class MultiRateMultiStepMethod(Method):
 
         def log_hist_state():
             explainer.log_hist_state(dict(
-                (rhs.func_name, (temp_hist_substeps[comp_name, irhs],
-                    [v.name for v in temp_hist_vars[comp_name, irhs]]))
+                (rhs.func_name, (
+                    temp_hist_substeps[comp_name, irhs][-rhs.history_length::],
+                    [v.name
+                        for v in
+                        temp_hist_vars[comp_name, irhs][-rhs.history_length::]]))
                 for comp_name, component_rhss in zip(self.component_names, self.rhss)
                 for irhs, rhs in enumerate(component_rhss)))
 
@@ -539,11 +548,12 @@ class MultiRateMultiStepMethod(Method):
 
             for irhs, rhs in enumerate(rhss):
                 cb.fence()
-                n = rhs.order
+                hist_len = rhs.history_length
+                order = rhs.order
 
-                relv_hist_substeps = temp_hist_substeps[comp_name, irhs][-n:][::-1]
-                relv_time_hist = temp_time_vars[comp_name, irhs][-n:][::-1]
-                relv_hist_vars = temp_hist_vars[comp_name, irhs][-n:][::-1]
+                relv_hist_substeps = temp_hist_substeps[comp_name, irhs][-hist_len:]
+                relv_time_hist = temp_time_vars[comp_name, irhs][-hist_len:]
+                relv_hist_vars = temp_hist_vars[comp_name, irhs][-hist_len:]
 
                 # {{{ compute AB coefficients
 
@@ -551,32 +561,32 @@ class MultiRateMultiStepMethod(Method):
                 # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
 
                 vdmt = var(name_gen("vdm_transpose"))
-                cb(vdmt, array(n*n))
+                cb(vdmt, array(order*hist_len))
 
                 coeff_rhs = var(name_gen("coeff_rhs"))
-                cb(coeff_rhs, array(n))
+                cb(coeff_rhs, array(hist_len))
 
                 i = var(name_gen("vdm_i"))
                 j = var(name_gen("vdm_j"))
 
                 time_hist_var = var(name_gen("time_hist"))
-                cb(time_hist_var, array(n))
+                cb(time_hist_var, array(hist_len))
 
-                for ii in range(n):
+                for ii in range(hist_len):
                     cb(time_hist_var[ii], relv_time_hist[ii] - self.t)
 
-                cb(vdmt[i + j*n], time_hist_var[j]**i,
-                    loops=[(i.name, 0, n), (j.name, 0, n)])
+                cb(vdmt[i + j*order], time_hist_var[j]**i,
+                    loops=[(i.name, 0, order), (j.name, 0, hist_len)])
 
                 t_start = self.dt * latest_state_substep / self.nsubsteps
                 t_end = self.dt * isubstep / self.nsubsteps
 
                 cb(coeff_rhs[i],
                         1/(i+1) * (t_end**(i+1) - t_start**(i+1)),
-                        loops=[(i.name, 0, n)])
+                        loops=[(i.name, 0, order)])
 
                 ab_coeffs = var(name_gen("ab_coeffs"))
-                cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, n, 1))
+                cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, order, 1))
 
                 # }}}
 
@@ -587,7 +597,7 @@ class MultiRateMultiStepMethod(Method):
 
                 cb(state_contrib_var,
                         _linear_comb(
-                            [ab_coeffs[ii] for ii in range(n)],
+                            [ab_coeffs[ii] for ii in range(hist_len)],
                             relv_hist_vars))
 
                 contribs.append(state_contrib_var)

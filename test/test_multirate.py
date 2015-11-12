@@ -192,9 +192,9 @@ def test_multirate_accuracy(method_name, order, system):
     TextualSchemeExplainer(),
     TeXDiagramSchemeExplainer(),
     ])
-def test_scheme_explainers(method_name, explainer):
+def test_scheme_explainers(method_name, explainer, order=3, step_ratio=3):
     stepper = TwoRateAdamsBashforthMethod(
-            method_name, order=3, step_ratio=3)
+            method_name, order=order, step_ratio=step_ratio)
     stepper.generate(explainer=explainer)
     print(explainer)
 
