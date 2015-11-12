@@ -38,7 +38,7 @@ __doc__ = """
 Multi-rate time integration
 ===========================
 
-.. autoclass:: rhs_mode
+.. autoclass:: rhs_policy
 .. autoclass:: RHS
 .. autoclass:: MultiRateMultiStepMethod
 
@@ -64,7 +64,7 @@ def _linear_comb(coefficients, vectors):
 
 # {{{ system description
 
-class rhs_mode:
+class rhs_policy:
     late = 0
     early = 1
     early_and_late = 2
@@ -72,7 +72,7 @@ class rhs_mode:
 
 class RHS(Record):
     def __init__(self, interval, func_name, arguments=None, order=None,
-            rhs_mode=rhs_mode.late, invalidate_computed_state=False):
+            rhs_policy=rhs_policy.late, invalidate_computed_state=False):
         """
         :arg interval: An integer indicating the interval (relative to the
             smallest available timestep) at which this right-hand side
@@ -82,7 +82,7 @@ class RHS(Record):
             which are passed to this right-hand side function.
         :arg order: The AB approximation order to be used for this RHS
             history, or None if the method default is to be used.
-        :arg rhs_mode: One of the constants in :class:`rhs_mode`
+        :arg rhs_policy: One of the constants in :class:`rhs_policy`
         :arg invalidate_dependent_state: Whether evaluating this
             right-hand side should force a recomputation of any
             state that depended upon now-superseded state.
@@ -92,7 +92,7 @@ class RHS(Record):
                 func_name=func_name,
                 arguments=arguments,
                 order=order,
-                rhs_mode=rhs_mode,
+                rhs_policy=rhs_policy,
                 invalidate_computed_state=invalidate_computed_state)
 
     @property
@@ -704,14 +704,14 @@ class MultiRateMultiStepMethod(Method):
                         if isubstep > 0:
                             # {{{ finish up prior step
 
-                            if rhs.rhs_mode == rhs_mode.early_and_late:
+                            if rhs.rhs_policy == rhs_policy.early_and_late:
                                 temp_hist_substeps[comp_name, irhs].pop()
                                 temp_time_vars[comp_name, irhs].pop()
                                 temp_hist_vars[comp_name, irhs].pop()
                                 explainer.roll_back_history(rhs.func_name)
 
-                            if rhs.rhs_mode in [
-                                    rhs_mode.early_and_late, rhs_mode.late]:
+                            if rhs.rhs_policy in [
+                                    rhs_policy.early_and_late, rhs_policy.late]:
                                 update_hist(comp_idx, irhs, isubstep)
 
                             # }}}
@@ -719,8 +719,8 @@ class MultiRateMultiStepMethod(Method):
                         if isubstep < self.nsubsteps:
                             # {{{ start up a new substep
 
-                            if rhs.rhs_mode in [
-                                    rhs_mode.early, rhs_mode.early_and_late]:
+                            if rhs.rhs_policy in [
+                                    rhs_policy.early, rhs_policy.early_and_late]:
                                 update_hist(comp_idx, irhs, isubstep + rhs.interval)
 
                             # }}}
@@ -852,12 +852,12 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
                 DeprecationWarning, stacklevel=2)
 
         if "S" in method:
-            s2s_mode = rhs_mode.late
+            s2s_policy = rhs_policy.late
         else:
-            s2s_mode = rhs_mode.early
+            s2s_policy = rhs_policy.early
 
         if "r" in method:
-            s2s_mode = rhs_mode.early_and_late
+            s2s_policy = rhs_policy.early_and_late
 
         if "q" in method:
             s2f_interval = 1
@@ -865,14 +865,14 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
             s2f_interval = step_ratio
 
         if "s" in method:
-            f2s_mode = rhs_mode.early
+            f2s_policy = rhs_policy.early
         else:
-            f2s_mode = rhs_mode.late
+            f2s_policy = rhs_policy.late
 
         if "f" in method:
-            s2f_mode = rhs_mode.early
+            s2f_policy = rhs_policy.early
         else:
-            s2f_mode = rhs_mode.late
+            s2f_policy = rhs_policy.late
 
         super(TwoRateAdamsBashforthMethod, self).__init__(
                 order,
@@ -881,13 +881,13 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
                     (
                         RHS(1, "<func>f2f", ("fast", "slow",)),
                         RHS(s2f_interval, "<func>s2f", ("fast", "slow",),
-                            rhs_mode=s2f_mode),
+                            rhs_policy=s2f_policy),
                         ),
                     (
                         RHS(step_ratio, "<func>f2s", ("fast", "slow",),
-                            rhs_mode=f2s_mode),
+                            rhs_policy=f2s_policy),
                         RHS(step_ratio, "<func>s2s", ("fast", "slow",),
-                            rhs_mode=s2s_mode),
+                            rhs_policy=s2s_policy),
                         ),),
 
                 state_filter_names=(fast_state_filter_name, slow_state_filter_name),
