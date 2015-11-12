@@ -619,7 +619,12 @@ class MultiRateMultiStepMethod(Method):
                 state_expr = self.state_filters[comp_index](state_expr)
             cb(state_var, state_expr)
 
-            states.append((isubstep, state_var))
+            is_poor_quality_state = (
+                    isubstep - latest_state_substep > min(
+                        rhs.interval for rhs in rhss))
+            if not is_poor_quality_state:
+                states.append((isubstep, state_var))
+
             explainer.integrate_to(comp_name, state_var.name,
                     latest_state_substep, isubstep, latest_state,
                     contrib_explanations)
