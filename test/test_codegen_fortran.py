@@ -443,7 +443,7 @@ def test_singlerate_squarewave(min_order):
 
 
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
-@pytest.mark.parametrize("min_order", [5, 4, 3, 2])
+@pytest.mark.parametrize("min_order", [4, 3, 2])
 def test_multirate_squarewave(min_order, method_name):
     stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4)
 
@@ -508,9 +508,7 @@ def test_multirate_squarewave(min_order, method_name):
     # Build in conditionals to alter the timestep based on order such that all
     # tests pass
 
-    if min_order == 5:
-        fac = 10
-    elif min_order == 2:
+    if min_order == 2:
         fac = 200
     else:
         fac = 12
