@@ -299,7 +299,16 @@ def test_multirate_codegen(min_order, method_name):
         with open("abmethod.f90", "wt") as outf:
             outf.write(code_str)
 
-    fac = 3
+    if (method_name.startswith("S")
+            and "f" in method_name):
+        fac = 12
+    elif (method_name.startswith("S")
+            or method_name.startswith("Fs")
+            or method_name == "F"):
+        fac = 9
+    else:
+        fac = 5
+
     num_trips_one = 10*fac
     num_trips_two = 100*fac
 
@@ -500,7 +509,7 @@ def test_multirate_squarewave(min_order, method_name):
     # tests pass
 
     if min_order == 5:
-        fac = 5
+        fac = 10
     elif min_order == 2:
         fac = 200
     else:
