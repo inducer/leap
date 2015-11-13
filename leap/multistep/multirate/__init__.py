@@ -619,10 +619,22 @@ class MultiRateMultiStepMethod(Method):
                 state_expr = self.state_filters[comp_index](state_expr)
             cb(state_var, state_expr)
 
-            is_poor_quality_state = (
-                    isubstep - latest_state_substep > min(
+            # Only keep temporary state if integrates exactly
+            # one interval ahead for the fastest right-hand side,
+            # which is the expected rate.
+            #
+            # - If it integrates further, it's a poor-quality
+            #   extrapolation that should probably not be reused.
+            #
+            # - If it integrates less far, then by definition it is
+            #   not used for any state updates, and we don't gain
+            #   anything by keeping the temporary around, since the
+            #   same extrapolation can be recomputed.
+
+            keep_temp_state = (
+                    isubstep - latest_state_substep == min(
                         rhs.interval for rhs in rhss))
-            if not is_poor_quality_state:
+            if keep_temp_state:
                 states.append((isubstep, state_var))
 
             explainer.integrate_to(comp_name, state_var.name,
