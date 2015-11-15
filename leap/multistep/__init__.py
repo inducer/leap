@@ -44,9 +44,15 @@ class AdamsBashforthMethod(Method):
         <func> + component_id: The right hand side
     """
 
-    def __init__(self, component_id, order, state_filter_name=None):
+    def __init__(self, component_id, order, state_filter_name=None,
+            hist_length=None):
         super(AdamsBashforthMethod, self).__init__()
         self.order = order
+
+        if hist_length is None:
+            hist_length = order
+
+        self.hist_length = hist_length
 
         from pymbolic import var
 
@@ -57,9 +63,9 @@ class AdamsBashforthMethod(Method):
         self.function = var('<func>' + component_id)
         self.rhs = var('<p>f_n')
         self.history = \
-            [var('<p>f_n_minus_' + str(i)) for i in range(self.order - 1, 0, -1)]
+            [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
         self.time_history = \
-            [var('<p>t_n_minus_' + str(i)) for i in range(self.order - 1, 0, -1)]
+            [var('<p>t_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
         self.state = var('<state>' + component_id)
         self.t = var('<t>')
         self.dt = var('<dt>')
@@ -77,14 +83,13 @@ class AdamsBashforthMethod(Method):
         with CodeBuilder(label="initialization") as cb_init:
             cb_init(self.step, 1)
 
-        steps = self.order
-
         # Primary
         with CodeBuilder(label="primary") as cb_primary:
 
             time_history = self.time_history + [self.t]
 
-            cb_primary("n", len(time_history))
+            cb_primary("order", self.order)
+            cb_primary("hist_length", self.hist_length)
             cb_primary.fence()
 
             cb_primary("start_time", self.t)
@@ -92,26 +97,27 @@ class AdamsBashforthMethod(Method):
             cb_primary("end_time", self.t + self.dt)
             cb_primary.fence()
 
-            cb_primary("time_history", "`<builtin>array`(n)")
+            cb_primary("time_history", "`<builtin>array`(hist_length)")
             cb_primary.fence()
 
-            for i in range(len(time_history)):
+            for i in range(self.hist_length):
                 cb_primary("time_history[{0}]".format(i), time_history[i])
                 cb_primary.fence()
 
-            cb_primary("point_eval_vec", "`<builtin>array`(n)")
-            cb_primary("vdm_transpose", "`<builtin>array`(n*n)")
+            cb_primary("point_eval_vec", "`<builtin>array`(order)")
+            cb_primary("vdm_transpose", "`<builtin>array`(order*hist_length)")
             cb_primary.fence()
 
             cb_primary("point_eval_vec[g]",
                     "1 / (g + 1) * (end_time ** (g + 1)- start_time ** (g + 1)) ",
-                    loops=[("g", 0, "n")])
-            cb_primary("vdm_transpose[g*n + h]", "time_history[g]**h",
-                    loops=[("g", 0, "n"), ("h", 0, "n")])
+                    loops=[("g", 0, "order")])
+            cb_primary("vdm_transpose[g*order + h]", "time_history[g]**h",
+                    loops=[("g", 0, "hist_length"), ("h", 0, "order")])
 
             cb_primary.fence()
             cb_primary("new_coeffs",
-                    "`<builtin>linear_solve`(vdm_transpose, point_eval_vec, n, 1)")
+                    "`<builtin>linear_solve`("
+                        "vdm_transpose, point_eval_vec, hist_length, 1)")
 
             # Define a Python-side vector for the calculated coefficients
 
@@ -123,17 +129,18 @@ class AdamsBashforthMethod(Method):
             # Use a loop to assign each element of this vector to an element
             # from our newly calculated coeff vector (Fortran-side)
 
-            cb_primary("new", "`<builtin>array`(n)")
+            cb_primary("new", "`<builtin>array`(hist_length)")
             cb_primary.fence()
 
-            for i in range(len(time_history)):
+            for i in range(self.hist_length):
                 cb_primary(new_coeffs_py[i], "new_coeffs[{0}]".format(i))
                 cb_primary.fence()
 
             cb_primary(self.rhs, self.eval_rhs(self.t, self.state))
             cb_primary.fence()
             history = self.history + [self.rhs]
-            ab_sum = sum(new_coeffs_pyvar[i] * history[i] for i in range(steps))
+            ab_sum = sum(new_coeffs_pyvar[i] * history[i]
+                    for i in range(self.hist_length))
 
             state_est = self.state + ab_sum
             if self.state_filter is not None:
@@ -141,7 +148,7 @@ class AdamsBashforthMethod(Method):
             cb_primary(self.state, state_est)
 
             # Rotate history and time history.
-            for i in range(len(self.history)):
+            for i in range(self.hist_length - 1):
                 cb_primary.fence()
                 cb_primary(self.history[i], history[i + 1])
                 cb_primary(self.time_history[i], time_history[i + 1])
@@ -151,7 +158,7 @@ class AdamsBashforthMethod(Method):
                                    component_id=self.component_id,
                                    time_id='', time=self.t)
 
-        if steps == 1:
+        if self.hist_length == 1:
             # The first order method requires no bootstrapping.
             return DAGCode.create_with_init_and_step(
                 instructions=cb_init.instructions | cb_primary.instructions,
@@ -166,7 +173,7 @@ class AdamsBashforthMethod(Method):
                                      component_id=self.component_id,
                                      time_id='', time=self.t)
             cb_bootstrap(self.step, self.step + 1)
-            with cb_bootstrap.if_(self.step, "==", steps):
+            with cb_bootstrap.if_(self.step, "==", self.hist_length):
                 cb_bootstrap.state_transition("primary")
 
         states = {}
