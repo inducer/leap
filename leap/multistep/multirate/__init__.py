@@ -47,7 +47,6 @@ Scheme explanation
 
 .. autoclass:: SchemeExplainerBase
 .. autoclass:: TextualSchemeExplainer
-.. autoclass:: TeXDiagramSchemeExplainer
 """
 
 
@@ -961,9 +960,11 @@ class TextualSchemeExplainer(SchemeExplainerBase):
             from_substep, to_substep, latest_state,
             contrib_explanations):
         self.lines.append(
-                "INTEGRATE: {var_name} <- "
+                "{verb}: {var_name} <- "
                 "FROM {from_substep} ({latest_state}) TO {to_substep}:"
                 .format(
+                    verb=("EXTRAPOLATE" if from_substep < to_substep
+                        else "INTERPOLATE"),
                     var_name=var_name,
                     from_substep=from_substep,
                     to_substep=to_substep,
@@ -994,15 +995,6 @@ class TextualSchemeExplainer(SchemeExplainerBase):
 
     def roll_back_history(self, rhs_name):
         self.lines.append("ROLL BACK %s" % rhs_name)
-
-
-class TeXDiagramSchemeExplainer(SchemeExplainerBase):
-    def __init__(self):
-        self.lines = []
-
-    def __str__(self):
-        return "\n".join(self.lines)
-
 
 # }}}
 
