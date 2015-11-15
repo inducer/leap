@@ -31,8 +31,7 @@ import pytest
 from pytools import memoize_method
 from leap.multistep.multirate import (
         TwoRateAdamsBashforthMethod,
-        TextualSchemeExplainer,
-        TeXDiagramSchemeExplainer)
+        TextualSchemeExplainer)
 
 
 from utils import (  # noqa
@@ -190,7 +189,6 @@ def test_multirate_accuracy(method_name, order, system):
 @pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
 @pytest.mark.parametrize("explainer", [
     TextualSchemeExplainer(),
-    TeXDiagramSchemeExplainer(),
     ])
 def test_scheme_explainers(method_name, explainer, order=3, step_ratio=3):
     stepper = TwoRateAdamsBashforthMethod(
