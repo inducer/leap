@@ -179,14 +179,11 @@ class AdamsBashforthMethod(Method):
 
         self.hist_length = hist_length
 
-        from pymbolic import var
-
         self.component_id = component_id
 
         # Declare variables
         self.step = var('<p>step')
         self.function = var('<func>' + component_id)
-        self.rhs = var('<p>f_n')
         self.history = \
             [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
         self.time_history = \
@@ -205,9 +202,9 @@ class AdamsBashforthMethod(Method):
         name_gen = UniqueNameGenerator()
 
         from dagrt.language import DAGCode, CodeBuilder
-        from pymbolic import var
 
         array = var("<builtin>array")
+        rhs_var = var("rhs_var")
 
         # Initialization
         with CodeBuilder(label="initialization") as cb_init:
@@ -222,9 +219,9 @@ class AdamsBashforthMethod(Method):
             for i in range(self.hist_length):
                 cb_primary(time_hist_var[i], time_history[i] - self.t)
 
-            cb_primary(self.rhs, self.eval_rhs(self.t, self.state))
+            cb_primary(rhs_var, self.eval_rhs(self.t, self.state))
             cb_primary.fence()
-            history = self.history + [self.rhs]
+            history = self.history + [rhs_var]
 
             ab_sum = emit_ab_integration(
                             cb_primary, name_gen,
@@ -288,13 +285,15 @@ class AdamsBashforthMethod(Method):
     def rk_bootstrap(self, cb):
         """Initialize the timestepper with an RK method."""
 
-        cb(self.rhs, self.eval_rhs(self.t, self.state))
+        rhs_var = var("rhs_var")
+
+        cb(rhs_var, self.eval_rhs(self.t, self.state))
 
         # Save the current RHS to the AB history
 
         for i in range(len(self.history)):
             with cb.if_(self.step, "==", i + 1):
-                cb(self.history[i], self.rhs)
+                cb(self.history[i], rhs_var)
 
         for i in range(len(self.time_history)):
             with cb.if_(self.step, "==", i + 1):
@@ -306,12 +305,11 @@ class AdamsBashforthMethod(Method):
         rk_coeffs = rk_method.output_coeffs
 
         # Stage loop (taken from EmbeddedButcherTableauMethod)
-        from pymbolic import var
         rhss = [var("rk_rhs_" + str(i)) for i in range(len(rk_tableau))]
         for stage_num, (c, coeffs) in enumerate(rk_tableau):
             if len(coeffs) == 0:
                 assert c == 0
-                cb(rhss[stage_num], self.rhs)
+                cb(rhss[stage_num], rhs_var)
             else:
                 stage = self.state + sum(self.dt * coeff * rhss[j]
                                          for (j, coeff)
@@ -332,3 +330,7 @@ class AdamsBashforthMethod(Method):
 
         # Assign the value of the new state.
         cb(self.state, state_est)
+
+# }}}
+
+# vim: fdm=marker
