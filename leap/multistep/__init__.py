@@ -28,13 +28,89 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import numpy  # noqa
+import six.moves
+import numpy as np  # noqa
 from leap import Method
+from pymbolic import var
 
 
 __doc__ = """
 .. autoclass:: AdamsBashforthMethod
 """
+
+
+# {{{ Adams-Bashforth integration (with and without dynamic time steps)
+
+def _linear_comb(coefficients, vectors):
+    from operator import add
+    return six.moves.reduce(add,
+            (coeff * v for coeff, v in
+                zip(coefficients, vectors)))
+
+
+class ABIntegrationFunctionFamily(object):
+    def __len__(self):
+        raise NotImplementedError()
+
+    def evaluate(self, func_idx, x):
+        raise NotImplementedError()
+
+    def antiderivative(self, func_idx, x):
+        raise NotImplementedError()
+
+
+class ABMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
+    def __init__(self, order):
+        self.order = order
+
+    def __len__(self):
+        return self.order
+
+    def evaluate(self, func_idx, x):
+        return x**func_idx
+
+    def antiderivative(self, func_idx, x):
+        return 1/(func_idx+1) * x**(func_idx+1)
+
+
+def emit_ab_integration(cb, name_gen,
+        function_family, time_values, hist_vars, t_start, t_end):
+    hist_len = len(hist_vars)
+
+    nfunctions = len(function_family)
+
+    array = var("<builtin>array")
+    linear_solve = var("<builtin>linear_solve")
+
+    # use:
+    # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
+
+    vdmt = var(name_gen("vdm_transpose"))
+    cb(vdmt, array(nfunctions*hist_len))
+
+    coeff_rhs = var(name_gen("coeff_rhs"))
+    cb(coeff_rhs, array(hist_len))
+
+    j = var(name_gen("vdm_j"))
+
+    for i in range(len(function_family)):
+        cb(vdmt[i + j*nfunctions], function_family.evaluate(i, time_values[j]),
+            loops=[(j.name, 0, hist_len)])
+
+    for i in range(len(function_family)):
+        cb(
+                coeff_rhs[i],
+                function_family.antiderivative(i, t_end)
+                - function_family.antiderivative(i, t_start))
+
+    ab_coeffs = var(name_gen("ab_coeffs"))
+    cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+
+    return _linear_comb(
+                [ab_coeffs[ii] for ii in range(hist_len)],
+                hist_vars)
+
+# }}}
 
 
 class AdamsBashforthMethod(Method):
@@ -76,8 +152,13 @@ class AdamsBashforthMethod(Method):
             self.state_filter = None
 
     def generate(self):
+        from pytools import UniqueNameGenerator
+        name_gen = UniqueNameGenerator()
+
         from dagrt.language import DAGCode, CodeBuilder
         from pymbolic import var
+
+        array = var("<builtin>array")
 
         # Initialization
         with CodeBuilder(label="initialization") as cb_init:
@@ -87,60 +168,20 @@ class AdamsBashforthMethod(Method):
         with CodeBuilder(label="primary") as cb_primary:
 
             time_history = self.time_history + [self.t]
-
-            cb_primary("order", self.order)
-            cb_primary("hist_length", self.hist_length)
-            cb_primary.fence()
-
-            cb_primary("start_time", self.t)
-            cb_primary.fence()
-            cb_primary("end_time", self.t + self.dt)
-            cb_primary.fence()
-
-            cb_primary("time_history", "`<builtin>array`(hist_length)")
-            cb_primary.fence()
-
+            time_hist_var = var(name_gen("time_history"))
+            cb_primary(time_hist_var, array(self.hist_length))
             for i in range(self.hist_length):
-                cb_primary("time_history[{0}]".format(i), time_history[i])
-                cb_primary.fence()
-
-            cb_primary("point_eval_vec", "`<builtin>array`(order)")
-            cb_primary("vdm_transpose", "`<builtin>array`(order*hist_length)")
-            cb_primary.fence()
-
-            cb_primary("point_eval_vec[g]",
-                    "1 / (g + 1) * (end_time ** (g + 1)- start_time ** (g + 1)) ",
-                    loops=[("g", 0, "order")])
-            cb_primary("vdm_transpose[g*order + h]", "time_history[g]**h",
-                    loops=[("g", 0, "hist_length"), ("h", 0, "order")])
-
-            cb_primary.fence()
-            cb_primary("new_coeffs",
-                    "`<builtin>linear_solve`("
-                        "vdm_transpose, point_eval_vec, hist_length, 1)")
-
-            # Define a Python-side vector for the calculated coefficients
-
-            new_coeffs_pyvar = var("new")
-            cb_primary.fence()
-
-            new_coeffs_py = [new_coeffs_pyvar[i] for i in range(len(time_history))]
-
-            # Use a loop to assign each element of this vector to an element
-            # from our newly calculated coeff vector (Fortran-side)
-
-            cb_primary("new", "`<builtin>array`(hist_length)")
-            cb_primary.fence()
-
-            for i in range(self.hist_length):
-                cb_primary(new_coeffs_py[i], "new_coeffs[{0}]".format(i))
-                cb_primary.fence()
+                cb_primary(time_hist_var[i], time_history[i] - self.t)
 
             cb_primary(self.rhs, self.eval_rhs(self.t, self.state))
             cb_primary.fence()
             history = self.history + [self.rhs]
-            ab_sum = sum(new_coeffs_pyvar[i] * history[i]
-                    for i in range(self.hist_length))
+
+            ab_sum = emit_ab_integration(
+                            cb_primary, name_gen,
+                            ABMonomialIntegrationFunctionFamily(self.order),
+                            time_hist_var, history,
+                            0, self.dt)
 
             state_est = self.state + ab_sum
             if self.state_filter is not None:

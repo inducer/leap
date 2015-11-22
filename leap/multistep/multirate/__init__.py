@@ -30,8 +30,9 @@ THE SOFTWARE.
 
 from pytools import Record
 from leap import Method
-import six.moves
 from pymbolic import var
+
+from leap.multistep import _linear_comb
 
 
 __doc__ = """
@@ -48,17 +49,6 @@ Scheme explanation
 .. autoclass:: SchemeExplainerBase
 .. autoclass:: TextualSchemeExplainer
 """
-
-
-# {{{ utilities
-
-def _linear_comb(coefficients, vectors):
-    from operator import add
-    return six.moves.reduce(add,
-            (coeff * v for coeff, v in
-                zip(coefficients, vectors)))
-
-# }}}
 
 
 # {{{ system description
@@ -478,6 +468,8 @@ class MultiRateMultiStepMethod(Method):
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
+        array = var("<builtin>array")
+
         # {{{ make temporary copies of time/hist_vars
 
         # maps from (component_name, irhs) to latest-last list of values
@@ -539,34 +531,19 @@ class MultiRateMultiStepMethod(Method):
             comp_index = self.component_names.index(comp_name)
             rhss = self.rhss[comp_index]
 
-            array = var("<builtin>array")
-            linear_solve = var("<builtin>linear_solve")
-
             contribs = []
             contrib_explanations = []
 
             for irhs, rhs in enumerate(rhss):
                 cb.fence()
                 hist_len = rhs.history_length
-                order = rhs.order
 
                 relv_hist_substeps = temp_hist_substeps[comp_name, irhs][-hist_len:]
                 relv_time_hist = temp_time_vars[comp_name, irhs][-hist_len:]
                 relv_hist_vars = temp_hist_vars[comp_name, irhs][-hist_len:]
 
-                # {{{ compute AB coefficients
-
-                # use:
-                # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
-
-                vdmt = var(name_gen("vdm_transpose"))
-                cb(vdmt, array(order*hist_len))
-
-                coeff_rhs = var(name_gen("coeff_rhs"))
-                cb(coeff_rhs, array(hist_len))
-
-                i = var(name_gen("vdm_i"))
-                j = var(name_gen("vdm_j"))
+                t_start = self.dt * latest_state_substep / self.nsubsteps
+                t_end = self.dt * isubstep / self.nsubsteps
 
                 time_hist_var = var(name_gen("time_hist"))
                 cb(time_hist_var, array(hist_len))
@@ -574,30 +551,22 @@ class MultiRateMultiStepMethod(Method):
                 for ii in range(hist_len):
                     cb(time_hist_var[ii], relv_time_hist[ii] - self.t)
 
-                cb(vdmt[i + j*order], time_hist_var[j]**i,
-                    loops=[(i.name, 0, order), (j.name, 0, hist_len)])
-
-                t_start = self.dt * latest_state_substep / self.nsubsteps
-                t_end = self.dt * isubstep / self.nsubsteps
-
-                cb(coeff_rhs[i],
-                        1/(i+1) * (t_end**(i+1) - t_start**(i+1)),
-                        loops=[(i.name, 0, order)])
-
-                ab_coeffs = var(name_gen("ab_coeffs"))
-                cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, order, 1))
-
-                # }}}
-
                 state_contrib_var = var(
                         name_gen(
                             "state_contrib_{comp_name}_rhs{irhs}"
                             .format(comp_name=comp_name, irhs=irhs)))
 
-                cb(state_contrib_var,
-                        _linear_comb(
-                            [ab_coeffs[ii] for ii in range(hist_len)],
-                            relv_hist_vars))
+                from leap.multistep import (
+                        ABMonomialIntegrationFunctionFamily,
+                        emit_ab_integration)
+
+                cb(
+                        state_contrib_var,
+                        emit_ab_integration(
+                            cb, name_gen,
+                            ABMonomialIntegrationFunctionFamily(rhs.order),
+                            time_hist_var, relv_hist_vars,
+                            t_start, t_end))
 
                 contribs.append(state_contrib_var)
                 contrib_explanations.append(
