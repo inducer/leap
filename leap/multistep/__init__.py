@@ -75,43 +75,92 @@ class ABMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
 
 def emit_ab_integration(cb, name_gen,
         function_family, time_values, hist_vars, t_start, t_end):
-    hist_len = len(hist_vars)
+    if isinstance(time_values, var):
+        # {{{ variable time step
+        hist_len = len(hist_vars)
 
-    nfunctions = len(function_family)
+        nfunctions = len(function_family)
 
-    array = var("<builtin>array")
-    linear_solve = var("<builtin>linear_solve")
+        array = var("<builtin>array")
+        linear_solve = var("<builtin>linear_solve")
 
-    # use:
-    # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
+        # use:
+        # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
 
-    vdmt = var(name_gen("vdm_transpose"))
-    cb(vdmt, array(nfunctions*hist_len))
+        vdmt = var(name_gen("vdm_transpose"))
+        cb(vdmt, array(nfunctions*hist_len))
 
-    coeff_rhs = var(name_gen("coeff_rhs"))
-    cb(coeff_rhs, array(hist_len))
+        coeff_rhs = var(name_gen("coeff_rhs"))
+        cb(coeff_rhs, array(hist_len))
 
-    j = var(name_gen("vdm_j"))
+        j = var(name_gen("vdm_j"))
 
-    for i in range(len(function_family)):
-        cb(vdmt[i + j*nfunctions], function_family.evaluate(i, time_values[j]),
-            loops=[(j.name, 0, hist_len)])
+        for i in range(len(function_family)):
+            cb(vdmt[i + j*nfunctions], function_family.evaluate(i, time_values[j]),
+                loops=[(j.name, 0, hist_len)])
 
-    for i in range(len(function_family)):
-        cb(
-                coeff_rhs[i],
-                function_family.antiderivative(i, t_end)
-                - function_family.antiderivative(i, t_start))
+        for i in range(len(function_family)):
+            cb(
+                    coeff_rhs[i],
+                    function_family.antiderivative(i, t_end)
+                    - function_family.antiderivative(i, t_start))
 
-    ab_coeffs = var(name_gen("ab_coeffs"))
-    cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+        ab_coeffs = var(name_gen("ab_coeffs"))
+        cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
 
-    return _linear_comb(
-                [ab_coeffs[ii] for ii in range(hist_len)],
-                hist_vars)
+        return _linear_comb(
+                    [ab_coeffs[ii] for ii in range(hist_len)],
+                    hist_vars)
+
+        # }}}
+
+    else:
+
+        raise NotImplementedError()
+
+        # {{{ static time step
+
+        hist_len = len(hist_vars)
+
+        nfunctions = len(function_family)
+
+        array = var("<builtin>array")
+        linear_solve = var("<builtin>linear_solve")
+
+        # use:
+        # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
+
+        vdmt = var(name_gen("vdm_transpose"))
+        cb(vdmt, array(nfunctions*hist_len))
+
+        coeff_rhs = var(name_gen("coeff_rhs"))
+        cb(coeff_rhs, array(hist_len))
+
+        j = var(name_gen("vdm_j"))
+
+        for i in range(len(function_family)):
+            cb(vdmt[i + j*nfunctions], function_family.evaluate(i, time_values[j]),
+                loops=[(j.name, 0, hist_len)])
+
+        for i in range(len(function_family)):
+            cb(
+                    coeff_rhs[i],
+                    function_family.antiderivative(i, t_end)
+                    - function_family.antiderivative(i, t_start))
+
+        ab_coeffs = var(name_gen("ab_coeffs"))
+        cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+
+        return _linear_comb(
+                    [ab_coeffs[ii] for ii in range(hist_len)],
+                    hist_vars)
+
+        # }}}
 
 # }}}
 
+
+# {{{ ab method
 
 class AdamsBashforthMethod(Method):
     """
