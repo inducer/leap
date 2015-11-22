@@ -178,10 +178,11 @@ class ScipySolverGenerator(object):
         :arg guess: A pymbolic expression for the guess
         """
 
-        from dagrt.expression import match, substitute
+        from dagrt.expression import match
+        from pymbolic.mapper.substitutor import substitute
         # Rename the solve component in self.expression to solve_component.
         template = substitute(self.expression,
-                              {self.solve_component: solve_component})
+                              {self.solve_component: var(solve_component)})
         subst = match(template, expression, self.free_args)
 
         if set(self.free_args) < set(subst.keys()):

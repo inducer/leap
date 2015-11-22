@@ -255,9 +255,9 @@ class ButcherTableauMethod(Method):
                         # got a square system, let's solve
                         assignees = [unk.name for unk in unknowns]
 
-                        from dagrt.expression import substitute
+                        from pymbolic.mapper.substitutor import substitute
                         subst_dict = dict(
-                                (rhs_var.name, rhs_var_to_unknown[rhs_var].name)
+                                (rhs_var.name, rhs_var_to_unknown[rhs_var])
                                 for rhs_var in unknowns)
 
                         cb.assign_solved(
