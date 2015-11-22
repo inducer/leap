@@ -40,7 +40,13 @@ class StepMatrixFinder(object):
     def __init__(self, code, function_map, variables=None):
         self.code = code
 
-        self.function_map = function_map
+        from dagrt.builtins_python import builtins
+
+        # Ensure none of the names in the function map conflict with the
+        # builtins.
+        assert not set(builtins) & set(function_map)
+
+        self.function_map = dict(builtins, **function_map)
 
         if variables is None:
             variables = self._get_state_variables()
