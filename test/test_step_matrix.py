@@ -1,14 +1,6 @@
 #! /usr/bin/env python
 from __future__ import division, with_statement, print_function
 
-import sys
-import pytest
-
-from leap.rk import ODE23Method, ODE45Method
-import numpy as np
-import numpy.linalg as la
-
-import logging
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner, Matt Wala"
 
 __license__ = """
@@ -31,6 +23,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import sys
+import pytest
+
+from leap.rk import ODE23Method, ODE45Method
+import numpy as np
+import numpy.linalg as la
+
+import logging
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,8 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     if show_dag:
         from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
-    from dagrt.exec_numpy import StepMatrixFinder, NumpyInterpreter
+    from dagrt.exec_numpy import NumpyInterpreter
+    from leap.step_matrix import StepMatrixFinder
 
     from pymbolic import var
 
