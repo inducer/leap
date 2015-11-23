@@ -74,7 +74,7 @@ def test_rk_codegen(min_order, stepper):
 
     codegen = f.CodeGenerator(
             'RKMethod',
-            ode_component_type_map={
+            user_type_map={
                 component_id: f.ArrayType(
                     (2,),
                     f.BuiltinType('real (kind=8)'),
@@ -168,7 +168,7 @@ def test_rk_codegen_fancy():
 
     codegen = f.CodeGenerator(
             'RKMethod',
-            ode_component_type_map={
+            user_type_map={
                 component_id: f.ArrayType(
                     "region%n_grids",
                     index_vars="igrid",
@@ -277,7 +277,7 @@ def test_multirate_codegen(min_order, method_name):
 
     codegen = f.CodeGenerator(
             'MRAB',
-            ode_component_type_map={
+            user_type_map={
                 "slow": f.ArrayType(
                     (1,),
                     f.BuiltinType('real (kind=8)'),
@@ -347,7 +347,7 @@ def test_adaptive_rk_codegen():
 
     codegen = f.CodeGenerator(
             'RKMethod',
-            ode_component_type_map={
+            user_type_map={
                 "y": f.ArrayType(
                     (2,),
                     f.BuiltinType('real (kind=8)'),
@@ -384,7 +384,7 @@ def test_adaptive_rk_codegen_error():
 
     codegen = f.CodeGenerator(
             'RKMethod',
-            ode_component_type_map={
+            user_type_map={
                 component_id: f.ArrayType(
                     (2,),
                     f.BuiltinType('real (kind=8)'),
@@ -420,7 +420,7 @@ def test_singlerate_squarewave(min_order):
 
     codegen = f.CodeGenerator(
             'ABMethod',
-            ode_component_type_map={
+            user_type_map={
                 component_id: f.ArrayType(
                     (2,),
                     f.BuiltinType('real (kind=8)'),
@@ -487,7 +487,7 @@ def test_multirate_squarewave(min_order, method_name):
 
     codegen = f.CodeGenerator(
             'MRAB',
-            ode_component_type_map={
+            user_type_map={
                 "slow": f.ArrayType(
                     (1,),
                     f.BuiltinType('real (kind=8)'),
