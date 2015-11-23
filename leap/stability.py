@@ -53,17 +53,41 @@ def make_k_with_origin(origin, angle, mag):
     return origin+mag*exp(1j*angle)
 
 
-def refine(integrator_cls, make_k, angle, stable, unstable, prec):
-    assert is_stable(integrator_cls, make_k(angle, stable))
-    assert not is_stable(integrator_cls, make_k(angle, unstable))
-    while abs(stable-unstable) > prec:
-        mid = (stable+unstable)/2
-        if is_stable(integrator_cls, make_k(angle, mid)):
-            stable = mid
+def refine_truth_bdry(predicate, true_mag, false_mag, prec):
+    assert predicate(true_mag)
+    assert not predicate(false_mag)
+    while abs(true_mag-false_mag) > prec:
+        mid = (true_mag+false_mag)/2
+        if predicate(mid):
+            true_mag = mid
         else:
-            unstable = mid
+            false_mag = mid
     else:
-        return stable
+        return true_mag
+
+
+def find_truth_bdry(predicate, prec, start_magnitude=1):
+    mag = start_magnitude
+
+    if predicate(mag):
+        # try to grow
+        mag *= 2
+        while predicate(mag):
+            mag *= 2
+
+            if mag > 2**8:
+                return mag
+
+        return refine_truth_bdry(predicate, mag/2, mag, prec=prec)
+    else:
+        mag /= 2
+        while not predicate(mag):
+            mag /= 2
+
+            if mag < prec:
+                return mag
+
+        return refine_truth_bdry(predicate, mag, mag*2, prec=prec)
 
 
 def find_stability_bdry(code, prec, make_k, angle):
@@ -71,25 +95,10 @@ def find_stability_bdry(code, prec, make_k, angle):
     from dagrt.codegen import PythonCodeGenerator
     integrator_cls = PythonCodeGenerator("Integrator").get_class(code)
 
-    mag = 1
+    def predicate(amag):
+        return is_stable(integrator_cls, make_k(angle, amag))
 
-    if is_stable(integrator_cls, make_k(angle, mag)):
-        # try to grow
-        mag *= 2
-        while is_stable(integrator_cls, make_k(angle, mag)):
-            mag *= 2
-
-            if mag > 2**8:
-                return mag
-        mag = refine(integrator_cls, make_k, angle, mag/2, mag, prec=prec)
-    else:
-        mag /= 2
-        while not is_stable(integrator_cls, make_k(angle, mag)):
-            mag /= 2
-
-            if mag < prec:
-                return mag
-        mag = refine(integrator_cls, make_k, angle, mag, mag*2, prec=prec)
+    mag = find_truth_bdry(predicate, prec=prec)
 
     return make_k(angle, mag)
 
