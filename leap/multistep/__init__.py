@@ -29,7 +29,8 @@ THE SOFTWARE.
 """
 
 import six.moves
-import numpy as np  # noqa
+import numpy as np
+import numpy.linalg as la
 from leap import Method
 from pymbolic import var
 
@@ -115,45 +116,25 @@ def emit_ab_integration(cb, name_gen,
         # }}}
 
     else:
-
-        raise NotImplementedError()
-
         # {{{ static time step
 
         hist_len = len(hist_vars)
-
         nfunctions = len(function_family)
 
-        array = var("<builtin>array")
-        linear_solve = var("<builtin>linear_solve")
+        vdm_t = np.zeros((nfunctions, hist_len))
+        coeff_rhs = np.zeros((nfunctions))
 
-        # use:
-        # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
+        for i in range(nfunctions):
+            for j in range(hist_len):
+                vdm_t[i, j] = function_family.evaluate(i, time_values[j])
 
-        vdmt = var(name_gen("vdm_transpose"))
-        cb(vdmt, array(nfunctions*hist_len))
-
-        coeff_rhs = var(name_gen("coeff_rhs"))
-        cb(coeff_rhs, array(hist_len))
-
-        j = var(name_gen("vdm_j"))
-
-        for i in range(len(function_family)):
-            cb(vdmt[i + j*nfunctions], function_family.evaluate(i, time_values[j]),
-                loops=[(j.name, 0, hist_len)])
-
-        for i in range(len(function_family)):
-            cb(
-                    coeff_rhs[i],
+            coeff_rhs[i] = (
                     function_family.antiderivative(i, t_end)
                     - function_family.antiderivative(i, t_start))
 
-        ab_coeffs = var(name_gen("ab_coeffs"))
-        cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+        ab_coeffs = la.solve(vdm_t, coeff_rhs)
 
-        return _linear_comb(
-                    [ab_coeffs[ii] for ii in range(hist_len)],
-                    hist_vars)
+        return _linear_comb(ab_coeffs, hist_vars)
 
         # }}}
 
@@ -170,7 +151,12 @@ class AdamsBashforthMethod(Method):
     """
 
     def __init__(self, component_id, order, state_filter_name=None,
-            hist_length=None):
+            hist_length=None, dynamic_dt=True):
+        """
+        :arg dynamic_dt: If *True*, changing the timestep during time integration
+            is allowed.
+        """
+
         super(AdamsBashforthMethod, self).__init__()
         self.order = order
 
@@ -178,6 +164,7 @@ class AdamsBashforthMethod(Method):
             hist_length = order
 
         self.hist_length = hist_length
+        self.dynamic_dt = dynamic_dt
 
         self.component_id = component_id
 
@@ -186,8 +173,12 @@ class AdamsBashforthMethod(Method):
         self.function = var('<func>' + component_id)
         self.history = \
             [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
-        self.time_history = \
-            [var('<p>t_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
+
+        if self.dynamic_dt:
+            self.time_history = [
+                    var('<p>t_n_minus_' + str(i))
+                    for i in range(hist_length - 1, 0, -1)]
+
         self.state = var('<state>' + component_id)
         self.t = var('<t>')
         self.dt = var('<dt>')
@@ -213,11 +204,21 @@ class AdamsBashforthMethod(Method):
         # Primary
         with CodeBuilder(label="primary") as cb_primary:
 
-            time_history = self.time_history + [self.t]
-            time_hist_var = var(name_gen("time_history"))
-            cb_primary(time_hist_var, array(self.hist_length))
-            for i in range(self.hist_length):
-                cb_primary(time_hist_var[i], time_history[i] - self.t)
+            if self.dynamic_dt:
+                time_history_data = self.time_history + [self.t]
+                time_hist_var = var(name_gen("time_history"))
+                cb_primary(time_hist_var, array(self.hist_length))
+                for i in range(self.hist_length):
+                    cb_primary(time_hist_var[i], time_history_data[i] - self.t)
+
+                time_hist = time_hist_var
+                t_end = self.dt
+                dt_factor = 1
+
+            else:
+                time_hist = list(range(-self.hist_length+1, 0+1))
+                dt_factor = self.dt
+                t_end = 1
 
             cb_primary(rhs_var, self.eval_rhs(self.t, self.state))
             cb_primary.fence()
@@ -226,10 +227,10 @@ class AdamsBashforthMethod(Method):
             ab_sum = emit_ab_integration(
                             cb_primary, name_gen,
                             ABMonomialIntegrationFunctionFamily(self.order),
-                            time_hist_var, history,
-                            0, self.dt)
+                            time_hist, history,
+                            0, t_end)
 
-            state_est = self.state + ab_sum
+            state_est = self.state + dt_factor * ab_sum
             if self.state_filter is not None:
                 state_est = self.state_filter(state_est)
             cb_primary(self.state, state_est)
@@ -238,7 +239,10 @@ class AdamsBashforthMethod(Method):
             for i in range(self.hist_length - 1):
                 cb_primary.fence()
                 cb_primary(self.history[i], history[i + 1])
-                cb_primary(self.time_history[i], time_history[i + 1])
+
+                if self.dynamic_dt:
+                    cb_primary(self.time_history[i], time_history_data[i + 1])
+
                 cb_primary.fence()
             cb_primary(self.t, self.t + self.dt)
             cb_primary.yield_state(expression=self.state,
@@ -295,9 +299,8 @@ class AdamsBashforthMethod(Method):
             with cb.if_(self.step, "==", i + 1):
                 cb(self.history[i], rhs_var)
 
-        for i in range(len(self.time_history)):
-            with cb.if_(self.step, "==", i + 1):
-                cb(self.time_history[i], self.t)
+                if self.dynamic_dt:
+                    cb(self.time_history[i], self.t)
 
         from leap.rk import ORDER_TO_RK_METHOD
         rk_method = ORDER_TO_RK_METHOD[self.order]

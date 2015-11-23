@@ -34,10 +34,12 @@ from utils import (  # noqa
 
 
 @pytest.mark.parametrize("order", [1, 2, 3, 4, 5])
-def test_ab_accuracy(python_method_impl, order, show_dag=False,
+@pytest.mark.parametrize("dynamic_dt", [True, False])
+def test_ab_accuracy(python_method_impl, order, dynamic_dt, show_dag=False,
                      plot_solution=False):
     from utils import check_simple_convergence
-    method = AdamsBashforthMethod("y", order)
+    method = AdamsBashforthMethod("y", order, dynamic_dt=dynamic_dt)
+    #method = AdamsBashforthMethod("y", order, hist_length=order+1)
     check_simple_convergence(method=method, method_impl=python_method_impl,
                              expected_order=order, show_dag=show_dag,
                              plot_solution=plot_solution)
