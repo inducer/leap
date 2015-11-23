@@ -37,8 +37,14 @@ class StepMatrixFinder(object):
     a separate assignment instruction.
     """
 
-    def __init__(self, code, function_map, variables=None):
+    def __init__(self, code, function_map, variables=None,
+            exclude_variables=None):
         self.code = code
+
+        if exclude_variables is None:
+            exclude_variables = []
+
+        self.exclude_variables = exclude_variables
 
         from dagrt.builtins_python import builtins
 
@@ -66,8 +72,12 @@ class StepMatrixFinder(object):
             all_var_ids |= inst.get_read_variables()
         all_state_vars = []
         for var_name in all_var_ids:
-            if var_name.startswith('<p>') or var_name.startswith('<state>'):
+            if (
+                    (var_name.startswith('<p>')
+                        or var_name.startswith('<state>'))
+                    and var_name not in self.exclude_variables):
                 all_state_vars.append(var_name)
+
         all_state_vars.sort()
         return all_state_vars
 
