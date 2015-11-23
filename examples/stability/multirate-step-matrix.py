@@ -9,13 +9,16 @@ def main():
     from pymbolic import var
 
     speed_factor = 10
-    step_ratio = 6
+    step_ratio = 7
+    method = "Fq"
+    order = 3
 
-    print("speed factor: %g - step ratio: %g"
-            % (speed_factor, step_ratio))
+    print("speed factor: %g - step ratio: %g - method: %s "
+            "- order: %d"
+            % (speed_factor, step_ratio, method, order))
 
     method = TwoRateAdamsBashforthMethod(
-            method="Fq", order=3, step_ratio=step_ratio,
+            method=method, order=order, step_ratio=step_ratio,
             static_dt=True)
 
     code = method.generate()
@@ -31,7 +34,6 @@ def main():
 
     mat = finder.get_state_step_matrix("primary")
 
-    print('Variables: %s' % finder.variables)
     if 0:
         print('Variables: %s' % finder.variables)
         np.set_printoptions(formatter={"all": str})
