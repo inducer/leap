@@ -151,10 +151,10 @@ class AdamsBashforthMethod(Method):
     """
 
     def __init__(self, component_id, order, state_filter_name=None,
-            hist_length=None, dynamic_dt=True):
+            hist_length=None, static_dt=False):
         """
-        :arg dynamic_dt: If *True*, changing the timestep during time integration
-            is allowed.
+        :arg static_dt: If *True*, changing the timestep during time integration
+            is not allowed.
         """
 
         super(AdamsBashforthMethod, self).__init__()
@@ -164,7 +164,7 @@ class AdamsBashforthMethod(Method):
             hist_length = order
 
         self.hist_length = hist_length
-        self.dynamic_dt = dynamic_dt
+        self.static_dt = static_dt
 
         self.component_id = component_id
 
@@ -174,7 +174,7 @@ class AdamsBashforthMethod(Method):
         self.history = \
             [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
 
-        if self.dynamic_dt:
+        if not self.static_dt:
             self.time_history = [
                     var('<p>t_n_minus_' + str(i))
                     for i in range(hist_length - 1, 0, -1)]
@@ -204,7 +204,7 @@ class AdamsBashforthMethod(Method):
         # Primary
         with CodeBuilder(label="primary") as cb_primary:
 
-            if self.dynamic_dt:
+            if not self.static_dt:
                 time_history_data = self.time_history + [self.t]
                 time_hist_var = var(name_gen("time_history"))
                 cb_primary(time_hist_var, array(self.hist_length))
@@ -240,7 +240,7 @@ class AdamsBashforthMethod(Method):
                 cb_primary.fence()
                 cb_primary(self.history[i], history[i + 1])
 
-                if self.dynamic_dt:
+                if not self.static_dt:
                     cb_primary(self.time_history[i], time_history_data[i + 1])
 
                 cb_primary.fence()
@@ -299,7 +299,7 @@ class AdamsBashforthMethod(Method):
             with cb.if_(self.step, "==", i + 1):
                 cb(self.history[i], rhs_var)
 
-                if self.dynamic_dt:
+                if not self.static_dt:
                     cb(self.time_history[i], self.t)
 
         from leap.rk import ORDER_TO_RK_METHOD
