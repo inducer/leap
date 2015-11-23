@@ -106,7 +106,8 @@ class MultiRateMultiStepMethod(Method):
     def __init__(self, default_order, component_names,
             rhss,
             state_filter_names=None,
-            component_arg_names=None):
+            component_arg_names=None,
+            static_dt=False):
         """
         :arg default_order: The order to be used for right-hand sides
             where no differing order is specified.
@@ -121,6 +122,8 @@ class MultiRateMultiStepMethod(Method):
         :arg component_arg_names: A tuple of names of the components
             to be used as keywords for passing arguments to the right
             hand sides in *rhss*.
+        :arg static_dt: If *True*, changing the timestep during time integration
+            is not allowed.
         """
         super(MultiRateMultiStepMethod, self).__init__()
 
@@ -211,7 +214,10 @@ class MultiRateMultiStepMethod(Method):
 
         # }}}
 
-        self.time_vars = {}
+        self.static_dt = static_dt
+
+        if not self.static_dt:
+            self.time_vars = {}
         self.history_vars = {}
 
         for comp_name, component_rhss in zip(self.component_names, self.rhss):
@@ -227,7 +233,9 @@ class MultiRateMultiStepMethod(Method):
                     hist_vars.insert(0, var(
                         '<p>hist_%s_rhs%d_hist_%d_ago' % (comp_name, irhs, past)))
 
-                self.time_vars[key] = t_vars
+                if not self.static_dt:
+                    self.time_vars[key] = t_vars
+
                 self.history_vars[key] = hist_vars
 
         self.state_vars = tuple(
@@ -436,7 +444,9 @@ class MultiRateMultiStepMethod(Method):
                             assert i >= 0
 
                             with cb.if_(self.bootstrap_step, "==", test_step):
-                                cb(self.time_vars[comp_name, irhs][i], self.t)
+                                if not self.static_dt:
+                                    cb(self.time_vars[comp_name, irhs][i], self.t)
+
                                 cb(self.history_vars[comp_name, irhs][i],
                                         current_rhss[comp_name, irhs])
 
@@ -484,7 +494,14 @@ class MultiRateMultiStepMethod(Method):
 
                     temp_hist_substeps[key] = list(range(
                         -rhs.interval*(rhs.order-1), 1, rhs.interval))
-                    temp_time_vars[key] = self.time_vars[key][:]
+
+                    if self.static_dt:
+                        temp_time_vars[key] = list(
+                                rhs.interval*i/self.nsubsteps
+                                for i in range(-rhs.history_length+1, 0+1))
+                    else:
+                        temp_time_vars[key] = self.time_vars[key][:]
+
                     temp_hist_vars[key] = self.history_vars[key][:]
 
         fill_temp_hist_vars()
@@ -542,14 +559,24 @@ class MultiRateMultiStepMethod(Method):
                 relv_time_hist = temp_time_vars[comp_name, irhs][-hist_len:]
                 relv_hist_vars = temp_hist_vars[comp_name, irhs][-hist_len:]
 
-                t_start = self.dt * latest_state_substep / self.nsubsteps
-                t_end = self.dt * isubstep / self.nsubsteps
+                t_start = latest_state_substep / self.nsubsteps
+                t_end = isubstep / self.nsubsteps
 
-                time_hist_var = var(name_gen("time_hist"))
-                cb(time_hist_var, array(hist_len))
+                if not self.static_dt:
+                    time_hist_var = var(name_gen("time_hist"))
+                    cb(time_hist_var, array(hist_len))
 
-                for ii in range(hist_len):
-                    cb(time_hist_var[ii], relv_time_hist[ii] - self.t)
+                    for ii in range(hist_len):
+                        cb(time_hist_var[ii], relv_time_hist[ii] - self.t)
+
+                    time_hist = time_hist_var
+                    t_start *= self.dt
+                    t_end *= self.dt
+                    dt_factor = 1
+
+                else:
+                    time_hist = relv_time_hist
+                    dt_factor = self.dt
 
                 state_contrib_var = var(
                         name_gen(
@@ -562,10 +589,10 @@ class MultiRateMultiStepMethod(Method):
 
                 cb(
                         state_contrib_var,
-                        emit_ab_integration(
+                        dt_factor*emit_ab_integration(
                             cb, name_gen,
                             ABMonomialIntegrationFunctionFamily(rhs.order),
-                            time_hist_var, relv_hist_vars,
+                            time_hist, relv_hist_vars,
                             t_start, t_end))
 
                 contribs.append(state_contrib_var)
@@ -622,12 +649,8 @@ class MultiRateMultiStepMethod(Method):
 
             # {{{ get arguments together
 
-            t_var = var(
-                    name_gen(
-                        "t_{comp_name}_rhs{irhs}_sub{isubstep}"
-                        .format(comp_name=comp_name, irhs=irhs, isubstep=isubstep)))
-            t_expr = self.t + self.dt * isubstep / self.nsubsteps
-            cb(t_var, t_expr)
+            progress_frac = isubstep / self.nsubsteps
+            t_expr = self.t + self.dt * progress_frac
 
             kwargs = dict(
                     (self.comp_name_to_kwarg_name[arg_comp_name],
@@ -644,7 +667,21 @@ class MultiRateMultiStepMethod(Method):
             cb(rhs_var, var(rhs.func_name)(t=t_expr, **kwargs))
 
             temp_hist_substeps[comp_name, irhs].append(isubstep)
-            temp_time_vars[comp_name, irhs].append(t_var)
+
+            if not self.static_dt:
+                t_var = var(
+                        name_gen(
+                            "t_{comp_name}_rhs{irhs}_sub{isubstep}"
+                            .format(
+                                comp_name=comp_name,
+                                irhs=irhs,
+                                isubstep=isubstep)))
+                cb(t_var, t_expr)
+                temp_time_vars[comp_name, irhs].append(t_var)
+
+            else:
+                temp_time_vars[comp_name, irhs].append(progress_frac)
+
             temp_hist_vars[comp_name, irhs].append(rhs_var)
 
             explainer.eval_rhs(
@@ -731,11 +768,12 @@ class MultiRateMultiStepMethod(Method):
                 for irhs, rhs in enumerate(component_rhss):
                     key = comp_name, irhs
 
-                    for time_var, time_expr in zip(
-                            self.time_vars[key],
-                            temp_time_vars[comp_name, irhs][-rhs.order:]):
-                        cb(time_var, time_expr)
-                        cb.fence()
+                    if not self.static_dt:
+                        for time_var, time_expr in zip(
+                                self.time_vars[key],
+                                temp_time_vars[comp_name, irhs][-rhs.order:]):
+                            cb(time_var, time_expr)
+                            cb.fence()
 
                     for hist_var, hist_expr in zip(
                             self.history_vars[key],
@@ -829,7 +867,8 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
 
     def __init__(self, method, order, step_ratio,
             slow_state_filter_name=None,
-            fast_state_filter_name=None):
+            fast_state_filter_name=None,
+            static_dt=False):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
                 "longer be used. Use the fully general "
@@ -879,7 +918,8 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
 
                 # This is a hack to avoid having to change the 2RAB test
                 # cases, which use these arguments
-                component_arg_names=("f", "s"))
+                component_arg_names=("f", "s"),
+                static_dt=static_dt)
 
 # }}}
 

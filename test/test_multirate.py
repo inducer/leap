@@ -42,11 +42,12 @@ from utils import (  # noqa
 class MultirateTimestepperAccuracyChecker(object):
     """Check that the multirate timestepper has the advertised accuracy."""
 
-    def __init__(self, method, order, step_ratio, ode, method_impl,
+    def __init__(self, method, order, step_ratio, static_dt, ode, method_impl,
                  display_dag=False, display_solution=False):
         self.method = method
         self.order = order
         self.step_ratio = step_ratio
+        self.static_dt = static_dt
         self.ode = ode
         self.method_impl = method_impl
         self.display_dag = display_dag
@@ -54,8 +55,9 @@ class MultirateTimestepperAccuracyChecker(object):
 
     @memoize_method
     def get_code(self):
-        stepper = TwoRateAdamsBashforthMethod(self.method, self.order,
-                                                       self.step_ratio)
+        stepper = TwoRateAdamsBashforthMethod(
+                self.method, self.order, self.step_ratio,
+                static_dt=self.static_dt)
 
         return stepper.generate()
 
@@ -74,7 +76,7 @@ class MultirateTimestepperAccuracyChecker(object):
                 self.ode.f2f_rhs, self.ode.s2f_rhs, self.ode.f2s_rhs,
                 self.ode.s2s_rhs)}
 
-        #print(self.get_code())
+        print(self.get_code())
         method = self.method_impl(self.get_code(), function_map=function_map)
 
         t = self.ode.t_start
@@ -168,7 +170,8 @@ class MultirateTimestepperAccuracyChecker(object):
         #"Tria"
         ])
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
-def test_multirate_accuracy(method_name, order, system):
+@pytest.mark.parametrize("static_dt", [True, False])
+def test_multirate_accuracy(method_name, order, system, static_dt):
     """Check that the multirate timestepper has the advertised accuracy"""
 
     import multirate_test_systems
@@ -182,7 +185,8 @@ def test_multirate_accuracy(method_name, order, system):
     print("------------------------------------------------------")
 
     MultirateTimestepperAccuracyChecker(
-        method_name, order, step_ratio, ode=system(),
+        method_name, order, step_ratio, static_dt=static_dt,
+        ode=system(),
         method_impl=pmi_cg)()
 
 
