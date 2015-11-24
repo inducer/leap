@@ -10,15 +10,15 @@ def main():
 
     speed_factor = 10
     step_ratio = 7
-    method = "Fq"
+    method_name = "Fq"
     order = 3
 
     print("speed factor: %g - step ratio: %g - method: %s "
             "- order: %d"
-            % (speed_factor, step_ratio, method, order))
+            % (speed_factor, step_ratio, method_name, order))
 
     method = TwoRateAdamsBashforthMethod(
-            method=method, order=order, step_ratio=step_ratio,
+            method=method_name, order=order, step_ratio=step_ratio,
             static_dt=True)
 
     code = method.generate()
