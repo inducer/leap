@@ -84,6 +84,7 @@ class Method(object):
 # {{{ two-order adaptivity
 
 class TwoOrderAdaptiveMethod(Method):
+
     def __init__(self, atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None):
         self.adaptive = bool(atol or rtol)
         self.atol = atol
@@ -97,6 +98,9 @@ class TwoOrderAdaptiveMethod(Method):
 
         self.max_dt_growth = max_dt_growth
         self.min_dt_shrinkage = min_dt_shrinkage
+
+    def finish_nonadaptive(self, cb, high_order_estimate, low_order_estimate):
+        raise NotImplementedError()
 
     def finish_adaptive(self, cb, high_order_estimate, low_order_estimate):
         from pymbolic import var
