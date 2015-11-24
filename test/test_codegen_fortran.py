@@ -238,9 +238,9 @@ def test_multirate_codegen(min_order, method_name):
                 "f": "fast",
                 }[func_name[-1]]
         freg = register_ode_rhs(freg, identifier=func_name,
-                component_id=component_id,
-                input_component_ids=("slow", "fast"),
-                input_component_names=("s", "f"))
+                output_type_id=component_id,
+                input_type_ids=("slow", "fast"),
+                input_names=("s", "f"))
 
     freg = freg.register_codegen("<func>s2f", "fortran",
         f.CallCode("""
@@ -464,9 +464,9 @@ def test_multirate_squarewave(min_order, method_name):
                 "f": "fast",
                 }[func_name[-1]]
         freg = register_ode_rhs(freg, identifier=func_name,
-                component_id=component_id,
-                input_component_ids=("slow", "fast"),
-                input_component_names=("s", "f"))
+                output_type_id=component_id,
+                input_type_ids=("slow", "fast"),
+                input_names=("s", "f"))
 
     freg = freg.register_codegen("<func>s2f", "fortran",
         f.CallCode("""
