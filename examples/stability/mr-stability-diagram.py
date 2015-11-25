@@ -12,9 +12,10 @@ def main():
     speed_factor = 10
     method_name = "Fq"
     order = 3
+    tol = 1e-8
+    prec = 1e-5
 
-    angles = np.linspace(0, 2*np.pi, 100)
-    origin = 0
+    angles = np.linspace(0, 2*np.pi, 100, endpoint=False)
 
     for step_ratio in [1, 2, 3, 4, 5, 6]:
         print("speed factor: %g - step ratio: %g - method: %s "
@@ -43,17 +44,15 @@ def main():
             np.set_printoptions(formatter={"all": str})
             print(mat)
 
-        tol = 1e-8
-
-        def is_stable(direction, dt):
+        def is_stable(major_eigval, dt):
             from pymbolic import evaluate
             smat = np.asarray(
                     evaluate(mat, {
                         "<dt>": dt,
-                        "f2f": direction,
+                        "f2f": major_eigval,
                         "s2f": 1/speed_factor,
                         "f2s": 1/speed_factor,
-                        "s2s": direction*1/speed_factor,
+                        "s2s": major_eigval*1/speed_factor,
                         }),
                     dtype=np.complex128)
 
@@ -67,18 +66,17 @@ def main():
         points = []
 
         for angle in angles:
-            eigval = np.exp(1j*angle) + origin
+            eigval = np.exp(1j*angle)
 
-            prec = 1e-5
             max_dt = find_truth_bdry(partial(is_stable, eigval), prec=prec)
 
-            stable_fake_eigval = origin + eigval*max_dt
+            stable_fake_eigval = eigval*max_dt
 
             points.append([stable_fake_eigval.real, stable_fake_eigval.imag])
 
         points = np.array(points).T
 
-        pt.plot(points[0], points[1], label="steprat: %d" % step_ratio)
+        pt.plot(points[0], points[1], "x", label="steprat: %d" % step_ratio)
 
     pt.legend(loc="best")
     pt.grid()
