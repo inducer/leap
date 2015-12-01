@@ -42,17 +42,17 @@ def main():
 
     tol = 1e-8
 
+    from fast_eval import fast_evaluator
+    evaluate_mat = fast_evaluator(mat)
+
     def is_stable(direction, dt):
-        from pymbolic import evaluate
-        smat = np.asarray(
-                evaluate(mat, {
+        smat = evaluate_mat({
                     "<dt>": dt,
                     "f2f": direction,
                     "s2f": 1/speed_factor,
                     "f2s": 1/speed_factor,
                     "s2s": direction*1/speed_factor,
-                    }),
-                dtype=np.complex128)
+                    })
 
         eigvals = la.eigvals(smat)
 
