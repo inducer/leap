@@ -1,4 +1,26 @@
-def fast_evaluator(matrix):
+class FunctionMarshaller(object):
+    """
+    A wrapper that allows pickling and unpickling of functions.
+    """
+
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+    def __getstate__(self):
+        from marshal import dumps
+        return (dumps(self.func.func_code), self.func.func_name)
+
+    def __setstate__(self, state):
+        import marshal
+        import types
+        code = marshal.loads(state[0])
+        self.func = types.FunctionType(code, globals(), state[1])
+
+
+def fast_evaluator(matrix, marshalled=False):
     """
     Generates a function to evaluate a step matrix quickly.
     The input should be numpy array with pymbolic expression entries.
@@ -12,7 +34,7 @@ def fast_evaluator(matrix):
     class NameManager(object):
 
         def __init__(self):
-            self.name_map = KeyToUniqueNameMap()
+            self.name_map = KeyToUniqueNameMap(forced_prefix="local")
 
         def __getitem__(self, key):
             return self.name_map.get_or_make_name_for_key(key)
@@ -36,7 +58,8 @@ def fast_evaluator(matrix):
 
     code.append(" return numpy.array({matrix}, dtype=numpy.complex128)"
                 .format(matrix=descend_matrix([])))
-    exec_locals = {}
+    code.append("wrapper = FunctionMarshaller(evaluate)")
+    exec_locals = {"FunctionMarshaller": FunctionMarshaller}
     exec_globals = {}
     exec("\n".join(code), exec_globals, exec_locals)
-    return exec_locals["evaluate"]
+    return exec_locals["wrapper"]

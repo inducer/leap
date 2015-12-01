@@ -5,19 +5,15 @@ import matplotlib.pyplot as pt
 from functools import partial
 
 
-def process_eigval(mat, speed_factor, prec, major_eigval):
+def process_eigval(evaluate_mat, speed_factor, prec, major_eigval):
     major_mag = abs(major_eigval)
-
-    from pymbolic import evaluate
-    smat = np.asarray(
-            evaluate(mat, {
+    smat = evaluate_mat({
                 "<dt>": 1,
                 "f2f": major_eigval,
                 "s2f": -1/speed_factor*major_mag,
                 "f2s": -1/speed_factor*major_mag,
                 "s2s": major_eigval*1/speed_factor,
-                }),
-            dtype=np.complex128)
+                })
 
     eigvals = la.eigvals(smat)
 
@@ -65,8 +61,11 @@ def main():
     from multiprocessing import Pool
     pool = Pool()
 
+    from fast_eval import fast_evaluator
+    evaluate_mat = fast_evaluator(mat)
+
     stable_dts_list = pool.map(
-            partial(process_eigval, mat, speed_factor, prec), eigvals_flat)
+            partial(process_eigval, evaluate_mat, speed_factor, prec), eigvals_flat)
 
     max_eigvals = np.zeros(eigvals.shape)
     max_eigvals.reshape(-1)[:] = stable_dts_list

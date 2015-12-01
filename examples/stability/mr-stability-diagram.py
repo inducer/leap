@@ -46,6 +46,7 @@ def main():
 
         from fast_eval import fast_evaluator
         evaluate = fast_evaluator(mat)
+
         def is_stable(major_eigval, dt):
             smat = evaluate({
                         "<dt>": dt,
