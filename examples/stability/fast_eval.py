@@ -20,7 +20,7 @@ class FunctionMarshaller(object):
         self.func = types.FunctionType(code, globals(), state[1])
 
 
-def fast_evaluator(matrix, marshalled=False):
+def fast_evaluator(matrix):
     """
     Generates a function to evaluate a step matrix quickly.
     The input should be numpy array with pymbolic expression entries.
