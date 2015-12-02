@@ -4,7 +4,6 @@ import numpy.linalg as la
 from leap.multistep.multirate import TwoRateAdamsBashforthMethod
 
 
-
 def main():
     from leap.step_matrix import StepMatrixFinder
 
