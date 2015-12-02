@@ -45,6 +45,7 @@ def fast_evaluator(matrix):
 
     expr_mapper = PythonExpressionMapper(NameManager(), base_function_registry)
     code = []
+    code.append("from __future__ import division")
     code.append("def evaluate(vars):")
     code.append(" import numpy")
 
