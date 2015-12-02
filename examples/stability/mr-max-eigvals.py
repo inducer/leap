@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 import numpy.linalg as la
 from leap.multistep.multirate import TwoRateAdamsBashforthMethod
