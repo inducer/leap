@@ -11,13 +11,17 @@ class FunctionMarshaller(object):
 
     def __getstate__(self):
         from marshal import dumps
-        return (dumps(self.func.func_code), self.func.func_name)
+        try:
+            return dumps((self.func.__code__, self.func.__name__))
+        except AttributeError:
+            # We must be using Python 2.
+            return dumps((self.func.func_code, self.func.func_name))
 
     def __setstate__(self, state):
         import marshal
         import types
-        code = marshal.loads(state[0])
-        self.func = types.FunctionType(code, globals(), state[1])
+        code, name = marshal.loads(state)
+        self.func = types.FunctionType(code, globals(), name)
 
 
 def fast_evaluator(matrix):
