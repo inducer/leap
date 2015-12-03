@@ -26,10 +26,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import numpy
+import numpy as np
+import numpy.linalg as la
 import pytest
 from pytools import memoize_method
 from leap.multistep.multirate import (
+        rhs_policy,
+        RHS,
+        MultiRateMultiStepMethod,
         TwoRateAdamsBashforthMethod,
         TextualSchemeExplainer)
 
@@ -66,7 +70,7 @@ class MultirateTimestepperAccuracyChecker(object):
         def make_coupled(f2f, f2s, s2f, s2s):
             def coupled(t, y):
                 args = (t, y[0] + y[1], y[2] + y[3])
-                return numpy.array((f2f(*args), f2s(*args), s2f(*args),
+                return np.array((f2f(*args), f2s(*args), s2f(*args),
                     s2s(*args)),)
             return coupled
 
@@ -191,12 +195,29 @@ def test_multirate_accuracy(method_name, order, system, static_dt):
 
 
 @pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
-@pytest.mark.parametrize("explainer", [
-    TextualSchemeExplainer(),
-    ])
-def test_scheme_explainers(method_name, explainer, order=3, step_ratio=3):
+def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
+        explainer=TextualSchemeExplainer()):
     stepper = TwoRateAdamsBashforthMethod(
             method_name, order=order, step_ratio=step_ratio)
+    stepper.generate(explainer=explainer)
+    print(explainer)
+
+
+def test_mrab_scheme_explainers(order=3, step_ratio=3,
+        explainer=TextualSchemeExplainer()):
+    stepper = MultiRateMultiStepMethod(
+                order,
+                component_names=("fast", "slow",),
+                rhss=(
+                    (
+                        RHS(1, "<func>f", ("fast", "slow",)),
+                        ),
+                    (
+                        RHS(step_ratio, "<func>s", ("fast", "slow",),
+                            rhs_policy=rhs_policy.late),
+                        ),)
+                )
+
     stepper.generate(explainer=explainer)
     print(explainer)
 
@@ -208,3 +229,5 @@ if __name__ == "__main__":
     else:
         from py.test.cmdline import main
         main([__file__])
+
+# vim: foldmethod=marker
