@@ -91,9 +91,6 @@ class Full(LinearODESystemsBase):
     A = [[cos(2*t),-(sin(2*t)-1)]
         [(sin(2*t)+1),-cos(2*t)]].
     """
-    def __init__(self):
-        LinearODESystemsBase.__init__(self)
-
     def f2f_rhs(self, t, f, s):
         return cos(2*t)*f
 
@@ -122,8 +119,6 @@ class Real(LinearODESystemsBase):
     other representing a recognizable difference between the speed of the
     two systems.
     """
-    def __init__(self):
-        LinearODESystemsBase.__init__(self)
 
     def f2f_rhs(self, t, f, s):
         return -f
@@ -153,8 +148,6 @@ class Comp(LinearODESystemsBase):
     skew-symmetric matrix which also is used in the Maxwell
     operator for the curl operator.
     """
-    def __init__(self):
-        LinearODESystemsBase.__init__(self)
 
     def f2f_rhs(self, t, f, s):
         return 0
@@ -182,8 +175,6 @@ class CC(LinearODESystemsBase):
         [-1,1]]
     with the complex conjungated eigenvalues λ₁=1-i and λ₂=1+i.
     """
-    def __init__(self):
-        LinearODESystemsBase.__init__(self)
 
     def f2f_rhs(self, t, f, s):
         return f
@@ -248,8 +239,6 @@ class Inh(LinearODESystemsBase):
     f= [[exp(t)]
         [   0  ]]
     """
-    def __init__(self):
-        LinearODESystemsBase.__init__(self)
 
     def f2f_rhs(self, t, f, s):
         return -2*f + 2*exp(2*t)
@@ -286,8 +275,6 @@ class Inh2(LinearODESystemsBase):
     w(t=0) = [[0]
               [0]]
     """
-    def __init__(self):
-        LinearODESystemsBase.__init__(self)
 
     def f2f_rhs(self, t, f, s):
         return -1*f + t
