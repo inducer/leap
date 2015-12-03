@@ -194,6 +194,109 @@ def test_multirate_accuracy(method_name, order, system, static_dt):
         method_impl=pmi_cg)()
 
 
+def test_single_rate_identical(order=3):
+    from leap.multistep import AdamsBashforthMethod
+    from dagrt.exec_numpy import NumpyInterpreter
+
+    from multirate_test_systems import Full
+    ode = Full()
+
+    t_start = 0
+    dt = 0.1
+
+    # {{{ single rate
+
+    single_rate_method = AdamsBashforthMethod("y", order=order)
+    single_rate_code = single_rate_method.generate()
+
+    def single_rate_rhs(t, y):
+        f, s = y
+        return np.array([
+            ode.f2f_rhs(t, f, s)+ode.s2f_rhs(t, f, s),
+            ode.f2s_rhs(t, f, s)+ode.s2s_rhs(t, f, s),
+            ])
+
+    single_rate_interp = NumpyInterpreter(
+            single_rate_code,
+            function_map={"<func>y": single_rate_rhs})
+
+    single_rate_interp.set_up(t_start=t_start, dt_start=dt,
+            context={"y": np.array([
+                ode.soln_0(t_start),
+                ode.soln_1(t_start),
+                ])})
+
+    single_rate_values = {}
+
+    nsteps = 20
+
+    for event in single_rate_interp.run():
+        if isinstance(event, single_rate_interp.StateComputed):
+            single_rate_values[event.t] = event.state_component
+
+            if len(single_rate_values) == nsteps:
+                break
+
+    # }}}
+
+    # {{{ two rate
+
+    multi_rate_method = MultiRateMultiStepMethod(
+                order,
+                component_names=("fast", "slow",),
+                rhss=(
+                    (
+                        RHS(1, "<func>f", ("fast", "slow",)),
+                        ),
+                    (
+                        RHS(1, "<func>s", ("fast", "slow",),
+                            rhs_policy=rhs_policy.late),
+                        ),)
+                )
+    multi_rate_code = multi_rate_method.generate()
+
+    def rhs_fast(t, fast, slow):
+        return ode.f2f_rhs(t, fast, slow)+ode.s2f_rhs(t, fast, slow)
+
+    def rhs_slow(t, fast, slow):
+        return ode.f2s_rhs(t, fast, slow)+ode.s2s_rhs(t, fast, slow)
+
+    multi_rate_interp = NumpyInterpreter(
+            multi_rate_code,
+            function_map={"<func>f": rhs_fast, "<func>s": rhs_slow})
+
+    multi_rate_interp.set_up(t_start=t_start, dt_start=dt,
+            context={
+                "fast": ode.soln_0(t_start),
+                "slow": ode.soln_1(t_start),
+                })
+
+    multi_rate_values = {}
+
+    for event in multi_rate_interp.run():
+        if isinstance(event, single_rate_interp.StateComputed):
+            idx = {"fast": 0, "slow": 1}[event.component_id]
+            if event.t not in multi_rate_values:
+                multi_rate_values[event.t] = [None, None]
+
+            multi_rate_values[event.t][idx] = event.state_component
+
+            if len(multi_rate_values) > nsteps:
+                break
+
+    # }}}
+
+    times = sorted(single_rate_values)
+    single_rate_values = np.array([single_rate_values[t] for t in times])
+    multi_rate_values = np.array([multi_rate_values[t] for t in times])
+    print(single_rate_values)
+    print(multi_rate_values)
+
+    diff = la.norm((single_rate_values-multi_rate_values).reshape(-1))
+
+    assert diff < 1e-13
+
+
 @pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
 def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
