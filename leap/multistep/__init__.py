@@ -74,6 +74,35 @@ class ABMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
         return 1/(func_idx+1) * x**(func_idx+1)
 
 
+class ABTrigMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
+    # FIXME: Doesn't yet work for on-the-fly coefficients
+
+    def __init__(self, order, alpha):
+        self.order = order
+        self.alpha = alpha
+
+    def __len__(self):
+        return self.order
+
+    def evaluate(self, func_idx, x):
+        func_idx += 1
+        n = func_idx // 2
+        if func_idx % 2 == 0:
+            return np.sin(self.alpha*n*x)
+        else:
+            return np.cos(self.alpha*n*x)
+
+    def antiderivative(self, func_idx, x):
+        func_idx += 1
+        n = func_idx // 2
+        if func_idx == 1:
+            return x
+        elif func_idx % 2 == 0:
+            return -1/n * np.cos(self.alpha*n*x)
+        else:
+            return 1/n * np.sin(self.alpha*n*x)
+
+
 def emit_ab_integration(cb, name_gen,
         function_family, time_values, hist_vars, t_start, t_end):
     if isinstance(time_values, var):
@@ -150,18 +179,32 @@ class AdamsBashforthMethod(Method):
         <func> + component_id: The right hand side
     """
 
-    def __init__(self, component_id, order, state_filter_name=None,
-            hist_length=None, static_dt=False):
+    def __init__(self, component_id, function_family=None, state_filter_name=None,
+            hist_length=None, static_dt=False, order=None):
         """
+        :arg function_family: Accepts an instance of
+            :class:`ABIntegrationFunctionFamily`
+            or an integer, in which case the classical monomial function family
+            with the order given by the integer is used.
         :arg static_dt: If *True*, changing the timestep during time integration
             is not allowed.
         """
 
+        if function_family is not None and order is not None:
+            raise ValueError("may not specify both function_family and order")
+
+        if function_family is None:
+            function_family = order
+            del order
+
+        if isinstance(function_family, int):
+            function_family = ABMonomialIntegrationFunctionFamily(function_family)
+
         super(AdamsBashforthMethod, self).__init__()
-        self.order = order
+        self.function_family = function_family
 
         if hist_length is None:
-            hist_length = order
+            hist_length = len(function_family)
 
         self.hist_length = hist_length
         self.static_dt = static_dt
@@ -226,7 +269,7 @@ class AdamsBashforthMethod(Method):
 
             ab_sum = emit_ab_integration(
                             cb_primary, name_gen,
-                            ABMonomialIntegrationFunctionFamily(self.order),
+                            self.function_family,
                             time_hist, history,
                             0, t_end)
 
@@ -303,7 +346,7 @@ class AdamsBashforthMethod(Method):
                     cb(self.time_history[i], self.t)
 
         from leap.rk import ORDER_TO_RK_METHOD
-        rk_method = ORDER_TO_RK_METHOD[self.order]
+        rk_method = ORDER_TO_RK_METHOD[self.function_family.order]
         rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
         rk_coeffs = rk_method.output_coeffs
 
