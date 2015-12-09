@@ -179,7 +179,7 @@ class ScipySolverGenerator(object):
         """
 
         from dagrt.expression import match
-        from pymbolic.mapper.substitutor import substitute
+        from pymbolic import substitute
         # Rename the solve component in self.expression to solve_component.
         template = substitute(self.expression,
                               {self.solve_component: var(solve_component)})
