@@ -1,70 +1,42 @@
-class FunctionMarshaller(object):
-    """
-    A wrapper that allows pickling and unpickling of functions.
-    """
-
-    def __init__(self, func):
-        self.func = func
-
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-
-    def __getstate__(self):
-        from marshal import dumps
-        try:
-            return dumps((self.func.__code__, self.func.__name__))
-        except AttributeError:
-            # We must be using Python 2.
-            return dumps((self.func.func_code, self.func.func_name))
-
-    def __setstate__(self, state):
-        import marshal
-        import types
-        code, name = marshal.loads(state)
-        self.func = types.FunctionType(code, globals(), name)
+from __future__ import division, print_function
 
 
 def fast_evaluator(matrix):
     """
-    Generates a function to evaluate a step matrix quickly.
-    The input should be numpy array with pymbolic expression entries.
+    Generate a function to evaluate a step matrix quickly.
+    The input should be numpy array whose entries are pymbolic expressions.
     """
-    from dagrt.codegen.expressions import PythonExpressionMapper
+    # First, rename variables in the matrix to names that are acceptable Python
+    # identifiers. We make use of dagrt's KeyToUniqueNameMap.
     from dagrt.codegen.utils import KeyToUniqueNameMap
-    from dagrt.function_registry import base_function_registry
-    from dagrt.utils import get_variables
-    from pymbolic import var
+    name_map = KeyToUniqueNameMap(forced_prefix="matrix")
 
-    class NameManager(object):
+    def make_identifier(symbol):
+        from pymbolic import var
+        assert isinstance(symbol, var)
+        return var(name_map.get_or_make_name_for_key(symbol.name))
 
-        def __init__(self):
-            self.name_map = KeyToUniqueNameMap(forced_prefix="local")
+    from pymbolic.mapper.substitutor import SubstitutionMapper
+    matrix = SubstitutionMapper(make_identifier)(matrix)
 
-        def __getitem__(self, key):
-            return self.name_map.get_or_make_name_for_key(key)
+    # Compile the matrix.
+    orig_varnames = sorted(key for key in name_map)
+    renamed_varnames = [name_map.get_or_make_name_for_key(key)
+                        for key in orig_varnames]
+    from pymbolic import compile
+    compiled_matrix = compile(matrix, renamed_varnames)
 
-    expr_mapper = PythonExpressionMapper(NameManager(), base_function_registry)
-    code = []
-    code.append("from __future__ import division")
-    code.append("def evaluate(vars):")
-    code.append(" import numpy")
+    # functools.partial ensures the resulting object is picklable.
+    from functools import partial
+    return partial(_eval_compiled_matrix, compiled_matrix, orig_varnames)
 
-    all_vars = get_variables(matrix)
-    for var_name in all_vars:
-        code.append(" {var} = vars[\"{var_name}\"]".format(
-            var=expr_mapper(var(var_name)), var_name=var_name))
 
-    def descend_matrix(index):
-        depth = len(index)
-        if depth == len(matrix.shape):
-            return expr_mapper(matrix.item(*index))
-        return "[" + ",".join(descend_matrix(index + [i])
-                              for i in range(matrix.shape[depth])) + "]"
-
-    code.append(" return numpy.array({matrix}, dtype=numpy.complex128)"
-                .format(matrix=descend_matrix([])))
-    code.append("wrapper = FunctionMarshaller(evaluate)")
-    exec_locals = {"FunctionMarshaller": FunctionMarshaller}
-    exec_globals = {}
-    exec("\n".join(code), exec_globals, exec_locals)
-    return exec_locals["wrapper"]
+def _eval_compiled_matrix(compiled_matrix, var_order, var_assignments):
+    """
+    :arg compiled_matrix: A compiled pymbolic expression
+    :arg var_order: A list of keys. Arguments are passed in this order
+    :arg var_assignments: A dictionary, mapping keys in `var_order` to values
+    :return: The evaluted matrix as a numpy array
+    """
+    arguments = [var_assignments[name] for name in var_order]
+    return compiled_matrix(*arguments)
