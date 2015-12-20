@@ -45,17 +45,17 @@ def main():
             np.set_printoptions(formatter={"all": str})
             print(mat)
 
+        from fast_eval import fast_evaluator
+        evaluate = fast_evaluator(mat)
+
         def is_stable(major_eigval, dt):
-            from pymbolic import evaluate
-            smat = np.asarray(
-                    evaluate(mat, {
+            smat = evaluate({
                         "<dt>": dt,
                         "f2f": major_eigval,
                         "s2f": 1/speed_factor,
                         "f2s": 1/speed_factor,
                         "s2s": major_eigval*1/speed_factor,
-                        }),
-                    dtype=np.complex128)
+                        })
 
             eigvals = la.eigvals(smat)
 
