@@ -877,8 +877,10 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
 
         if "S" in method:
             s2s_policy = rhs_policy.early
-        else:
+        elif "F" in method:
             s2s_policy = rhs_policy.late
+        else:
+            raise ValueError("expecting 'F' or 'S' in method")
 
         if "r" in method:
             s2s_policy = rhs_policy.early_and_late
