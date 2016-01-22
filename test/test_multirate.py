@@ -175,12 +175,10 @@ class MultirateTimestepperAccuracyChecker(object):
         ])
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 @pytest.mark.parametrize("static_dt", [True, False])
-def test_multirate_accuracy(method_name, order, system, static_dt):
+def test_multirate_accuracy(method_name, order, system, static_dt, step_ratio=2):
     """Check that the multirate timestepper has the advertised accuracy"""
 
     import multirate_test_systems
-
-    step_ratio = 2
 
     system = getattr(multirate_test_systems, system)
 
