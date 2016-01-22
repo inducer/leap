@@ -20,7 +20,7 @@ def fast_evaluator(matrix):
     matrix = SubstitutionMapper(make_identifier)(matrix)
 
     # Compile the matrix.
-    orig_varnames = sorted(key for key in name_map)
+    orig_varnames = sorted(name_map)
     renamed_varnames = [name_map.get_or_make_name_for_key(key)
                         for key in orig_varnames]
     from pymbolic import compile
