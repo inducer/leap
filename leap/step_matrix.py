@@ -68,7 +68,7 @@ class StepMatrixFinder(object):
         """Extract all state-related variables from the code."""
         all_var_ids = set()
         for inst in self.code.instructions:
-            all_var_ids |= inst.get_assignees()
+            all_var_ids |= inst.get_written_variables()
             all_var_ids |= inst.get_read_variables()
         all_state_vars = []
         for var_name in all_var_ids:
