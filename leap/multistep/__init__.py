@@ -251,10 +251,12 @@ class AdamsBashforthMethod(Method):
 
         if self.hist_length == 1:
             # The first order method requires no bootstrapping.
-            return DAGCode.create_with_init_and_step(
-                instructions=cb_init.instructions | cb_primary.instructions,
-                initialization_dep_on=cb_init.state_dependencies,
-                step_dep_on=cb_primary.state_dependencies)
+            return DAGCode(
+                states={
+                    "initial": cb_init.as_execution_state(next_state="primary"),
+                    "primary": cb_primary.as_execution_state(next_state="primary")
+                    },
+                initial_state="initial")
 
         # Bootstrap
         with CodeBuilder(label="bootstrap") as cb_bootstrap:
@@ -267,16 +269,13 @@ class AdamsBashforthMethod(Method):
             with cb_bootstrap.if_(self.step, "==", self.hist_length):
                 cb_bootstrap.state_transition("primary")
 
-        states = {}
-        states["initialization"] = cb_init.as_execution_state("bootstrap")
-        states["bootstrap"] = cb_bootstrap.as_execution_state("bootstrap")
-        states["primary"] = cb_primary.as_execution_state("primary")
-
         return DAGCode(
-            instructions=cb_init.instructions | cb_bootstrap.instructions |
-            cb_primary.instructions,
-            states=states,
-            initial_state="initialization")
+                states={
+                    "initialization": cb_init.as_execution_state("bootstrap"),
+                    "bootstrap": cb_bootstrap.as_execution_state("bootstrap"),
+                    "primary": cb_primary.as_execution_state("primary"),
+                    },
+                initial_state="initialization")
 
     def eval_rhs(self, t, y):
         """Return a node that evaluates the RHS at the given time and

@@ -331,10 +331,12 @@ class ButcherTableauMethod(Method):
 
         # }}}
 
-        return DAGCode.create_with_init_and_step(
-            instructions=cb_init.instructions | cb_primary.instructions,
-            initialization_dep_on=cb_init.state_dependencies,
-            step_dep_on=cb_primary.state_dependencies)
+        return DAGCode(
+                states={
+                    "initial": cb_init.as_execution_state(next_state="primary"),
+                    "primary": cb_primary.as_execution_state(next_state="primary")
+                    },
+                initial_state="initial")
 
     def finish(self, cb, estimate_names, estimate_vars):
         cb(self.state, estimate_vars[0])
@@ -712,10 +714,12 @@ class LSRK4Method(Method):
         cb_primary = cb
 
         from dagrt.language import DAGCode
-        return DAGCode.create_with_init_and_step(
-            instructions=cb_init.instructions | cb_primary.instructions,
-            initialization_dep_on=cb_init.state_dependencies,
-            step_dep_on=cb_primary.state_dependencies)
+        return DAGCode(
+                states={
+                    "initial": cb_init.as_execution_state(next_state="primary"),
+                    "primary": cb_primary.as_execution_state(next_state="primary")
+                    },
+                initial_state="initial")
 
 # }}}
 

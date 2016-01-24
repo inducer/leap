@@ -816,16 +816,13 @@ class MultiRateMultiStepMethod(Method):
         with CodeBuilder(label="bootstrap") as cb_bootstrap:
             self.emit_rk_bootstrap(cb_bootstrap)
 
-        states = {}
-        states["initialization"] = cb_init.as_execution_state("bootstrap")
-        states["bootstrap"] = cb_bootstrap.as_execution_state("bootstrap")
-        states["primary"] = cb_primary.as_execution_state("primary")
-
         return DAGCode(
-            instructions=cb_init.instructions | cb_bootstrap.instructions |
-            cb_primary.instructions,
-            states=states,
-            initial_state="initialization")
+                states={
+                    "initialization": cb_init.as_execution_state("bootstrap"),
+                    "bootstrap": cb_bootstrap.as_execution_state("bootstrap"),
+                    "primary": cb_primary.as_execution_state("primary"),
+                    },
+                initial_state="initialization")
 
         # }}}
 
