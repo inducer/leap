@@ -45,12 +45,35 @@ def _elide_t_update(instructions):
 def strang_splitting(dag1, dag2, stepping_state):
     from pymbolic.mapper.substitutor import make_subst_func, SubstitutionMapper
 
+    # {{{ disambiguate
+
+    id1 = dag1.existing_var_names()
+    id2 = dag1.existing_var_names()
+
+    from pytools import UniqueNameGenerator
+    vng = UniqueNameGenerator(id1 | id2)
+
+    from pymbolic import var
+    subst2 = {}
+    for clash in id1 & id2:
+        if not clash.startswith("<") or clash.startswith("<p>"):
+            unclash = vng(clash)
+            subst2[clash] = var(unclash)
+
+    subst2_mapper = SubstitutionMapper(make_subst_func(subst2))
+
+    # }}}
+
     all_states = frozenset(dag1.states) | frozenset(dag2.states)
     from dagrt.language import DAGCode, ExecutionState
     new_states = {}
     for state_name in all_states:
         state1 = dag1.states.get(state_name)
         state2 = dag2.states.get(state_name)
+
+        substed_s2_insns = [
+                insn.map_expressions(subst2_mapper)
+                for insn in state2.instructions]
 
         if state_name == stepping_state:
             assert state1 is not None
@@ -82,15 +105,19 @@ def strang_splitting(dag1, dag2, stepping_state):
             new_states[s2_name] = ExecutionState(
                     next_state=s3_name,
                     depends_on=state2.depends_on,
-                    instructions=_elide_t_update(
-                        _elide_yield_state(state2.instructions)))
+                    instructions=(
+                        _elide_t_update(
+                            _elide_yield_state(
+                                substed_s2_insns))))
             new_states[s3_name] = ExecutionState(
                     next_state=state1.next_state,
                     depends_on=state1.depends_on,
                     instructions=state1_half_dt)
         else:
             from dagrt.transform import fuse_two_states
-            new_states[state_name] = fuse_two_states(state_name, state1, state2)
+            new_states[state_name] = fuse_two_states(state_name,
+                    state1,
+                    state2.copy(instructions=substed_s2_insns))
 
     if dag1.initial_state != dag2.initial_state:
         raise ValueError("DAGs don't agree on initial state")
