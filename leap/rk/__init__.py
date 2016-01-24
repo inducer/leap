@@ -659,7 +659,7 @@ class LSRK4Method(Method):
 
     adaptive = False
 
-    def __init__(self, component_id, state_filter_name=None):
+    def __init__(self, component_id, state_filter_name=None, rhs_func_name=None):
         """
         :arg component_id: an identifier to be used for the single state
             component supported.
@@ -675,6 +675,11 @@ class LSRK4Method(Method):
         else:
             self.state_filter = None
 
+        if rhs_func_name is None:
+            rhs_func_name = "<func>" + component_id
+
+        self.rhs_func_name = rhs_func_name
+
     def generate(self):
         comp_id = self.component_id
 
@@ -683,7 +688,7 @@ class LSRK4Method(Method):
         t = var("<t>")
         residual = var("<p>residual_" + comp_id)
         state = var("<state>" + comp_id)
-        rhs_func = var("<func>" + comp_id)
+        rhs_func = var(self.rhs_func_name)
 
         with CodeBuilder("initialization") as cb:
             cb(residual, 0)
