@@ -82,7 +82,7 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     interp = NumpyInterpreter(code, function_map={"<func>" + component_id: rhs})
     interp.set_up(t_start=0, dt_start=dt, context={component_id: 15})
 
-    assert interp.next_state == "initialization"
+    assert interp.next_state == "initial"
     for event in interp.run_single_step():
         pass
     assert interp.next_state == "primary"

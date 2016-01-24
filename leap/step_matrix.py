@@ -23,6 +23,8 @@ THE SOFTWARE.
 """
 
 
+import six
+
 from dagrt.expression import EvaluationMapper
 import numpy as np
 from dagrt.exec_numpy import FailStepException
@@ -67,9 +69,11 @@ class StepMatrixFinder(object):
     def _get_state_variables(self):
         """Extract all state-related variables from the code."""
         all_var_ids = set()
-        for inst in self.code.instructions:
-            all_var_ids |= inst.get_written_variables()
-            all_var_ids |= inst.get_read_variables()
+        for state in six.itervalues(self.code.states):
+            for inst in state.instructions:
+                all_var_ids |= inst.get_written_variables()
+                all_var_ids |= inst.get_read_variables()
+
         all_state_vars = []
         for var_name in all_var_ids:
             if (
@@ -97,8 +101,8 @@ class StepMatrixFinder(object):
         self.context["<t>"] = 0
 
         self.exec_controller.reset()
-        self.exec_controller.update_plan(state.depends_on)
-        for event in self.exec_controller(self):
+        self.exec_controller.update_plan(state, state.depends_on)
+        for event in self.exec_controller(state, self):
             pass
 
         from pymbolic.mapper.differentiator import DifferentiationMapper
