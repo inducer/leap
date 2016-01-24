@@ -323,6 +323,19 @@ def test_mrab_scheme_explainers(order=3, step_ratio=3,
     print(explainer)
 
 
+def test_dot(order=3, step_ratio=3, method_name="F", show=False):
+    stepper = TwoRateAdamsBashforthMethod(
+            method_name, order=order, step_ratio=step_ratio)
+    code = stepper.generate()
+
+    from dagrt.language import get_dot_dependency_graph
+    print(get_dot_dependency_graph(code))
+
+    if show:
+        from dagrt.language import show_dependency_graph
+        show_dependency_graph(code)
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
