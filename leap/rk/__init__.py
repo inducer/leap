@@ -348,12 +348,22 @@ class ButcherTableauMethod(Method):
 # {{{ simple butcher tableau methods
 
 class SimpleButcherTableauMethod(ButcherTableauMethod):
+    def __init__(self, component_id, state_filter_name=None,
+            rhs_func_name=None):
+        super(SimpleButcherTableauMethod, self).__init__(
+                component_id=component_id,
+                state_filter_name=state_filter_name)
+
+        if rhs_func_name is None:
+            rhs_func_name = "<func>"+self.component_id
+        self.rhs_func_name = rhs_func_name
+
     def generate(self):
         return self.generate_butcher(
                 stage_coeff_set_names=("explicit",),
                 stage_coeff_sets={
                     "explicit": self.a_explicit},
-                rhs_funcs={"explicit": var("<func>"+self.component_id)},
+                rhs_funcs={"explicit": var(self.rhs_func_name)},
                 estimate_coeff_set_names=("main",),
                 estimate_coeff_sets={
                     "main": self.output_coeffs,
