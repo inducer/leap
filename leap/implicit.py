@@ -240,31 +240,36 @@ def replace_AssignSolved(dag, solver_hooks):
 
     from dagrt.language import AssignExpression, AssignSolved
 
-    for insn in dag.instructions:
+    new_states = {}
 
-        if not isinstance(insn, AssignSolved):
-            new_instructions.append(insn)
-            continue
+    for state_name, state in dag.states.items():
+        for insn in state.instructions:
 
-        if len(insn.assignees) != 1:
-            from dagrt.utils import TODO
-            raise TODO("Implement lowering for AssignSolved instructions returning "
-                       "multiple values.")
+            if not isinstance(insn, AssignSolved):
+                new_instructions.append(insn)
+                continue
 
-        expression = insn.expressions[0]
-        solve_component = insn.solve_variables[0]
-        other_params = insn.other_params
+            if len(insn.assignees) != 1:
+                from dagrt.utils import TODO
+                raise TODO("Implement lowering for AssignSolved instructions "
+                           "returning multiple values.")
 
-        solver = solver_hooks[insn.solver_id]
+            expression = insn.expressions[0]
+            solve_component = insn.solve_variables[0]
+            other_params = insn.other_params
 
-        new_instructions.append(
-            AssignExpression(
-                assignee=insn.assignees[0],
-                assignee_subscript=(),
-                expression=solver(expression, solve_component,
-                    **other_params),
-                id=insn.id,
-                condition=insn.condition,
-                depends_on=insn.depends_on))
+            solver = solver_hooks[insn.solver_id]
 
-    return dag.copy(instructions=new_instructions)
+            new_instructions.append(
+                AssignExpression(
+                    assignee=insn.assignees[0],
+                    assignee_subscript=(),
+                    expression=solver(expression, solve_component,
+                                      **other_params),
+                    id=insn.id,
+                    condition=insn.condition,
+                    depends_on=insn.depends_on))
+
+        new_states[state_name] = state.copy(instructions=new_instructions)
+
+    return dag.copy(states=new_states)
