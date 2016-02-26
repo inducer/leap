@@ -73,11 +73,12 @@ def solver_hook(expression, solve_component, guess, template=None):
     """The solver hook returns an expression that will be used to solve for the
     implicit component.
     """
-    from dagrt.expression import match, substitute
+    from dagrt.expression import match
+    from pymbolic import substitute, var
 
     # Match the expression with the template.
     assert template
-    template = substitute(template, {"solve_component": solve_component})
+    template = substitute(template, {"solve_component": var(solve_component)})
     subst = match(template, expression, ["sub_y", "coeff", "t"])
 
     # Match the components that were found.
