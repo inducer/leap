@@ -76,15 +76,6 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
         self.use_explicit = use_explicit
         self.use_implicit = use_implicit
 
-    def implicit_expression(self, expression_tag=None):
-        from dagrt.expression import parse
-        return (parse("`solve_component` - `<func>{implicit_rhs_name}`("
-            "t=t, {component_id}="
-            "`{state}` + sub_y + coeff * `solve_component`)".format(
-                component_id=self.component_id,
-                implicit_rhs_name=self.implicit_rhs_name,
-                state=self.state.name)), "solve_component")
-
     def generate(self):
         if self.use_high_order:
             estimate_names = ("high_order", "low_order")

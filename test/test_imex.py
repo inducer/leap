@@ -30,29 +30,39 @@ import sys
 
 from leap.rk.imex import KennedyCarpenterIMEXARK4Method
 from stiff_test_systems import KapsProblem
-from leap.implicit import ScipySolverGenerator
 
 from utils import (  # noqa
         python_method_impl_interpreter as pmi_int,
         python_method_impl_codegen as pmi_cg)
 
 
-_component_id = "y"
+def solver(f, t, sub_y, coeff, guess):
+    from scipy.optimize import root
+    return root(lambda unk: unk - f(t=t, y=sub_y + coeff*unk), guess).x
+
+
+def solver_hook(solve_expr, guess):
+    from dagrt.expression import match
+    from leap.implicit import make_solver_call
+
+    pieces = match("unk - <func>rhs(t=t, y=sub_y + coeff*unk)", solve_expr)
+    return make_solver_call("<func>solver(t, sub_y, coeff, guess)",
+                            pieces,
+                            guess, guess_name="guess")
 
 
 @pytest.mark.parametrize("problem, method, expected_order", [
-    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4Method(_component_id,
-                                                        use_high_order=False), 3],
-    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4Method(_component_id), 4],
+    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4Method(
+        "y", use_high_order=False), 3],
+    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4Method("y"), 4],
     ])
 def test_convergence(python_method_impl, problem, method, expected_order):
     pytest.importorskip("scipy")
 
     code = method.generate()
 
-    sgen = ScipySolverGenerator(*method.implicit_expression())
     from leap.implicit import replace_AssignSolved
-    code = replace_AssignSolved(code, {"solve": sgen})
+    code = replace_AssignSolved(code, {"solve": solver_hook})
 
     from pytools.convergence import EOCRecorder
     eocrec = EOCRecorder()
@@ -64,13 +74,14 @@ def test_convergence(python_method_impl, problem, method, expected_order):
         t_start = problem.t_start
         t_end = problem.t_end
 
+        from functools import partial
         interp = python_method_impl(code, function_map={
             "<func>expl_y": problem.nonstiff,
             "<func>impl_y": problem.stiff,
-            sgen.solver_func.name: sgen.get_compiled_solver(),
+            "<func>solver": partial(solver, problem.stiff),
         })
 
-        interp.set_up(t_start=t_start, dt_start=dt, context={_component_id: y_0})
+        interp.set_up(t_start=t_start, dt_start=dt, context={"y": y_0})
 
         times = []
         values = []
@@ -116,20 +127,21 @@ def test_adaptive(python_method_impl, problem, method):
 
     # Test that tightening the tolerance will decrease the overall error.
     for atol in tols:
-        generator = method(_component_id, atol=atol)
+        generator = method("y", atol=atol)
         code = generator.generate()
 
-        sgen = ScipySolverGenerator(*generator.implicit_expression())
+        #sgen = ScipySolverGenerator(*generator.implicit_expression())
         from leap.implicit import replace_AssignSolved
-        code = replace_AssignSolved(code, {"solve": sgen})
+        code = replace_AssignSolved(code, {"solve": solver_hook})
 
+        from functools import partial
         interp = python_method_impl(code, function_map={
             "<func>expl_y": problem.nonstiff,
             "<func>impl_y": problem.stiff,
-            sgen.solver_func.name: sgen.get_compiled_solver()
+            "<func>solver": partial(solver, problem.stiff)
         })
         interp.set_up(t_start=t_start, dt_start=dt,
-                      context={_component_id: problem.initial()})
+                      context={"y": problem.initial()})
 
         times = []
         values = []
@@ -140,7 +152,7 @@ def test_adaptive(python_method_impl, problem, method):
         for event in interp.run(t_end=t_end):
             clear_flag = False
             if isinstance(event, interp.StateComputed):
-                assert event.component_id == _component_id
+                assert event.component_id == "y"
                 new_values.append(event.state_component)
                 new_times.append(event.t)
             elif isinstance(event, interp.StepCompleted):

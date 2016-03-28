@@ -30,7 +30,6 @@ THE SOFTWARE.
 """
 
 
-
 class ImplicitEulerMethod(Method):
     """
     Context:
@@ -83,11 +82,3 @@ class ImplicitEulerMethod(Method):
                             self.t + self.dt, 'final')
         builder.fence()
         builder.assign(self.t, self.t + self.dt)
-
-    def implicit_expression(self, expression_tag=None):
-        from dagrt.expression import parse
-        return (parse("`solve_component` + state + dt * `{rhs}`(t=t,"
-                      "{component_id}=`solve_component`)".format(
-                          rhs=self.rhs_func.name,
-                          component_id=self.component_id)),
-                "solve_component")
