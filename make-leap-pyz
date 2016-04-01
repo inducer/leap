@@ -2,7 +2,7 @@
 
 set -e
 
-PYZZER_PATH=../env/bin/pyzzer.pyz
+PYZZER_PATH=../env-2.7/bin/pyzzer.pyz
 
 function pymod_location()
 {
