@@ -552,7 +552,6 @@ class MultiRateMultiStepMethod(Method):
             contrib_explanations = []
 
             for irhs, rhs in enumerate(rhss):
-                cb.fence()
                 hist_len = rhs.history_length
 
                 relv_hist_substeps = temp_hist_substeps[comp_name, irhs][-hist_len:]
@@ -601,8 +600,6 @@ class MultiRateMultiStepMethod(Method):
                             rhs=rhs.func_name,
                             from_substeps=relv_hist_substeps,
                             using=relv_hist_vars))
-
-                cb.fence()
 
             state_var = var(
                     name_gen(
