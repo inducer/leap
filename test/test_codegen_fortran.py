@@ -27,7 +27,7 @@ import sys
 import pytest
 
 import dagrt.codegen.fortran as f
-from leap.rk import ODE23Method, ODE45Method, LSRK4Method
+from leap.rk import ODE23Method, ODE45Method, RK4Method, LSRK4Method
 
 from leap.multistep.multirate import TwoRateAdamsBashforthMethod
 
@@ -51,9 +51,10 @@ def read_file(rel_path):
     (3, ODE23Method("y", use_high_order=True)),
     (4, ODE45Method("y", use_high_order=False)),
     (5, ODE45Method("y", use_high_order=True)),
+    (4, RK4Method("y")),
     (4, LSRK4Method("y")),
     ])
-def test_rk_codegen(min_order, stepper):
+def test_rk_codegen(min_order, stepper, print_code=False):
     """Test whether Fortran code generation for the Runge-Kutta
     timestepper works.
     """
@@ -85,6 +86,9 @@ def test_rk_codegen(min_order, stepper):
             ! lines copied to the start of the module, e.g. to say:
             ! use ModStuff
             """)
+
+    if print_code:
+        print(codegen(code))
 
     run_fortran([
         ("rkmethod.f90", codegen(code)),
