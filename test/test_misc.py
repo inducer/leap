@@ -74,6 +74,9 @@ def test_strang_splitting(plot_solution=False):
 
         times = np.array(times)
 
+        # Check that the timestep is preserved.
+        assert np.allclose(np.diff(times), dt)
+
         if plot_solution:
             import matplotlib.pyplot as pt
             pt.plot(times, values, label="comp")

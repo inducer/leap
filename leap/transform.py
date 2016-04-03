@@ -32,13 +32,23 @@ def _elide_yield_state(instructions):
             for insn in instructions]
 
 
-def _elide_t_update(instructions):
+def _update_t_by_dt_factor(factor, instructions):
     from dagrt.language import AssignExpression, Nop
     from pymbolic import var
+    from pymbolic.mapper.substitutor import make_subst_func, SubstitutionMapper
+
+    mapper = SubstitutionMapper(
+        make_subst_func({"<dt>": factor * var("<dt>")}))
+
+    def updater(insn):
+        if factor == 0:
+            return Nop(id=insn.id, depends_on=insn.depends_on)
+        return insn.map_expressions(mapper)
+
     return [insn
             if (not isinstance(insn, AssignExpression)
                 or insn.lhs != var("<t>"))
-            else Nop(id=insn.id, depends_on=insn.depends_on)
+            else updater(insn)
             for insn in instructions]
 
 
@@ -98,15 +108,26 @@ def strang_splitting(dag1, dag2, stepping_state):
             assert s2_name not in all_states
             assert s3_name not in all_states
 
+            """
+            du/dt = A + B
+            Time interval is [0,1]
+            1. Starting with u0, solve du / dt = A from t = 0 to 1/2, get u1
+            2. Starting with u1, solve du / dt = B from t = 0 to 1, get u2
+            3. Starting with u2, solve du / dt = A from t = 1/2 to 1, get u3
+            4. Return u3
+            """
             new_states[state_name] = ExecutionState(
                     next_state=s2_name,
                     depends_on=state1.depends_on,
-                    instructions=_elide_yield_state(state1_half_dt))
+                    instructions=(
+                        _update_t_by_dt_factor(0,
+                            _elide_yield_state(
+                                state1_half_dt))))
             new_states[s2_name] = ExecutionState(
                     next_state=s3_name,
                     depends_on=state2.depends_on,
                     instructions=(
-                        _elide_t_update(
+                        _update_t_by_dt_factor(1/2,
                             _elide_yield_state(
                                 substed_s2_insns))))
             new_states[s3_name] = ExecutionState(
