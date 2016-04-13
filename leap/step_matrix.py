@@ -54,7 +54,8 @@ class StepMatrixFinder(object):
         # builtins.
         assert not set(builtins) & set(function_map)
 
-        self.function_map = dict(builtins, **function_map)
+        self.function_map = builtins.copy()
+        self.function_map.update(function_map)
 
         if variables is None:
             variables = self._get_state_variables()
