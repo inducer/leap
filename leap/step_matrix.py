@@ -86,17 +86,34 @@ class StepMatrixFinder(object):
         all_state_vars.sort()
         return all_state_vars
 
-    def get_state_step_matrix(self, state_name):
+    def get_state_step_matrix(self, state_name, shapes={}):
+        """
+        `variable_shapes` maps variable names to vector lengths
+        """
         state = self.code.states[state_name]
 
         from pymbolic import var
 
-        initial_vars = []
-
         self.context.clear()
+        from collections import namedtuple
+        from pymbolic.primitives import make_sym_vector
+        VectorComponent = namedtuple("VectorComponent", "name, index")
+
+        # Includes variables expanded into vector components
+        components = []
+        # Initial values, as variables / subscripts. Matched with "components"
+        initial_vals = []
         for vname in self.variables:
-            iv = self.context[vname] = var(vname+"_0")
-            initial_vars.append(iv)
+            if vname in shapes and shapes[vname] > 1:
+                ival = make_sym_vector(vname+"_0", shapes[vname])
+                initial_vals.extend(ival)
+                names = [VectorComponent(vname, i) for i in range(len(ival))]
+                components.extend(names)
+            else:
+                ival = var(vname+"_0")
+                initial_vals.append(ival)
+                components.append(vname)
+            self.context[vname] = ival
 
         self.context["<dt>"] = var("<dt>")
         self.context["<t>"] = 0
@@ -107,12 +124,30 @@ class StepMatrixFinder(object):
             pass
 
         from pymbolic.mapper.differentiator import DifferentiationMapper
+        from pymbolic.mapper.dependency import DependencyMapper
+        dependencies = DependencyMapper()
 
-        nv = len(self.variables)
+        nv = len(components)
         step_matrix = np.zeros((nv, nv), dtype=np.object)
-        for i, v in enumerate(self.variables):
-            for j, iv in enumerate(initial_vars):
-                step_matrix[i][j] = DifferentiationMapper(iv)(self.context[v])
+
+        iv_to_index = dict((iv, i) for i, iv in enumerate(initial_vals))
+        for i, v in enumerate(components):
+            # Get the expression for v.
+            if isinstance(v, VectorComponent):
+                expr = self.context[v.name][v.index]
+            else:
+                expr = self.context[v]
+
+            # Selectively evaluate the derivative only for components that are
+            # actually present in the expression. This takes advantage of
+            # sparsity.
+            component_vars = dependencies(expr)
+            for iv in component_vars:
+                if iv not in iv_to_index:
+                    continue
+                j = iv_to_index[iv]
+                step_matrix[i, j] = DifferentiationMapper(iv)(expr)
+
         return step_matrix
 
     def evaluate_condition(self, insn):
