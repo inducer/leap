@@ -45,7 +45,7 @@ def main():
             np.set_printoptions(formatter={"all": str})
             print(mat)
 
-        from fast_eval import fast_evaluator
+        from leap.step_matrix import fast_evaluator
         evaluate = fast_evaluator(mat)
 
         def is_stable(major_eigval, dt):

@@ -62,7 +62,7 @@ def main():
     from multiprocessing import Pool
     pool = Pool()
 
-    from fast_eval import fast_evaluator
+    from leap.step_matrix import fast_evaluator
     evaluate_mat = fast_evaluator(mat)
 
     stable_dts_list = pool.map(

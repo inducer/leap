@@ -31,7 +31,7 @@ def main():
 
     tol = 1e-8
 
-    from fast_eval import fast_evaluator
+    from leap.step_matrix import fast_evaluator
     evaluate_mat = fast_evaluator(mat)
 
     def is_stable(direction, dt):

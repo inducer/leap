@@ -113,27 +113,34 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     assert rel_err < 1e-12
 
 
-def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
+def euler(component_id, show_dag):
     from leap.multistep import AdamsBashforthMethod
-    component_id = 'y'
+
     method = AdamsBashforthMethod(component_id, 1, static_dt=True)
     code = method.generate()
     if show_dag:
         from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
-    from leap.step_matrix import StepMatrixFinder
+    return code
 
+
+def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
+    from leap.step_matrix import StepMatrixFinder
     from pymbolic import var
 
+    component_id = 'y'
+    code = euler(component_id, show_dag)
     J = np.diag([-3, -2, -1])
 
     def rhs_sym(t, y):
         return J.dot(y)
 
-    finder = StepMatrixFinder(code, function_map={"<func>" + component_id: rhs_sym},
-                              variables=["<state>" + component_id])
+    finder = StepMatrixFinder(
+        code, function_map={"<func>" + component_id: rhs_sym},
+        variables=["<state>" + component_id])
 
-    mat = finder.get_state_step_matrix("primary", shapes={"<state>y": 3})
+    mat = finder.get_state_step_matrix("primary",
+        shapes={"<state>" + component_id: 3})
 
     if show_matrix:
         print('Variables: %s' % finder.variables)
@@ -145,6 +152,27 @@ def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
     dt = var("<dt>")
     true_mat = np.eye(3, dtype=np.object) + dt * J
     assert (mat == true_mat).all()
+
+
+def test_step_matrix_fast_eval():
+    from leap.step_matrix import StepMatrixFinder, fast_evaluator
+
+    component_id = 'y'
+    code = euler(component_id, show_dag=False)
+    J = np.diag([-3, -2, -1])
+
+    def rhs_sym(t, y):
+        return J.dot(y)
+
+    finder = StepMatrixFinder(
+        code, function_map={"<func>" + component_id: rhs_sym},
+        variables=["<state>" + component_id])
+
+    mat = finder.get_state_step_matrix("primary",
+        shapes={"<state>" + component_id: 3})
+
+    eval_mat = fast_evaluator(mat)
+    assert (eval_mat({"<dt>": 1}) == np.diag([-2, -1, 0])).all()
 
 
 if __name__ == "__main__":
