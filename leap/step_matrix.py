@@ -88,7 +88,7 @@ class StepMatrixFinder(object):
 
     def get_state_step_matrix(self, state_name, shapes={}):
         """
-        `variable_shapes` maps variable names to vector lengths
+        `shapes` maps variable names to vector lengths
         """
         state = self.code.states[state_name]
 
