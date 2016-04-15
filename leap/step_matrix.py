@@ -28,9 +28,17 @@ import six
 from dagrt.expression import EvaluationMapper
 import numpy as np
 from dagrt.exec_numpy import FailStepException
+from pytools import Record
+
+
+class SparseStepMatrix(Record):
+
+    def __init__(self, shape, indices, data):
+        Record.__init__(self, shape=shape, indices=indices, data=data)
 
 
 # {{{ step matrix finder
+
 
 class StepMatrixFinder(object):
     """Constructs a step matrix on-the-fly while interpreting code.
@@ -86,9 +94,13 @@ class StepMatrixFinder(object):
         all_state_vars.sort()
         return all_state_vars
 
-    def get_state_step_matrix(self, state_name, shapes={}):
+    def get_state_step_matrix(self, state_name, shapes={}, sparse=False):
         """
-        `shapes` maps variable names to vector lengths
+        `shapes` maps variable names to vector lengths.
+
+        `sparse` controls whether the output is sparse or dense. When
+             `sparse=True`, returns a SparseStepMatrix.
+             Otherwise returns a numpy object array.
         """
         state = self.code.states[state_name]
 
@@ -128,7 +140,12 @@ class StepMatrixFinder(object):
         dependencies = DependencyMapper()
 
         nv = len(components)
-        step_matrix = np.zeros((nv, nv), dtype=np.object)
+        shape = (nv, nv)
+        if not sparse:
+            step_matrix = np.zeros(shape, dtype=np.object)
+        else:
+            indices = []
+            data = []
 
         iv_to_index = dict((iv, i) for i, iv in enumerate(initial_vals))
         for i, v in enumerate(components):
@@ -146,9 +163,18 @@ class StepMatrixFinder(object):
                 if iv not in iv_to_index:
                     continue
                 j = iv_to_index[iv]
-                step_matrix[i, j] = DifferentiationMapper(iv)(expr)
+                entry = DifferentiationMapper(iv)(expr)
 
-        return step_matrix
+                if not sparse:
+                    step_matrix[i, j] = entry
+                else:
+                    indices.append((i, j))
+                    data.append(entry)
+
+        if not sparse:
+            return step_matrix
+        else:
+            return SparseStepMatrix(shape, indices, data)
 
     def evaluate_condition(self, insn):
         if insn.condition is not True:
@@ -194,10 +220,10 @@ class StepMatrixFinder(object):
 # {{{ fast evaluation for step matrices
 
 
-def fast_evaluator(matrix):
+def fast_evaluator(matrix, sparse=False):
     """
     Generate a function to evaluate a step matrix quickly.
-    The input should be numpy array whose entries are pymbolic expressions.
+    The input comes from StepMatrixFinder.
     """
     # First, rename variables in the matrix to names that are acceptable Python
     # identifiers. We make use of dagrt's KeyToUniqueNameMap.
@@ -209,30 +235,45 @@ def fast_evaluator(matrix):
         assert isinstance(symbol, var)
         return var(name_map.get_or_make_name_for_key(symbol.name))
 
+    def get_var_order_from_name_map():
+        order = sorted(name_map)
+        return (order,
+            [name_map.get_or_make_name_for_key(key) for key in order])
+
     from pymbolic.mapper.substitutor import SubstitutionMapper
-    matrix = SubstitutionMapper(make_identifier)(matrix)
 
-    # Compile the matrix.
-    orig_varnames = sorted(name_map)
-    renamed_varnames = [name_map.get_or_make_name_for_key(key)
-                        for key in orig_varnames]
+    substitutor = SubstitutionMapper(make_identifier)
+
     from pymbolic import compile
-    compiled_matrix = compile(matrix, renamed_varnames)
-
     # functools.partial ensures the resulting object is picklable.
     from functools import partial
-    return partial(_eval_compiled_matrix, compiled_matrix, orig_varnames)
+
+    if sparse:
+        data = [substitutor(entry) for entry in matrix.data]
+        var_order, renamed_vars = get_var_order_from_name_map()
+        compiled_entries = [compile(entry, renamed_vars) for entry in data]
+        compiled_matrix = matrix.copy(data=compiled_entries)
+    else:
+        matrix = substitutor(matrix)
+        var_order, renamed_vars = get_var_order_from_name_map()
+        compiled_matrix = compile(matrix, renamed_vars)
+
+    return partial(_eval_compiled_matrix, compiled_matrix, var_order)
 
 
 def _eval_compiled_matrix(compiled_matrix, var_order, var_assignments):
     """
-    :arg compiled_matrix: A compiled pymbolic expression
+    :arg compiled_matrix: Either a SparseStepMatrix or a compiled pymbolic expression
     :arg var_order: A list of keys. Arguments are passed in this order
     :arg var_assignments: A dictionary, mapping keys in `var_order` to values
     :return: The evaluted matrix as a numpy array
     """
     arguments = [var_assignments[name] for name in var_order]
-    return compiled_matrix(*arguments)
+    if isinstance(compiled_matrix, SparseStepMatrix):
+        evaluated_data = [entry(*arguments) for entry in compiled_matrix.data]
+        return compiled_matrix.copy(data=evaluated_data)
+    else:
+        return compiled_matrix(*arguments)
 
 # }}}
 

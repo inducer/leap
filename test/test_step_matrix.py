@@ -175,6 +175,39 @@ def test_step_matrix_fast_eval():
     assert (eval_mat({"<dt>": 1}) == np.diag([-2, -1, 0])).all()
 
 
+def test_step_matrix_sparse():
+    from leap.step_matrix import StepMatrixFinder, fast_evaluator
+    from pymbolic import var
+
+    component_id = 'y'
+    code = euler(component_id, show_dag=False)
+    J = np.diag([-3, -2, -1])
+
+    def rhs_sym(t, y):
+        return J.dot(y)
+
+    finder = StepMatrixFinder(
+        code, function_map={"<func>" + component_id: rhs_sym},
+        variables=["<state>" + component_id])
+
+    dt = var("<dt>")
+
+    mat = finder.get_state_step_matrix("primary",
+        shapes={"<state>" + component_id: 3},
+        sparse=True)
+
+    assert mat.shape == (3, 3)
+    assert mat.indices == [(0, 0), (1, 1), (2, 2)]
+    true_mat = np.eye(3, dtype=np.object) + dt * J
+    assert (mat.data == np.diag(true_mat)).all()
+
+    eval_mat = fast_evaluator(mat, sparse=True)
+    eval_result = eval_mat({"<dt>": 1})
+    assert eval_result.shape == (3, 3)
+    assert eval_result.indices == [(0, 0), (1, 1), (2, 2)]
+    assert eval_result.data == [-2, -1, 0]
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         exec(sys.argv[1])
