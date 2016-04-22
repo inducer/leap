@@ -87,11 +87,12 @@ def test_rk_codegen(min_order, stepper, print_code=False):
             ! use ModStuff
             """)
 
+    code_str = codegen(code)
     if print_code:
-        print(codegen(code))
+        print(code_str)
 
     run_fortran([
-        ("rkmethod.f90", codegen(code)),
+        ("rkmethod.f90", code_str),
         ("test_rk.f90", read_file("test_rk.f90").replace(
             "MIN_ORDER", str(min_order - 0.3)+"d0")),
         ])
