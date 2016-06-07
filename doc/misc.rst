@@ -22,12 +22,12 @@ In addition, you need to have :mod:`numpy` installed.
 User-visible Changes
 ====================
 
-Version 2014.1
+Version 2016.1
 --------------
 .. note::
 
     This version is currently under development. You can get snapshots from
-    PyOpenCL's `git repository <https://github.com/pyopencl/pyopencl>`_
+    the `git repository <https://gitlab.tiker.net/inducer/leap>`_
 
 * Initial public release
 
@@ -36,7 +36,7 @@ License
 
 Leap is licensed to you under the MIT/X Consortium license:
 
-Copyright (c) 2009-13 Andreas Klöckner and Matt Wala.
+Copyright (c) 2014-16 Andreas Klöckner and Matt Wala.
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation

@@ -36,9 +36,9 @@ from pymbolic import var
 
 
 __doc__ = """
-.. autoclass:: ODE23Method
+.. data:: ORDER_TO_RK_METHOD
 
-.. autoclass:: ODE45Method
+    A dictionary mapping desired order of accuracy to a corresponding RK method.
 
 .. autoclass:: ForwardEulerMethod
 .. autoclass:: BackwardEulerMethod
@@ -48,9 +48,17 @@ __doc__ = """
 .. autoclass:: RK4Method
 .. autoclass:: RK5Method
 
-.. autodata:: ORDER_TO_RK_METHOD
+Low-Storage Methods
+-------------------
 
 .. autoclass:: LSRK4Method
+
+Adaptive/Embedded Methods
+-------------------------
+
+.. autoclass:: ODE23Method
+.. autoclass:: ODE45Method
+
 """
 
 
@@ -96,7 +104,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 # {{{ fully general butcher tableau to code
 
 class ButcherTableauMethod(Method):
-    """Explicit and implicit Runge-Kutta methods."""
+    """Infrastructure to generate code from butcher tableaux."""
 
     def __init__(self, component_id, state_filter_name=None):
 
@@ -361,6 +369,9 @@ class SimpleButcherTableauMethod(ButcherTableauMethod):
         self.rhs_func_name = rhs_func_name
 
     def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
         return self.generate_butcher(
                 stage_coeff_set_names=("explicit",),
                 stage_coeff_sets={
@@ -373,6 +384,10 @@ class SimpleButcherTableauMethod(ButcherTableauMethod):
 
 
 class ForwardEulerMethod(SimpleButcherTableauMethod):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
     c = (0,)
 
     a_explicit = (
@@ -385,6 +400,10 @@ class ForwardEulerMethod(SimpleButcherTableauMethod):
 
 
 class BackwardEulerMethod(SimpleButcherTableauMethod):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
     c = (0,)
 
     a_explicit = (
@@ -397,6 +416,10 @@ class BackwardEulerMethod(SimpleButcherTableauMethod):
 
 
 class MidpointMethod(SimpleButcherTableauMethod):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
     c = [0, 1/2]
 
     a_explicit = (
@@ -410,6 +433,10 @@ class MidpointMethod(SimpleButcherTableauMethod):
 
 
 class HeunsMethod(SimpleButcherTableauMethod):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
     c = [0, 1]
 
     a_explicit = (
@@ -426,6 +453,9 @@ class RK3Method(SimpleButcherTableauMethod):
     """
     Source: J. C. Butcher, Numerical Methods for Ordinary Differential
     Equations, 2nd ed., pages 94 - 99
+
+    .. automethod:: __init__
+    .. automethod:: generate
     """
 
     c = (0, 2/3, 2/3)
@@ -441,6 +471,10 @@ class RK3Method(SimpleButcherTableauMethod):
 
 
 class RK4Method(SimpleButcherTableauMethod):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
     c = (0, 1/2, 1/2, 1)
 
     a_explicit = (
@@ -514,6 +548,9 @@ class EmbeddedButcherTableauMethod(ButcherTableauMethod, TwoOrderAdaptiveMethod)
         self.use_high_order = use_high_order
 
     def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
         if self.use_high_order:
             estimate_names = ("high_order", "low_order")
         else:
@@ -565,6 +602,9 @@ class ODE23Method(EmbeddedButcherTableauMethod):
     Bogacki, Przemyslaw; Shampine, Lawrence F. (1989), "A 3(2) pair of
     Runge-Kutta formulas", Applied Mathematics Letters 2 (4): 321-325,
     http://dx.doi.org/10.1016/0893-9659(89)90079-7
+
+    .. automethod:: __init__
+    .. automethod:: generate
     """
 
     c = [0, 1/2, 3/4, 1]
@@ -596,6 +636,9 @@ class ODE45Method(EmbeddedButcherTableauMethod):
     Dormand, J. R.; Prince, P. J. (1980), "A family of embedded Runge-Kutta
     formulae", Journal of Computational and Applied Mathematics 6 (1): 19-26,
     http://dx.doi.org/10.1016/0771-050X(80)90013-3.
+
+    .. automethod:: __init__
+    .. automethod:: generate
     """
 
     c = [0, 1/5, 3/10, 4/5, 8/9, 1, 1]
@@ -629,6 +672,9 @@ class LSRK4Method(Method):
     or
     Carpenter, M.H., and Kennedy, C.A., Fourth-order-2N-storage
     Runge-Kutta schemes, NASA Langley Tech Report TM 109112, 1994
+
+    .. automethod:: __init__
+    .. automethod:: generate
     """
 
     _RK4A = [
@@ -681,6 +727,9 @@ class LSRK4Method(Method):
         self.rhs_func_name = rhs_func_name
 
     def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
         comp_id = self.component_id
 
         from pymbolic import var

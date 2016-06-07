@@ -33,6 +33,15 @@ THE SOFTWARE.
 """
 
 
+__doc__ = """
+
+IMEX Methods
+------------
+
+.. autoclass :: KennedyCarpenterIMEXRungeKuttaMethodBase
+"""
+
+
 class KennedyCarpenterIMEXRungeKuttaMethodBase(
         TwoOrderAdaptiveMethod, ButcherTableauMethod):
     """
@@ -46,6 +55,10 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
         <state> + component_id: The value that is integrated
         <func>rhs_expl_ + component_id: The explicit right hand side function
         <func>rhs_impl_ + component_id: The implicit right hand side function
+
+    .. automethod:: __init__
+    .. automethod:: generate
+
     """
 
     def __init__(self, component_id, use_high_order=True, state_filter_name=None,
@@ -77,6 +90,10 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
         self.use_implicit = use_implicit
 
     def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
+
         if self.use_high_order:
             estimate_names = ("high_order", "low_order")
         else:

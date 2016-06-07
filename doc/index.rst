@@ -3,7 +3,8 @@ Welcome to leap's documentation!
 
 TODO: Insert example here.
 
-Contents:
+:mod:`leap` is based on :mod:`dagrt`.
+
 
 .. toctree::
     :maxdepth: 2

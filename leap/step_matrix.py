@@ -30,6 +30,12 @@ import numpy as np
 from dagrt.exec_numpy import FailStepException
 from pytools import Record
 
+__doc__ = """
+
+.. autoclass:: StepMatrixFinder
+.. autofunction:: fast_evaluator
+"""
+
 
 class SparseStepMatrix(Record):
 

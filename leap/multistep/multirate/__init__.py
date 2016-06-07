@@ -36,15 +36,10 @@ from leap.multistep import _linear_comb
 
 
 __doc__ = """
-Multi-rate time integration
-===========================
 
 .. autoclass:: rhs_policy
-.. autoclass:: RHS
+.. autoclass:: MultiRateHistory
 .. autoclass:: MultiRateMultiStepMethod
-
-Scheme explanation
-------------------
 
 .. autoclass:: SchemeExplainerBase
 .. autoclass:: TextualSchemeExplainer
@@ -54,6 +49,11 @@ Scheme explanation
 # {{{ system description
 
 class rhs_policy:
+    """
+    .. attribute:: late
+    .. attribute:: early
+    .. attribute:: early_and_late
+    """
     late = 0
     early = 1
     early_and_late = 2
@@ -799,6 +799,9 @@ class MultiRateMultiStepMethod(Method):
     # {{{ generation entrypoint
 
     def generate(self, explainer=None):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
         if explainer is None:
             explainer = SchemeExplainerBase()
 

@@ -3,35 +3,28 @@ Reference
 
 .. module:: leap
 
-Description Language
---------------------
+Runge-Kutta Methods
+-------------------
 
-.. automodule:: leap.vm.language
+.. automodule:: leap.rk
+.. automodule:: leap.rk.imex
 
-Methods
--------
+Multi-Step Methods
+------------------
+.. automodule:: leap.multistep
 
-.. automodule:: leap.method.rk
-.. automodule:: leap.method.ab
-.. automodule:: leap.method.ab.multirate
+Multi-Rate Multi-Step Methods
+-----------------------------
 
-Execution
----------
+.. automodule:: leap.multistep.multirate
 
-:mod:`numpy`-based interpretation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Analysis
+--------
 
-.. automodule:: leap.vm.exec_numpy
+.. automodule:: leap.step_matrix
+.. automodule:: leap.stability
 
-.. autoclass:: NumpyInterpreter
+Transformation
+--------------
 
-.. _numpy-exec-events:
-
-Events
-^^^^^^
-
-.. autoclass:: StateComputed
-
-.. autoclass:: StepCompleted
-
-.. autoclass:: StepFailed
+.. automodule:: leap.transform

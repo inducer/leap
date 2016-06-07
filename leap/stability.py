@@ -28,6 +28,10 @@ import numpy as np
 from cmath import pi
 
 
+__doc__ = """
+.. autofunction:: find_stability_region
+"""
+
 def is_stable(integrator_cls, k):
     def f(t, y):
         return k*y

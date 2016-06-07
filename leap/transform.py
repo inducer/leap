@@ -24,6 +24,12 @@ THE SOFTWARE.
 """
 
 
+__doc__ = """
+.. autofunction:: strang_splitting
+
+"""
+
+
 def _elide_yield_state(instructions):
     from dagrt.language import YieldState, Nop
     return [insn
@@ -53,6 +59,17 @@ def _update_t_by_dt_factor(factor, instructions):
 
 
 def strang_splitting(dag1, dag2, stepping_state):
+    """Given two time advancement routines (in *dag1* and *dag2*), returns a
+    single second-order accurate time advancement routine representing the sum
+    of both of those advancements.
+
+    :arg dag1: a :class:`dagrt.language.DAGCode`
+    :arg dag2: a :class:`dagrt.language.DAGCode`
+    :arg stepping_state: the name of the state in *dag1* and *dag2* that carries
+        out time stepping to which Strang splitting is to be applied.
+    :returns: a :class:`dagrt.language.DAGCode`
+    """
+
     from pymbolic.mapper.substitutor import make_subst_func, SubstitutionMapper
 
     # {{{ disambiguate

@@ -148,6 +148,9 @@ class AdamsBashforthMethod(Method):
     User-supplied context:
         <state> + component_id: The value that is integrated
         <func> + component_id: The right hand side
+
+    .. automethod:: __init__
+    .. automethod:: generate
     """
 
     def __init__(self, component_id, order, state_filter_name=None,
@@ -189,6 +192,9 @@ class AdamsBashforthMethod(Method):
             self.state_filter = None
 
     def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
