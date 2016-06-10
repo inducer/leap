@@ -486,22 +486,14 @@ class MultiRateMultiStepMethod(Method):
                     contribs = []
 
                     for irhs, rhs in enumerate(component_rhss):
-                        state_contrib_var = var(
-                                name_gen(
-                                    "state_contrib_{comp_name}_rhs{irhs}"
-                                    .format(comp_name=comp_name, irhs=irhs)))
-
                         kwargs = dict(
                                 (self.comp_name_to_kwarg_name[arg_comp_name],
                                     component_state_ests[arg_comp_name])
                                 for arg_comp_name in rhs.arguments)
 
-                        cb(state_contrib_var,
-                                var(rhs.func_name)(
+                        contribs.append(var(rhs.func_name)(
                                     t=self.t + (c/self.nsubsteps) * self.dt,
                                     **kwargs))
-
-                        contribs.append(state_contrib_var)
 
                     state_var = var(
                             name_gen(
@@ -575,10 +567,11 @@ class MultiRateMultiStepMethod(Method):
 
         for component_name in self.component_names:
             state = component_state_ests[component_name]
-            cb.yield_state(
-                    state,
-                    component_name, self.t + self.dt/self.nsubsteps,
-                    "bootstrap")
+            if self.is_ode_component[component_name]:
+                cb.yield_state(
+                        state,
+                        component_name, self.t + self.dt/self.nsubsteps,
+                        "bootstrap")
 
             cb(var("<state>"+component_name), state)
 
@@ -604,12 +597,18 @@ class MultiRateMultiStepMethod(Method):
         for isubstep in range(self.nsubsteps + 1):
             name_prefix = 'substep' + str(isubstep)
 
-            # {{{ compute current_rhss
-
             current_rhss = {}
+            non_ode_states = {}
+
+            # {{{ compute non-ODE current_rhss and states
 
             for comp_name, component_rhss in zip(
                     self.component_names, self.rhss):
+                if self.is_ode_component[comp_name]:
+                    continue
+
+                comp_state = 0
+
                 for irhs, rhs in enumerate(component_rhss):
                     rhs_var = var(
                         name_gen(
@@ -620,6 +619,46 @@ class MultiRateMultiStepMethod(Method):
                     kwargs = dict(
                             (self.comp_name_to_kwarg_name[arg_comp_name],
                                 var("<state>" + arg_comp_name))
+                            for arg_comp_name in rhs.arguments)
+
+                    cb(rhs_var, var(rhs.func_name)(t=self.t, **kwargs))
+
+                    current_rhss[comp_name, irhs] = rhs_var
+                    comp_state += rhs_var
+
+                non_ode_state_var = var(
+                    name_gen(
+                        "{name_prefix}_{comp_name}"
+                        .format(name_prefix=name_prefix, comp_name=comp_name)))
+                cb(non_ode_state_var, comp_state)
+
+                non_ode_states[comp_name] = non_ode_state_var
+
+            # }}}
+
+            # {{{ compute ODE current_rhss
+
+            for comp_name, component_rhss in zip(
+                    self.component_names, self.rhss):
+                if not self.is_ode_component[comp_name]:
+                    continue
+
+                for irhs, rhs in enumerate(component_rhss):
+                    rhs_var = var(
+                        name_gen(
+                            "{name_prefix}_start_{comp_name}_rhs{irhs}"
+                            .format(name_prefix=name_prefix, comp_name=comp_name,
+                                irhs=irhs)))
+
+                    def get_state(comp_name):
+                        if self.is_ode_component[comp_name]:
+                            return var("<state>" + comp_name)
+                        else:
+                            return non_ode_states[comp_name]
+
+                    kwargs = dict(
+                            (self.comp_name_to_kwarg_name[arg_comp_name],
+                                get_state(arg_comp_name))
                             for arg_comp_name in rhs.arguments)
 
                     cb(rhs_var, var(rhs.func_name)(t=self.t, **kwargs))
@@ -785,35 +824,26 @@ class MultiRateMultiStepMethod(Method):
                     time_hist = relv_time_hist
                     dt_factor = self.dt
 
-                state_contrib_var = var(
-                        name_gen(
-                            "state_contrib_{comp_name}_rhs{irhs}"
-                            .format(comp_name=comp_name, irhs=irhs)))
-
                 from leap.multistep import (
                         ABMonomialIntegrationFunctionFamily,
                         emit_ab_integration,
                         emit_ab_extrapolation)
 
                 if self.is_ode_component[comp_name]:
-                    cb(
-                            state_contrib_var,
-                            dt_factor*emit_ab_integration(
+                    contrib = dt_factor*emit_ab_integration(
                                 cb, name_gen,
                                 ABMonomialIntegrationFunctionFamily(rhs.order),
                                 time_hist, relv_hist_vars,
-                                t_start, t_end))
+                                t_start, t_end)
 
                 else:
-                    cb(
-                            state_contrib_var,
-                            emit_ab_extrapolation(
+                    contrib = emit_ab_extrapolation(
                                 cb, name_gen,
                                 ABMonomialIntegrationFunctionFamily(rhs.order),
                                 time_hist, relv_hist_vars,
-                                t_end))
+                                t_end)
 
-                contribs.append(state_contrib_var)
+                contribs.append(contrib)
                 contrib_explanations.append(
                         self.StateContribExplanation(
                             rhs=rhs.func_name,
@@ -1012,9 +1042,10 @@ class MultiRateMultiStepMethod(Method):
 
         # TODO: Figure out more spots to yield intermediate state
         for component_name, state in zip(self.component_names, end_states):
-            cb.yield_state(
-                    state,
-                    component_name, self.t + self.dt, "final")
+            if self.is_ode_component[component_name]:
+                cb.yield_state(
+                        state,
+                        component_name, self.t + self.dt, "final")
 
             cb(var("<state>"+component_name), state)
 
