@@ -32,7 +32,7 @@ import pytest
 from pytools import memoize_method
 from leap.multistep.multirate import (
         rhs_policy,
-        RHS,
+        MultiRateHistory as MRHistory,
         MultiRateMultiStepMethod,
         TwoRateAdamsBashforthMethod,
         TextualSchemeExplainer)
@@ -59,11 +59,11 @@ class MultirateTimestepperAccuracyChecker(object):
 
     @memoize_method
     def get_code(self):
-        stepper = TwoRateAdamsBashforthMethod(
+        method = TwoRateAdamsBashforthMethod(
                 self.method, self.order, self.step_ratio,
                 static_dt=self.static_dt)
 
-        return stepper.generate()
+        return method.generate()
 
     def initialize_method(self, dt):
         # Requires a coupled component.
@@ -241,13 +241,14 @@ def test_single_rate_identical(order=3):
 
     multi_rate_method = MultiRateMultiStepMethod(
                 order,
-                component_names=("fast", "slow",),
-                rhss=(
+                (
                     (
-                        RHS(1, "<func>f", ("fast", "slow",)),
+                        'dt', 'fast', '=',
+                        MRHistory(1, "<func>f", ("fast", "slow",)),
                         ),
                     (
-                        RHS(1, "<func>s", ("fast", "slow",),
+                        'dt', 'slow', '=',
+                        MRHistory(1, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late),
                         ),)
                 )
@@ -298,35 +299,64 @@ def test_single_rate_identical(order=3):
 @pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
 def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
-    stepper = TwoRateAdamsBashforthMethod(
+    method = TwoRateAdamsBashforthMethod(
             method_name, order=order, step_ratio=step_ratio)
-    stepper.generate(explainer=explainer)
+    method.generate(explainer=explainer)
     print(explainer)
 
 
 def test_mrab_scheme_explainers(order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
-    stepper = MultiRateMultiStepMethod(
+    method = MultiRateMultiStepMethod(
                 order,
-                component_names=("fast", "slow",),
-                rhss=(
+                (
                     (
-                        RHS(1, "<func>f", ("fast", "slow",)),
+                        'dt', 'fast', '=',
+                        MRHistory(1, "<func>f", ("fast", "slow",)),
                         ),
                     (
-                        RHS(step_ratio, "<func>s", ("fast", "slow",),
+                        'dt', 'slow', '=',
+                        MRHistory(step_ratio, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late),
                         ),)
                 )
 
-    stepper.generate(explainer=explainer)
+    method.generate(explainer=explainer)
+    print(explainer)
+
+
+def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
+        explainer=TextualSchemeExplainer()):
+    method = MultiRateMultiStepMethod(
+                order,
+                (
+                    (
+                        "dt", "fast", "=",
+                        MRHistory(1, "<func>f", ("fast", "slow",)),
+                        ),
+                    (
+                        "dt", "slow", "=",
+                        MRHistory(step_ratio, "<func>s", ("fast", "slow", "derived"),
+                            rhs_policy=rhs_policy.late),
+                        ),
+                    (
+                        "derived", "=",
+                        MRHistory(step_ratio, "<func>compute_derived",
+                            ("fast", "slow",), rhs_policy=rhs_policy.late),
+                        ),
+                    )
+                )
+
+    code = method.generate(explainer=explainer)
+    print(code)
+    print()
     print(explainer)
 
 
 def test_dot(order=3, step_ratio=3, method_name="F", show=False):
-    stepper = TwoRateAdamsBashforthMethod(
+    method = TwoRateAdamsBashforthMethod(
             method_name, order=order, step_ratio=step_ratio)
-    code = stepper.generate()
+    code = method.generate()
 
     from dagrt.language import get_dot_dependency_graph
     print(get_dot_dependency_graph(code))
