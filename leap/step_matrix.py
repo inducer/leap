@@ -25,9 +25,11 @@ THE SOFTWARE.
 
 import six
 
+from collections import namedtuple
 from dagrt.expression import EvaluationMapper
 import numpy as np
 from dagrt.exec_numpy import FailStepException
+from pymbolic.interop.maxima import MaximaStringifyMapper
 from pytools import Record
 
 __doc__ = """
@@ -43,8 +45,16 @@ class SparseStepMatrix(Record):
         Record.__init__(self, shape=shape, indices=indices, data=data)
 
 
-# {{{ step matrix finder
+class LeapMaximaStringifyMapper(MaximaStringifyMapper):
+    def map_variable(self, expr, prec):
+        s = expr.name
+        s = s.replace("<", "_")
+        s = s.replace(">", "_")
+        s = s.strip("_")
+        return s
 
+
+# {{{ step matrix finder
 
 class StepMatrixFinder(object):
     """Constructs a step matrix on-the-fly while interpreting code.
@@ -100,22 +110,18 @@ class StepMatrixFinder(object):
         all_state_vars.sort()
         return all_state_vars
 
-    def get_state_step_matrix(self, state_name, shapes={}, sparse=False):
+    VectorComponent = namedtuple("VectorComponent", "name, index")
+
+    def run_symbolic_step(self, state_name, shapes={}):
         """
         `shapes` maps variable names to vector lengths.
-
-        `sparse` controls whether the output is sparse or dense. When
-             `sparse=True`, returns a SparseStepMatrix.
-             Otherwise returns a numpy object array.
         """
         state = self.code.states[state_name]
 
         from pymbolic import var
 
         self.context.clear()
-        from collections import namedtuple
         from pymbolic.primitives import make_sym_vector
-        VectorComponent = namedtuple("VectorComponent", "name, index")
 
         # Includes variables expanded into vector components
         components = []
@@ -125,7 +131,7 @@ class StepMatrixFinder(object):
             if vname in shapes and shapes[vname] > 1:
                 ival = make_sym_vector(vname+"_0", shapes[vname])
                 initial_vals.extend(ival)
-                names = [VectorComponent(vname, i) for i in range(len(ival))]
+                names = [self.VectorComponent(vname, i) for i in range(len(ival))]
                 components.extend(names)
             else:
                 ival = var(vname+"_0")
@@ -140,6 +146,54 @@ class StepMatrixFinder(object):
         self.exec_controller.update_plan(state, state.depends_on)
         for event in self.exec_controller(state, self):
             pass
+
+        return components, initial_vals
+
+    def get_maxima_expressions(self, state_name, shapes={}):
+        components, initial_vals = self.run_symbolic_step(state_name, shapes)
+
+        lines = []
+
+        msm = LeapMaximaStringifyMapper()
+
+        def msm_expr_list(name, exprs):
+            lines.append("%s: [" % name)
+            for i, expr in enumerate(exprs):
+                line = "    "+msm(expr)
+
+                if i + 1 != len(initial_vals):
+                    line += ","
+                else:
+                    line += "];"
+                lines.append(line)
+            lines.append("")
+
+        msm_expr_list("initial", initial_vals)
+
+        exprs = []
+        for i, v in enumerate(components):
+            # Get the expression for v.
+            if isinstance(v, self.VectorComponent):
+                expr = self.context[v.name][v.index]
+            else:
+                expr = self.context[v]
+
+            exprs.append(expr)
+
+        msm_expr_list("after_step", exprs)
+
+        return "\n".join(lines)
+
+    def get_state_step_matrix(self, state_name, shapes={}, sparse=False):
+        """
+        `shapes` maps variable names to vector lengths.
+
+        `sparse` controls whether the output is sparse or dense. When
+             `sparse=True`, returns a SparseStepMatrix.
+             Otherwise returns a numpy object array.
+        """
+
+        components, initial_vals = self.run_symbolic_step(state_name, shapes)
 
         from pymbolic.mapper.differentiator import DifferentiationMapper
         from pymbolic.mapper.dependency import DependencyMapper
@@ -156,7 +210,7 @@ class StepMatrixFinder(object):
         iv_to_index = dict((iv, i) for i, iv in enumerate(initial_vals))
         for i, v in enumerate(components):
             # Get the expression for v.
-            if isinstance(v, VectorComponent):
+            if isinstance(v, self.VectorComponent):
                 expr = self.context[v.name][v.index]
             else:
                 expr = self.context[v]
