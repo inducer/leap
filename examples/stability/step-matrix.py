@@ -18,11 +18,12 @@ def main():
     print(code)
 
     def rhs_sym(t, y):
-        return var("lambda")*y
+        return var("lmbda")*y
 
     finder = StepMatrixFinder(code, function_map={"<func>y": rhs_sym},
             exclude_variables=["<p>step"])
 
+    print(finder.get_maxima_expressions("primary"))
     mat = finder.get_state_step_matrix("primary")
 
     print('Variables: %s' % finder.variables)
@@ -35,7 +36,7 @@ def main():
     evaluate_mat = fast_evaluator(mat)
 
     def is_stable(direction, dt):
-        smat = evaluate_mat({"<dt>": dt, "lambda": direction})
+        smat = evaluate_mat({"<dt>": dt, "lmbda": direction})
 
         eigvals = la.eigvals(smat)
 
