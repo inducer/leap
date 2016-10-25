@@ -678,3 +678,120 @@ class StiffOscil(LinearODESystemsBase):
 
     def soln_1(self, t):
         return sin(t)
+
+
+class ThreeRateODESystemsBase():
+    """Check that the multirate timestepper has the advertised accuracy
+
+    Solve linear ODE-system:
+
+                            ∂w/∂t = A w,
+
+    with w = [f,m,s] = [f,∂f/∂t]. The system gets solved for different matrix A.
+    """
+    def __init__(self):
+        self.t_start = 0
+        self.t_end = 1
+        self.initial_values = np.array([self.soln_0(self.t_start),
+            self.soln_1(self.t_start),self.soln_1(self.t_start)])
+
+
+class Full_ThreeRate(ThreeRateODESystemsBase):
+    """
+    ODE-system - full three-component system
+    From:
+         
+        (Cascading tanks)    
+    
+    p. 522
+    A = [[-1/2,  0,    0]
+         [1/2,  -1/4,  0]
+         [0,     1/4, -1/6]].
+
+    *** All initial conditions set to 1
+    """
+    def f2f_rhs(self, t, f, m, s):
+        return -0.5*f
+
+    def m2f_rhs(self, t, f, m, s):
+        return 0
+
+    def s2f_rhs(self, t, f, m, s):
+        return 0
+    
+    def f2m_rhs(self, t, f, m, s):
+        return 0.5*f
+    
+    def m2m_rhs(self, t, f, m, s):
+        return -0.25*m
+
+    def s2m_rhs(self, t, f, m, s):
+        return 0
+    
+    def f2s_rhs(self, t, f, m, s):
+        return 0
+    
+    def m2s_rhs(self, t, f, m, s):
+        return 0.25*m
+
+    def s2s_rhs(self, t, f, m, s):
+        return -(1/6)*s
+
+    def soln_0(self, t):
+        return exp(-t/2)
+
+    def soln_1(self, t):
+        return -2*exp(-t/2) + 3*exp(-t/4)
+
+    def soln_2(self, t):
+        return 1.5*exp(-t/2) - 9*exp(-t/4) + 8.5*exp(-t/6)
+
+
+class ThreeRate_Test(ThreeRateODESystemsBase):
+    """
+    ODE-system - test three-component system
+    From:
+         
+    A = [[-20,  0,   0]
+         [0,  -10,  0]
+         [0,     0, -2]].
+
+    *** All initial conditions set to 1
+    *** Currently uncoupled
+
+    """
+    def f2f_rhs(self, t, f, m, s):
+        return -20.0*f
+
+    def m2f_rhs(self, t, f, m, s):
+        return 0
+
+    def s2f_rhs(self, t, f, m, s):
+        return 0
+    
+    def f2m_rhs(self, t, f, m, s):
+        return 0
+    
+    def m2m_rhs(self, t, f, m, s):
+        return -10.0*m
+
+    def s2m_rhs(self, t, f, m, s):
+        return 0
+    
+    def f2s_rhs(self, t, f, m, s):
+        return 0
+    
+    def m2s_rhs(self, t, f, m, s):
+        return 0
+
+    def s2s_rhs(self, t, f, m, s):
+        return -2.0*s
+
+    def soln_0(self, t):
+        return exp(-20.0*t)
+
+    def soln_1(self, t):
+        return exp(-10.0*t)
+
+    def soln_2(self, t):
+        return exp(-2.0*t) 

@@ -29,7 +29,11 @@ import pytest
 import dagrt.codegen.fortran as f
 from leap.rk import ODE23Method, ODE45Method, RK4Method, LSRK4Method
 
-from leap.multistep.multirate import TwoRateAdamsBashforthMethod
+from leap.multistep.multirate import (
+	TwoRateAdamsBashforthMethod, 
+	MultiRateMultiStepMethod, 
+	rhs_policy, 
+	MultiRateHistory as MRHistory)
 
 from dagrt.utils import run_fortran
 
@@ -444,7 +448,7 @@ def test_singlerate_squarewave(min_order):
         ("test_ab_squarewave.f90", read_file("test_ab_squarewave.f90").replace(
             "MIN_ORDER", str(min_order - 0.3)+"d0")),
         ],
-        fortran_options=["-llapack", "-lblas"])
+        fortran_options=["-L/home/cmikida2/Software/lib", "-llapack", "-lblas"])
 
 
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
@@ -528,7 +532,145 @@ def test_multirate_squarewave(min_order, method_name):
             .replace("NUM_TRIPS_ONE", str(num_trips_one))
             .replace("NUM_TRIPS_TWO", str(num_trips_two)))),
         ],
+        fortran_options=["-lblas", "-llapack"])
+
+
+@pytest.mark.parametrize("min_order", [4, 3, 2])
+def test_threerate_squarewave(min_order):
+
+    from dagrt.function_registry import (
+            base_function_registry, register_ode_rhs)
+    
+    stepper = MultiRateMultiStepMethod(
+                min_order,
+                (
+                    (
+                        'dt', 'fast', '=',
+                        MRHistory(1, "<func>f2f", ("fast", "medium", "slow",)),
+                        MRHistory(1, "<func>s2f", ("fast", "medium", "slow",)),
+                        MRHistory(1, "<func>m2f", ("fast", "medium", "slow",)),
+                        ),
+                    (
+                        'dt', 'medium', '=',
+                        MRHistory(5, "<func>m2m", ("fast", "medium", "slow",)),
+                        MRHistory(5, "<func>f2m", ("fast", "medium", "slow",)),
+                        MRHistory(5, "<func>s2m", ("fast", "medium", "slow",)),
+                        ),
+                    (
+                        'dt', 'slow', '=',
+                        MRHistory(10, "<func>s2s", ("fast", "medium", "slow",),
+                            rhs_policy=rhs_policy.late),
+                        MRHistory(10, "<func>f2s", ("fast", "medium", "slow",)),
+                        MRHistory(10, "<func>m2s", ("fast", "medium", "slow",)),
+                        ),),
+                component_arg_names=("f", "m", "s"),
+                )
+
+    code = stepper.generate()
+
+    freg = base_function_registry
+    for func_name in [
+            "<func>s2s",
+            "<func>f2s",
+            "<func>m2s",
+            "<func>s2f",
+            "<func>f2f",
+            "<func>m2f",
+            "<func>m2m",
+            "<func>f2m",
+            "<func>s2m",
+            ]:
+        component_id = {
+                "s": "slow",
+                "f": "fast",
+                "m": "medium",
+                }[func_name[-1]]
+        freg = register_ode_rhs(freg, identifier=func_name,
+                output_type_id=component_id,
+                input_type_ids=("slow", "fast", "medium"),
+                input_names=("s", "f", "m"))
+
+    freg = freg.register_codegen("<func>s2f", "fortran",
+      f.CallCode("""
+            ${result} = 0
+            """))
+    freg = freg.register_codegen("<func>f2s", "fortran",
+      f.CallCode("""
+          ${result} = 0
+          """))
+    freg = freg.register_codegen("<func>f2m", "fortran",
+      f.CallCode("""
+          ${result} = 0
+          """))
+    freg = freg.register_codegen("<func>s2m", "fortran",
+      f.CallCode("""
+          ${result} = 0
+          """))
+    freg = freg.register_codegen("<func>m2m", "fortran",
+      f.CallCode("""
+          ${result} = -10.0*${m}
+          """))
+    freg = freg.register_codegen("<func>m2f", "fortran",
+      f.CallCode("""
+          ${result} = 0
+          """))
+    freg = freg.register_codegen("<func>m2s", "fortran",
+      f.CallCode("""
+          ${result} = 0
+          """))
+    freg = freg.register_codegen("<func>f2f", "fortran",
+      f.CallCode("""
+          ${result} = -20.0*${f}
+          """))
+    freg = freg.register_codegen("<func>s2s", "fortran",
+      f.CallCode("""
+          ${result} = -2.0*${s}
+          """))
+
+    codegen = f.CodeGenerator(
+            'ThreeRAB',
+            user_type_map={
+                "fast": f.ArrayType(
+                    (1,),
+                    f.BuiltinType('real (kind=8)'),
+                    ),
+                "slow": f.ArrayType(
+                    (1,),
+                    f.BuiltinType('real (kind=8)'),
+                    ),
+                "medium": f.ArrayType(
+                    (1,),
+                    f.BuiltinType('real (kind=8)'),
+                    )
+                },
+            function_registry=freg,
+            module_preamble="""
+            ! lines copied to the start of the module, e.g. to say:
+            ! use ModStuff
+            """)
+
+    code_str = codegen(code)
+
+    # Build in conditionals to alter the timestep based on order such that all
+    # tests pass
+
+    if min_order == 2:
+        fac = 200
+    else:
+        fac = 12
+    num_trips_one = 100*fac
+    num_trips_two = 150*fac
+
+    run_fortran([
+        ("abmethod.f90", code_str),
+        ("test_threerab_squarewave.f90", (
+            read_file("test_threerab_squarewave.f90")
+            .replace("MIN_ORDER", str(min_order - 0.3)+"d0")
+            .replace("NUM_TRIPS_ONE", str(num_trips_one))
+            .replace("NUM_TRIPS_TWO", str(num_trips_two)))),
+        ],
         fortran_options=["-llapack", "-lblas"])
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
