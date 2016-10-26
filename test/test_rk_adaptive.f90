@@ -64,8 +64,8 @@ program test_rkmethod
     write(*,*), "Test passes: big_step_frac = ", big_step_frac
     write(*,*), "Test passes: small_step_frac = ", small_step_frac
   else
-    write(*,*), "Test fails: big_step_frac = ", big_step_frac
-    write(*,*), "Test fails: small_step_frac = ", small_step_frac
+    write(stderr,*), "Test fails: big_step_frac = ", big_step_frac
+    write(stderr,*), "Test fails: small_step_frac = ", small_step_frac
   endif
 
 end program
