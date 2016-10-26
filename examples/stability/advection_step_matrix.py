@@ -78,11 +78,11 @@ def main():
     finder.get_maxima_expressions("primary", shapes=shapes)
     max_kernel._initialize
 
-    max_kernel.eval_str('batch("maxima_in.txt")$')
+    max_kernel.eval_str('batch("maxima_in.txt")', enforce_prompt_numbering=False)
 
     # Get the resulting step matrix back from Maxima
     maxima_mat = max_kernel.eval_str("jacobian(after_step,initial)")
-    
+
     # Convert the result to a numpy array
     mat = np.fromstring(maxima_mat)
 
