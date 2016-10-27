@@ -48,7 +48,7 @@ program test_rkmethod
 
     if (step_sizes(istep)<0.01d0) then
       num_small_steps = num_small_steps + 1
-    elseif (step_sizes(istep)>0.05d0) then
+    elseif (step_sizes(istep)>0.03d0) then
       num_big_steps = num_big_steps + 1
     endif
 
@@ -64,8 +64,8 @@ program test_rkmethod
     write(*,*), "Test passes: big_step_frac = ", big_step_frac
     write(*,*), "Test passes: small_step_frac = ", small_step_frac
   else
-    write(*,*), "Test fails: big_step_frac = ", big_step_frac
-    write(*,*), "Test fails: small_step_frac = ", small_step_frac
+    write(stderr,*), "Test fails: big_step_frac = ", big_step_frac
+    write(stderr,*), "Test fails: small_step_frac = ", small_step_frac
   endif
 
 end program
