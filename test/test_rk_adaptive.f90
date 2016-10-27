@@ -48,7 +48,7 @@ program test_rkmethod
 
     if (step_sizes(istep)<0.01d0) then
       num_small_steps = num_small_steps + 1
-    elseif (step_sizes(istep)>0.05d0) then
+    elseif (step_sizes(istep)>0.03d0) then
       num_big_steps = num_big_steps + 1
     endif
 
