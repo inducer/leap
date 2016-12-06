@@ -50,7 +50,7 @@ __doc__ = """
 
 # {{{ system description
 
-class rhs_policy:
+class rhs_policy:  # noqa
     """
     .. attribute:: late
     .. attribute:: early

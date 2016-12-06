@@ -91,6 +91,7 @@ def test_strang_splitting(plot_solution=False):
     orderest = eocrec.estimate_order_of_convergence()[0, 1]
     assert orderest > 2 * 0.9
 
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         exec(sys.argv[1])

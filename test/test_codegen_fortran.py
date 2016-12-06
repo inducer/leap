@@ -530,6 +530,7 @@ def test_multirate_squarewave(min_order, method_name):
         ],
         fortran_options=["-llapack", "-lblas"])
 
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         exec(sys.argv[1])
