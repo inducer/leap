@@ -32,6 +32,7 @@ __doc__ = """
 .. autofunction:: find_stability_region
 """
 
+
 def is_stable(integrator_cls, k):
     def f(t, y):
         return k*y

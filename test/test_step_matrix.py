@@ -130,7 +130,7 @@ def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
 
     component_id = 'y'
     code = euler(component_id, show_dag)
-    J = np.diag([-3, -2, -1])
+    J = np.diag([-3, -2, -1])  # noqa
 
     def rhs_sym(t, y):
         return J.dot(y)
@@ -159,7 +159,7 @@ def test_step_matrix_fast_eval():
 
     component_id = 'y'
     code = euler(component_id, show_dag=False)
-    J = np.diag([-3, -2, -1])
+    J = np.diag([-3, -2, -1])  # noqa
 
     def rhs_sym(t, y):
         return J.dot(y)
@@ -181,7 +181,7 @@ def test_step_matrix_sparse():
 
     component_id = 'y'
     code = euler(component_id, show_dag=False)
-    J = np.diag([-3, -2, -1])
+    J = np.diag([-3, -2, -1])  # noqa
 
     def rhs_sym(t, y):
         return J.dot(y)
