@@ -15,7 +15,7 @@ Execution and code generation is provided by
 supported operations include finding of stability regions, building
 of companion matrices, and more.
 
-leap is under the MIT license.
+leap is licensed under the MIT license.
 
 leap requires Python 2.6 or newer.
 
