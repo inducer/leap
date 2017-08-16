@@ -1,3 +1,4 @@
+from __future__ import division, print_function
 import numpy as np
 import numpy.linalg as la
 from leap.rk import RK4Method  # noqa
@@ -17,11 +18,12 @@ def main():
     print(code)
 
     def rhs_sym(t, y):
-        return var("lambda")*y
+        return var("lmbda")*y
 
     finder = StepMatrixFinder(code, function_map={"<func>y": rhs_sym},
             exclude_variables=["<p>step"])
 
+    print(finder.get_maxima_expressions("primary"))
     mat = finder.get_state_step_matrix("primary")
 
     print('Variables: %s' % finder.variables)
@@ -30,11 +32,11 @@ def main():
 
     tol = 1e-8
 
+    from leap.step_matrix import fast_evaluator
+    evaluate_mat = fast_evaluator(mat)
+
     def is_stable(direction, dt):
-        from pymbolic import evaluate
-        smat = np.asarray(
-                evaluate(mat, {"<dt>": dt, "lambda": direction}),
-                dtype=np.complex128)
+        smat = evaluate_mat({"<dt>": dt, "lmbda": direction})
 
         eigvals = la.eigvals(smat)
 

@@ -27,7 +27,7 @@ import sys
 import pytest
 
 import dagrt.codegen.fortran as f
-from leap.rk import ODE23Method, ODE45Method, LSRK4Method
+from leap.rk import ODE23Method, ODE45Method, RK4Method, LSRK4Method
 
 from leap.multistep.multirate import TwoRateAdamsBashforthMethod
 
@@ -51,9 +51,10 @@ def read_file(rel_path):
     (3, ODE23Method("y", use_high_order=True)),
     (4, ODE45Method("y", use_high_order=False)),
     (5, ODE45Method("y", use_high_order=True)),
+    (4, RK4Method("y")),
     (4, LSRK4Method("y")),
     ])
-def test_rk_codegen(min_order, stepper):
+def test_rk_codegen(min_order, stepper, print_code=False):
     """Test whether Fortran code generation for the Runge-Kutta
     timestepper works.
     """
@@ -86,8 +87,12 @@ def test_rk_codegen(min_order, stepper):
             ! use ModStuff
             """)
 
+    code_str = codegen(code)
+    if print_code:
+        print(code_str)
+
     run_fortran([
-        ("rkmethod.f90", codegen(code)),
+        ("rkmethod.f90", code_str),
         ("test_rk.f90", read_file("test_rk.f90").replace(
             "MIN_ORDER", str(min_order - 0.3)+"d0")),
         ])
@@ -524,6 +529,7 @@ def test_multirate_squarewave(min_order, method_name):
             .replace("NUM_TRIPS_TWO", str(num_trips_two)))),
         ],
         fortran_options=["-llapack", "-lblas"])
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

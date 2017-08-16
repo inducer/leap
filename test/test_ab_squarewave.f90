@@ -2,9 +2,7 @@ program test_abmethod_squarewave
   use ABMethod, only: dagrt_state_type, &
     timestep_initialize => initialize, &
     timestep_run => run, &
-    timestep_shutdown => shutdown, &
-    dagrt_state_func_initialization, &
-    dagrt_state_func_primary
+    timestep_shutdown => shutdown
 
   implicit none
 

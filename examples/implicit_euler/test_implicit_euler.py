@@ -29,7 +29,6 @@ THE SOFTWARE.
 """
 
 
-
 # Taken from test.utils
 def python_method_impl_interpreter(code, **kwargs):
     from dagrt.exec_numpy import NumpyInterpreter
@@ -43,6 +42,19 @@ def python_method_impl_codegen(code, **kwargs):
     return codegen.get_class(code)(**kwargs)
 
 
+def solver(f, t, h, y, guess):
+    from scipy.optimize import newton
+    return newton(lambda u: u-y-h*f(t=t, y=u), guess)
+
+
+def solver_hook(expr, guess):
+    from dagrt.expression import match
+    from leap.implicit import make_solver_call
+    pieces = match("unk-y-h*<func>f(t=t,y=unk)", expr)
+    return make_solver_call("<func>solver(t,h,y,guess)",
+                            pieces, guess, guess_name="guess")
+
+
 @pytest.mark.parametrize("python_method_impl",
     [python_method_impl_codegen, python_method_impl_interpreter])
 def test_im_euler_accuracy(python_method_impl, show_dag=False,
@@ -50,12 +62,9 @@ def test_im_euler_accuracy(python_method_impl, show_dag=False,
     component_id = "y"
 
     from implicit_euler import ImplicitEulerMethod
-    from leap.implicit import ScipySolverGenerator
 
     method = ImplicitEulerMethod(component_id)
-    sgen = ScipySolverGenerator(*method.implicit_expression())
-    solver = sgen.get_compiled_solver()
-    code = method.generate(sgen)
+    code = method.generate(solver_hook)
 
     expected_order = 1
 
@@ -81,9 +90,10 @@ def test_im_euler_accuracy(python_method_impl, show_dag=False,
         y = y_0
         final_t = 1
 
+        from functools import partial
         interp = python_method_impl(code,
             function_map={method.rhs_func.name: rhs,
-                          sgen.solver_func.name: solver})
+                          "<func>solver": partial(solver, rhs)})
 
         interp.set_up(t_start=t, dt_start=dt, context={component_id: y})
 

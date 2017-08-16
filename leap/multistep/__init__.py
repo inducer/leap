@@ -103,8 +103,8 @@ class ABTrigMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
             return 1/n * np.sin(self.alpha*n*x)
 
 
-def emit_ab_integration(cb, name_gen,
-        function_family, time_values, hist_vars, t_start, t_end):
+def _emit_func_family_operation(cb, name_gen,
+        function_family, time_values, hist_vars, rhs_func):
     if isinstance(time_values, var):
         # {{{ variable time step
         hist_len = len(hist_vars)
@@ -130,10 +130,7 @@ def emit_ab_integration(cb, name_gen,
                 loops=[(j.name, 0, hist_len)])
 
         for i in range(len(function_family)):
-            cb(
-                    coeff_rhs[i],
-                    function_family.antiderivative(i, t_end)
-                    - function_family.antiderivative(i, t_start))
+            cb(coeff_rhs[i], rhs_func(i))
 
         ab_coeffs = var(name_gen("ab_coeffs"))
         cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
@@ -157,15 +154,29 @@ def emit_ab_integration(cb, name_gen,
             for j in range(hist_len):
                 vdm_t[i, j] = function_family.evaluate(i, time_values[j])
 
-            coeff_rhs[i] = (
-                    function_family.antiderivative(i, t_end)
-                    - function_family.antiderivative(i, t_start))
+            coeff_rhs[i] = rhs_func(i)
 
         ab_coeffs = la.solve(vdm_t, coeff_rhs)
 
         return _linear_comb(ab_coeffs, hist_vars)
 
         # }}}
+
+
+def emit_ab_integration(cb, name_gen,
+        function_family, time_values, hist_vars, t_start, t_end):
+    return _emit_func_family_operation(
+            cb, name_gen, function_family, time_values, hist_vars,
+            lambda i: (
+                function_family.antiderivative(i, t_end)
+                - function_family.antiderivative(i, t_start)))
+
+
+def emit_ab_extrapolation(cb, name_gen,
+        function_family, time_values, hist_vars, t_eval):
+    return _emit_func_family_operation(
+            cb, name_gen, function_family, time_values, hist_vars,
+            lambda i: function_family.evaluate(i, t_eval))
 
 # }}}
 
@@ -177,6 +188,9 @@ class AdamsBashforthMethod(Method):
     User-supplied context:
         <state> + component_id: The value that is integrated
         <func> + component_id: The right hand side
+
+    .. automethod:: __init__
+    .. automethod:: generate
     """
 
     def __init__(self, component_id, function_family=None, state_filter_name=None,
@@ -232,6 +246,9 @@ class AdamsBashforthMethod(Method):
             self.state_filter = None
 
     def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
@@ -294,10 +311,12 @@ class AdamsBashforthMethod(Method):
 
         if self.hist_length == 1:
             # The first order method requires no bootstrapping.
-            return DAGCode.create_with_init_and_step(
-                instructions=cb_init.instructions | cb_primary.instructions,
-                initialization_dep_on=cb_init.state_dependencies,
-                step_dep_on=cb_primary.state_dependencies)
+            return DAGCode(
+                states={
+                    "initial": cb_init.as_execution_state(next_state="primary"),
+                    "primary": cb_primary.as_execution_state(next_state="primary")
+                    },
+                initial_state="initial")
 
         # Bootstrap
         with CodeBuilder(label="bootstrap") as cb_bootstrap:
@@ -310,16 +329,13 @@ class AdamsBashforthMethod(Method):
             with cb_bootstrap.if_(self.step, "==", self.hist_length):
                 cb_bootstrap.state_transition("primary")
 
-        states = {}
-        states["initialization"] = cb_init.as_execution_state("bootstrap")
-        states["bootstrap"] = cb_bootstrap.as_execution_state("bootstrap")
-        states["primary"] = cb_primary.as_execution_state("primary")
-
         return DAGCode(
-            instructions=cb_init.instructions | cb_bootstrap.instructions |
-            cb_primary.instructions,
-            states=states,
-            initial_state="initialization")
+                states={
+                    "initialization": cb_init.as_execution_state("bootstrap"),
+                    "bootstrap": cb_bootstrap.as_execution_state("bootstrap"),
+                    "primary": cb_primary.as_execution_state("primary"),
+                    },
+                initial_state="initialization")
 
     def eval_rhs(self, t, y):
         """Return a node that evaluates the RHS at the given time and

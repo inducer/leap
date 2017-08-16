@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 import numpy as np
 import numpy.linalg as la
 from leap.multistep.multirate import TwoRateAdamsBashforthMethod
@@ -42,17 +42,17 @@ def main():
 
     tol = 1e-8
 
+    from leap.step_matrix import fast_evaluator
+    evaluate_mat = fast_evaluator(mat)
+
     def is_stable(direction, dt):
-        from pymbolic import evaluate
-        smat = np.asarray(
-                evaluate(mat, {
+        smat = evaluate_mat({
                     "<dt>": dt,
                     "f2f": direction,
                     "s2f": 1/speed_factor,
                     "f2s": 1/speed_factor,
                     "s2s": direction*1/speed_factor,
-                    }),
-                dtype=np.complex128)
+                    })
 
         eigvals = la.eigvals(smat)
 

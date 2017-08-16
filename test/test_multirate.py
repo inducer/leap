@@ -32,7 +32,7 @@ import pytest
 from pytools import memoize_method
 from leap.multistep.multirate import (
         rhs_policy,
-        RHS,
+        MultiRateHistory as MRHistory,
         MultiRateMultiStepMethod,
         TwoRateAdamsBashforthMethod,
         TextualSchemeExplainer)
@@ -59,11 +59,11 @@ class MultirateTimestepperAccuracyChecker(object):
 
     @memoize_method
     def get_code(self):
-        stepper = TwoRateAdamsBashforthMethod(
+        method = TwoRateAdamsBashforthMethod(
                 self.method, self.order, self.step_ratio,
                 static_dt=self.static_dt)
 
-        return stepper.generate()
+        return method.generate()
 
     def initialize_method(self, dt):
         # Requires a coupled component.
@@ -175,12 +175,10 @@ class MultirateTimestepperAccuracyChecker(object):
         ])
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 @pytest.mark.parametrize("static_dt", [True, False])
-def test_multirate_accuracy(method_name, order, system, static_dt):
+def test_multirate_accuracy(method_name, order, system, static_dt, step_ratio=2):
     """Check that the multirate timestepper has the advertised accuracy"""
 
     import multirate_test_systems
-
-    step_ratio = 2
 
     system = getattr(multirate_test_systems, system)
 
@@ -243,13 +241,14 @@ def test_single_rate_identical(order=3):
 
     multi_rate_method = MultiRateMultiStepMethod(
                 order,
-                component_names=("fast", "slow",),
-                rhss=(
+                (
                     (
-                        RHS(1, "<func>f", ("fast", "slow",)),
+                        'dt', 'fast', '=',
+                        MRHistory(1, "<func>f", ("fast", "slow",)),
                         ),
                     (
-                        RHS(1, "<func>s", ("fast", "slow",),
+                        'dt', 'slow', '=',
+                        MRHistory(1, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late),
                         ),)
                 )
@@ -300,29 +299,166 @@ def test_single_rate_identical(order=3):
 @pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
 def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
-    stepper = TwoRateAdamsBashforthMethod(
+    method = TwoRateAdamsBashforthMethod(
             method_name, order=order, step_ratio=step_ratio)
-    stepper.generate(explainer=explainer)
+    method.generate(explainer=explainer)
     print(explainer)
 
 
 def test_mrab_scheme_explainers(order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
-    stepper = MultiRateMultiStepMethod(
+    method = MultiRateMultiStepMethod(
                 order,
-                component_names=("fast", "slow",),
-                rhss=(
+                (
                     (
-                        RHS(1, "<func>f", ("fast", "slow",)),
+                        'dt', 'fast', '=',
+                        MRHistory(1, "<func>f", ("fast", "slow",)),
                         ),
                     (
-                        RHS(step_ratio, "<func>s", ("fast", "slow",),
+                        'dt', 'slow', '=',
+                        MRHistory(step_ratio, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late),
                         ),)
                 )
 
-    stepper.generate(explainer=explainer)
+    method.generate(explainer=explainer)
     print(explainer)
+
+
+def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
+        explainer=TextualSchemeExplainer()):
+    method = MultiRateMultiStepMethod(
+                order,
+                (
+                    (
+                        "dt", "fast", "=",
+                        MRHistory(1, "<func>f", ("fast", "slow",)),
+                        ),
+                    (
+                        "dt", "slow", "=",
+                        MRHistory(step_ratio, "<func>s", ("fast", "slow", "derived"),
+                            rhs_policy=rhs_policy.late),
+                        ),
+                    (
+                        "derived", "=",
+                        MRHistory(step_ratio, "<func>compute_derived",
+                            ("fast", "slow",), rhs_policy=rhs_policy.late),
+                        ),
+                    )
+                )
+
+    code = method.generate(explainer=explainer)
+    print(code)
+    print()
+    print(explainer)
+
+
+def test_dot(order=3, step_ratio=3, method_name="F", show=False):
+    method = TwoRateAdamsBashforthMethod(
+            method_name, order=order, step_ratio=step_ratio)
+    code = method.generate()
+
+    from dagrt.language import get_dot_dependency_graph
+    print(get_dot_dependency_graph(code))
+
+    if show:
+        from dagrt.language import show_dependency_graph
+        show_dependency_graph(code)
+
+
+def test_dependent_state(order=3, step_ratio=3):
+    # Solve
+    # f' = f+s
+    # s' = -f+s
+
+    def true_f(t):
+        return np.exp(t)*np.sin(t)
+
+    def true_s(t):
+        return np.exp(t)*np.cos(t)
+
+    method = MultiRateMultiStepMethod(
+                order,
+                (
+                    (
+                        "dt", "fast", "=",
+                        MRHistory(1, "<func>f", ("two_fast", "slow",)),
+                        ),
+                    (
+                        "dt", "slow", "=",
+                        MRHistory(step_ratio, "<func>s", ("fast", "slow"))
+                        ),
+                    (
+                        "two_fast", "=",
+                        MRHistory(step_ratio, "<func>twice", ("fast",)),
+                        ),
+                    ),
+                static_dt=True)
+
+    code = method.generate()
+    print(code)
+
+    from pytools.convergence import EOCRecorder
+    eocrec = EOCRecorder()
+
+    from dagrt.codegen import PythonCodeGenerator
+    codegen = PythonCodeGenerator(class_name='Method')
+
+    stepper_cls = codegen.get_class(code)
+
+    for n in range(4, 7):
+        t = 0
+        dt = 2**(-n)
+        final_t = 10
+
+        stepper = stepper_cls(
+                function_map={
+                    "<func>f": lambda t, two_fast, slow: 0.5*two_fast + slow,
+                    "<func>s": lambda t, fast, slow: -fast + slow,
+                    "<func>twice": lambda t, fast: 2*fast,
+                    })
+
+        stepper.set_up(
+                t_start=t, dt_start=dt,
+                context={
+                    "fast": true_f(t),
+                    "slow": true_s(t),
+                    })
+
+        f_times = []
+        f_values = []
+        s_times = []
+        s_values = []
+        for event in stepper.run(t_end=final_t):
+            if isinstance(event, stepper_cls.StateComputed):
+                if event.component_id == "fast":
+                    f_times.append(event.t)
+                    f_values.append(event.state_component)
+                elif event.component_id == "slow":
+                    s_times.append(event.t)
+                    s_values.append(event.state_component)
+                else:
+                    assert False, event.component_id
+
+        f_times = np.array(f_times)
+        s_times = np.array(s_times)
+        f_values_true = true_f(f_times)
+        s_values_true = true_s(s_times)
+
+        f_err = f_values - f_values_true
+        s_err = s_values - s_values_true
+
+        error = (
+                la.norm(f_err) / la.norm(f_values_true)
+                +
+                la.norm(s_err) / la.norm(s_values_true))
+
+        eocrec.add_data_point(dt, error)
+
+    print(eocrec.pretty_print())
+
+    orderest = eocrec.estimate_order_of_convergence()[0, 1]
+    assert orderest > 3*0.95
 
 
 if __name__ == "__main__":

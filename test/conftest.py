@@ -36,5 +36,4 @@ def python_method_impl(request):
         return python_method_impl_interpreter
     elif kind == "codegen":
         return python_method_impl_codegen
-    else:
-        assert False
+    raise ValueError("Unknown Python implementation \"{0}\"".format(kind))

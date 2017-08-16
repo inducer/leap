@@ -4,9 +4,7 @@ program test_rkmethod
     timestep_initialize => initialize, &
     timestep_run => run, &
     timestep_print_profile => print_profile, &
-    timestep_shutdown => shutdown, &
-    dagrt_state_func_initialization, &
-    dagrt_state_func_primary
+    timestep_shutdown => shutdown
 
   use sim_types
 

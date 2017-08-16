@@ -69,32 +69,17 @@ def solver(f, j, t, u_n, x, c):
             return f(t=t, y=u)
 
 
-def solver_hook(expression, solve_component, guess, template=None):
-    """The solver hook returns an expression that will be used to solve for the
-    implicit component.
-    """
-    from dagrt.expression import match, substitute
+def solver_hook(solve_expr, guess):
+    from dagrt.expression import match
+    from leap.implicit import make_solver_call
 
-    # Match the expression with the template.
-    assert template
-    template = substitute(template, {"solve_component": solve_component})
-    subst = match(template, expression, ["sub_y", "coeff", "t"])
-
-    # Match the components that were found.
-    from pymbolic import var
-    u_n = var("<state>y")
-    f = var("<func>impl_y")
-    j = var("<func>j")
-    t = subst["t"]
-    x = subst["sub_y"]
-    c = subst["coeff"]
-
-    # Return the expression that calls the solver.
-    return var("<func>solver")(f, j, t, u_n, x, c)
+    pieces = match("unk - <func>rhs(t=t, y=<state>y + sub_y + coeff*unk)",
+                   solve_expr,
+                   bound_variable_names=["<state>y"])
+    return make_solver_call("<func>solver(t, <state>y, sub_y, coeff)", pieces)
 
 
 def run():
-    from functools import partial
     from leap.rk.imex import KennedyCarpenterIMEXARK4Method
     from dagrt.codegen import PythonCodeGenerator
 
@@ -104,19 +89,17 @@ def run():
     # Generate the code for the method.
     code = mgen.generate()
 
-    template = mgen.implicit_expression()[0]
-    print("Expression for solver: " + str(template))
-    sgen = partial(solver_hook, template=template)
     from leap.implicit import replace_AssignSolved
-    code = replace_AssignSolved(code, {"solve": sgen})
+    code = replace_AssignSolved(code, {"solve": solver_hook})
     IMEXIntegrator = PythonCodeGenerator("IMEXIntegrator").get_class(code)
 
     # Set up the problem and run the method.
+    from functools import partial
     problem = KapsProblem(epsilon=0.001)
     integrator = IMEXIntegrator(function_map={
         "<func>expl_y": problem.nonstiff,
         "<func>impl_y": problem.stiff,
-        "<func>solver": solver,
+        "<func>solver": partial(solver, problem.stiff, problem.jacobian),
         "<func>j": problem.jacobian})
 
     integrator.set_up(t_start=problem.t_start,
