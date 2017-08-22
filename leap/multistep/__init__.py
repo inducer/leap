@@ -98,9 +98,9 @@ class ABTrigMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
         if func_idx == 1:
             return x
         elif func_idx % 2 == 0:
-            return -1/n * np.cos(self.alpha*n*x)
+            return -1/(n*self.alpha) * np.cos(self.alpha*n*x)
         else:
-            return 1/n * np.sin(self.alpha*n*x)
+            return 1/(n*self.alpha) * np.sin(self.alpha*n*x)
 
 
 def _emit_func_family_operation(cb, name_gen,
