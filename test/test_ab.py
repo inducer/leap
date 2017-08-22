@@ -27,21 +27,28 @@ THE SOFTWARE.
 import sys
 import pytest
 from leap.multistep import AdamsBashforthMethod
+import leap.multistep as multistep
 
 from utils import (  # noqa
         python_method_impl_interpreter as pmi_int,
         python_method_impl_codegen as pmi_cg)
 
 
-@pytest.mark.parametrize("order", [1, 2, 3, 4, 5])
-@pytest.mark.parametrize("static_dt", [True, False])
-def test_ab_accuracy(python_method_impl, order, static_dt, show_dag=False,
-                     plot_solution=False):
+@pytest.mark.parametrize(("method", "expected_order"), [
+    (AdamsBashforthMethod("y", order, static_dt=static_dt), order)
+    for order in [1, 3, 5]
+    for static_dt in [True, False]
+    ] + [
+    (AdamsBashforthMethod("y",
+        multistep.ABTrigMonomialIntegrationFunctionFamily(4, 0.1),
+        static_dt=True), 3)
+    ])
+def test_ab_accuracy(python_method_impl, method, expected_order,
+        show_dag=False, plot_solution=False):
     from utils import check_simple_convergence
-    method = AdamsBashforthMethod("y", order, static_dt=static_dt)
     #method = AdamsBashforthMethod("y", order, hist_length=order+1)
     check_simple_convergence(method=method, method_impl=python_method_impl,
-                             expected_order=order, show_dag=show_dag,
+                             expected_order=expected_order, show_dag=show_dag,
                              plot_solution=plot_solution)
 
 
