@@ -74,6 +74,35 @@ class ABMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
         return 1/(func_idx+1) * x**(func_idx+1)
 
 
+class ABTrigMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
+    # FIXME: Doesn't yet work for on-the-fly coefficients
+
+    def __init__(self, order, alpha):
+        self.order = order
+        self.alpha = alpha
+
+    def __len__(self):
+        return self.order
+
+    def evaluate(self, func_idx, x):
+        func_idx += 1
+        n = func_idx // 2
+        if func_idx % 2 == 0:
+            return np.sin(self.alpha*n*x)
+        else:
+            return np.cos(self.alpha*n*x)
+
+    def antiderivative(self, func_idx, x):
+        func_idx += 1
+        n = func_idx // 2
+        if func_idx == 1:
+            return x
+        elif func_idx % 2 == 0:
+            return -1/(n*self.alpha) * np.cos(self.alpha*n*x)
+        else:
+            return 1/(n*self.alpha) * np.sin(self.alpha*n*x)
+
+
 def _emit_func_family_operation(cb, name_gen,
         function_family, time_values, hist_vars, rhs_func):
     if isinstance(time_values, var):
@@ -84,6 +113,7 @@ def _emit_func_family_operation(cb, name_gen,
 
         array = var("<builtin>array")
         linear_solve = var("<builtin>linear_solve")
+        lstsq = var("<builtin>lstsq")
 
         # use:
         # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
@@ -92,7 +122,8 @@ def _emit_func_family_operation(cb, name_gen,
         cb(vdmt, array(nfunctions*hist_len))
 
         coeff_rhs = var(name_gen("coeff_rhs"))
-        cb(coeff_rhs, array(hist_len))
+
+        cb(coeff_rhs, array(nfunctions))
 
         j = var(name_gen("vdm_j"))
 
@@ -104,7 +135,11 @@ def _emit_func_family_operation(cb, name_gen,
             cb(coeff_rhs[i], rhs_func(i))
 
         ab_coeffs = var(name_gen("ab_coeffs"))
-        cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+
+        if hist_len == nfunctions:
+            cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+        else:
+            cb(ab_coeffs, lstsq(vdmt, coeff_rhs, hist_len, nfunctions, 1))
 
         return _linear_comb(
                     [ab_coeffs[ii] for ii in range(hist_len)],
@@ -127,7 +162,10 @@ def _emit_func_family_operation(cb, name_gen,
 
             coeff_rhs[i] = rhs_func(i)
 
-        ab_coeffs = la.solve(vdm_t, coeff_rhs)
+        if hist_len == nfunctions: 
+            ab_coeffs = la.solve(vdm_t, coeff_rhs)
+        else:
+            ab_coeffs = la.lstsq(vdm_t, coeff_rhs)[0]
 
         return _linear_comb(ab_coeffs, hist_vars)
 
@@ -164,18 +202,32 @@ class AdamsBashforthMethod(Method):
     .. automethod:: generate
     """
 
-    def __init__(self, component_id, order, state_filter_name=None,
-            hist_length=None, static_dt=False):
+    def __init__(self, component_id, function_family=None, state_filter_name=None,
+            hist_length=None, static_dt=False, order=None):
         """
+        :arg function_family: Accepts an instance of
+            :class:`ABIntegrationFunctionFamily`
+            or an integer, in which case the classical monomial function family
+            with the order given by the integer is used.
         :arg static_dt: If *True*, changing the timestep during time integration
             is not allowed.
         """
 
+        if function_family is not None and order is not None:
+            raise ValueError("may not specify both function_family and order")
+
+        if function_family is None:
+            function_family = order
+            del order
+
+        if isinstance(function_family, int):
+            function_family = ABMonomialIntegrationFunctionFamily(function_family)
+
         super(AdamsBashforthMethod, self).__init__()
-        self.order = order
+        self.function_family = function_family
 
         if hist_length is None:
-            hist_length = order
+            hist_length = len(function_family)
 
         self.hist_length = hist_length
         self.static_dt = static_dt
@@ -243,7 +295,7 @@ class AdamsBashforthMethod(Method):
 
             ab_sum = emit_ab_integration(
                             cb_primary, name_gen,
-                            ABMonomialIntegrationFunctionFamily(self.order),
+                            self.function_family,
                             time_hist, history,
                             0, t_end)
 
@@ -319,7 +371,7 @@ class AdamsBashforthMethod(Method):
                     cb(self.time_history[i], self.t)
 
         from leap.rk import ORDER_TO_RK_METHOD
-        rk_method = ORDER_TO_RK_METHOD[self.order]
+        rk_method = ORDER_TO_RK_METHOD[self.function_family.order]
         rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
         rk_coeffs = rk_method.output_coeffs
 

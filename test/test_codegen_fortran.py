@@ -215,15 +215,18 @@ def test_rk_codegen_fancy():
 # }}}
 
 
-@pytest.mark.parametrize("min_order", [2, 3, 4, 5])
+@pytest.mark.parametrize(("min_order", "hist_length"), [(2,2), (2,3), (3,3), 
+    (3,4), (4,4), (4,5), (5,5), (5,6)])
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
-def test_multirate_codegen(min_order, method_name):
+def test_multirate_codegen(min_order, hist_length, method_name):
     from leap.multistep.multirate import TwoRateAdamsBashforthMethod
 
     stepper = TwoRateAdamsBashforthMethod(
             method_name, min_order, 4,
             slow_state_filter_name="slow_filt",
-            fast_state_filter_name="fast_filt")
+            fast_state_filter_name="fast_filt",
+            hist_length_slow=hist_length,
+            hist_length_fast=hist_length)
 
     code = stepper.generate()
 
@@ -403,14 +406,15 @@ def test_adaptive_rk_codegen_error():
         ])
 
 
-@pytest.mark.parametrize("min_order", [2, 3, 4, 5])
-def test_singlerate_squarewave(min_order):
+@pytest.mark.parametrize(("min_order", "hist_length"), 
+        [(2,2), (2,3), (3,3), (3,4), (4,4), (4,5), (5,5), (5,6),])
+def test_singlerate_squarewave(min_order, hist_length):
     from leap.multistep import AdamsBashforthMethod
 
     component_id = 'y'
     rhs_function = '<func>y'
 
-    stepper = AdamsBashforthMethod("y", min_order)
+    stepper = AdamsBashforthMethod("y", min_order, hist_length=hist_length)
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs)
@@ -448,9 +452,10 @@ def test_singlerate_squarewave(min_order):
 
 
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
-@pytest.mark.parametrize("min_order", [4, 3, 2])
-def test_multirate_squarewave(min_order, method_name):
-    stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4)
+@pytest.mark.parametrize(("min_order","hist_length"), [(4,4), (4,5), (3,3), (3,4), (2,2), (2,3)])
+def test_multirate_squarewave(min_order, hist_length, method_name):
+    stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4,
+            hist_length_slow=hist_length, hist_length_fast=hist_length)
 
     code = stepper.generate()
 
