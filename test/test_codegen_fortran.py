@@ -215,8 +215,8 @@ def test_rk_codegen_fancy():
 # }}}
 
 
-@pytest.mark.parametrize(("min_order", "hist_length"), [(2,2), (2,3), (3,3), 
-    (3,4), (4,4), (4,5), (5,5), (5,6)])
+@pytest.mark.parametrize(("min_order", "hist_length"), [(2, 2), (2, 3), (3, 3),
+    (3, 4), (4, 4), (4, 5), (5, 5), (5, 6)])
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 def test_multirate_codegen(min_order, hist_length, method_name):
     from leap.multistep.multirate import TwoRateAdamsBashforthMethod
@@ -406,8 +406,8 @@ def test_adaptive_rk_codegen_error():
         ])
 
 
-@pytest.mark.parametrize(("min_order", "hist_length"), 
-        [(2,2), (2,3), (3,3), (3,4), (4,4), (4,5), (5,5), (5,6),])
+@pytest.mark.parametrize(("min_order", "hist_length"),
+        [(2, 2), (2, 3), (3, 3), (3, 4), (4, 4), (4, 5), (5, 5), (5, 6), ])
 def test_singlerate_squarewave(min_order, hist_length):
     from leap.multistep import AdamsBashforthMethod
 
@@ -452,7 +452,8 @@ def test_singlerate_squarewave(min_order, hist_length):
 
 
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
-@pytest.mark.parametrize(("min_order","hist_length"), [(4,4), (4,5), (3,3), (3,4), (2,2), (2,3)])
+@pytest.mark.parametrize(("min_order", "hist_length"), [(4, 4), (4, 5),
+    (3, 3), (3, 4), (2, 2), (2, 3), ])
 def test_multirate_squarewave(min_order, hist_length, method_name):
     stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4,
             hist_length_slow=hist_length, hist_length_fast=hist_length)

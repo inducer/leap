@@ -162,7 +162,7 @@ def _emit_func_family_operation(cb, name_gen,
 
             coeff_rhs[i] = rhs_func(i)
 
-        if hist_len == nfunctions: 
+        if hist_len == nfunctions:
             ab_coeffs = la.solve(vdm_t, coeff_rhs)
         else:
             ab_coeffs = la.lstsq(vdm_t, coeff_rhs)[0]

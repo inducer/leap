@@ -82,7 +82,7 @@ class MultiRateHistory(Record):
         :arg invalidate_dependent_state: Whether evaluating this
             right-hand side should force a recomputation of any
             state that depended upon now-superseded state.
-        :arg hist_length: history length.  If greater than order, we use a 
+        :arg hist_length: history length.  If greater than order, we use a
             least-squares solve rather than a linear solve to obtain the AB
             coefficients for this history
         """
@@ -321,7 +321,8 @@ class MultiRateMultiStepMethod(Method):
                 if hist_length is None:
                     hist_length = order
 
-                new_component_rhss.append(rhs.copy(order=order, hist_length=hist_length))
+                new_component_rhss.append(rhs.copy(order=order,
+                    hist_length=hist_length))
 
             new_rhss.append(tuple(new_component_rhss))
 
@@ -1038,7 +1039,8 @@ class MultiRateMultiStepMethod(Method):
                     if not self.static_dt:
                         for time_var, time_expr in zip(
                                 self.time_vars[key],
-                                temp_time_vars[comp_name, irhs][-rhs.history_length:]):
+                                temp_time_vars[comp_name,
+                                    irhs][-rhs.history_length:]):
                             cb(time_var, time_expr)
                             cb.fence()
 
@@ -1139,7 +1141,7 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
             slow_state_filter_name=None,
             fast_state_filter_name=None,
             static_dt=False,
-            hist_length_slow=None, 
+            hist_length_slow=None,
             hist_length_fast=None):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
@@ -1183,10 +1185,10 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
                 (
                     (
                         "dt", "fast", "=",
-                        MultiRateHistory(1, "<func>f2f", ("fast", "slow",), 
+                        MultiRateHistory(1, "<func>f2f", ("fast", "slow",),
                             hist_length=hist_length_fast),
                         MultiRateHistory(s2f_interval, "<func>s2f",
-                            ("fast", "slow",), rhs_policy=s2f_policy, 
+                            ("fast", "slow",), rhs_policy=s2f_policy,
                             hist_length=hist_length_fast),
                         ),
                     (
