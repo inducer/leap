@@ -113,7 +113,9 @@ def _emit_func_family_operation(cb, name_gen,
 
         array = var("<builtin>array")
         linear_solve = var("<builtin>linear_solve")
-        lstsq = var("<builtin>lstsq")
+        svd = var("<builtin>svd")
+        matmul = var("<builtin>matmul")
+        transpose = var("<builtin>transpose")
 
         # use:
         # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
@@ -122,7 +124,6 @@ def _emit_func_family_operation(cb, name_gen,
         cb(vdmt, array(nfunctions*hist_len))
 
         coeff_rhs = var(name_gen("coeff_rhs"))
-
         cb(coeff_rhs, array(nfunctions))
 
         j = var(name_gen("vdm_j"))
@@ -139,7 +140,40 @@ def _emit_func_family_operation(cb, name_gen,
         if hist_len == nfunctions:
             cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
         else:
-            cb(ab_coeffs, lstsq(vdmt, coeff_rhs, hist_len, nfunctions, 1))
+            # Least squares with SVD builtin            
+            u = var(name_gen("u"))
+            ut = var(name_gen("ut"))
+            intermed = var(name_gen("intermed"))
+            Ainv = var(name_gen("Ainv"))
+            sigma = var(name_gen("sigma"))
+            sig_array = var(name_gen("sig_array"))
+            v = var(name_gen("v"))
+            vt = var(name_gen("vt"))
+            history_length = var(name_gen("history_length"))
+
+            cb(history_length, hist_len)
+
+            cb(Ainv, array(nfunctions*hist_len))
+            cb(intermed, array(nfunctions*hist_len))
+
+            cb("u, sigma, vt", "`<builtin>svd`(vdm_transpose, history_length)")
+            cb(ut, transpose(u, nfunctions))
+            cb(v, transpose(vt, hist_len))
+
+            # Make singular value array
+            cb(sig_array, array(nfunctions*nfunctions))
+
+            for j in range(len(function_family)*len(function_family)):
+               cb(sig_array[j], 0)
+            
+            cb.fence()
+
+            for i in range(len(function_family)):
+               cb(sig_array[i*(nfunctions+1)], sigma[i]**-1)
+
+            cb(intermed, matmul(v, sig_array, nfunctions, nfunctions))
+            cb(Ainv, matmul(intermed, ut, nfunctions, nfunctions))
+            cb(ab_coeffs, matmul(Ainv, coeff_rhs, nfunctions, 1))
 
         return _linear_comb(
                     [ab_coeffs[ii] for ii in range(hist_len)],
@@ -165,7 +199,10 @@ def _emit_func_family_operation(cb, name_gen,
         if hist_len == nfunctions:
             ab_coeffs = la.solve(vdm_t, coeff_rhs)
         else:
-            ab_coeffs = la.lstsq(vdm_t, coeff_rhs)[0]
+            # SVD-based least squares solve
+            u, sigma, v = la.svd(vdm_t, full_matrices=False)
+            Ainv = np.dot(v.transpose(), np.dot(la.inv(np.diag(sigma)),u.transpose()))
+            ab_coeffs = np.dot(Ainv, coeff_rhs)
 
         return _linear_comb(ab_coeffs, hist_vars)
 
