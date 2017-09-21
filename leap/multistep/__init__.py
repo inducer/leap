@@ -144,13 +144,13 @@ def _emit_func_family_operation(cb, name_gen,
             u = var(name_gen("u"))
             ut = var(name_gen("ut"))
             intermed = var(name_gen("intermed"))
-            Ainv = var(name_gen("Ainv"))
+            ainv = var(name_gen("ainv"))
             sigma = var(name_gen("sigma"))
             sig_array = var(name_gen("sig_array"))
             v = var(name_gen("v"))
             vt = var(name_gen("vt"))
 
-            cb(Ainv, array(nfunctions*hist_len))
+            cb(ainv, array(nfunctions*hist_len))
             cb(intermed, array(nfunctions*hist_len))
 
             cb((u, sigma, vt), svd(vdmt, hist_len))
@@ -170,8 +170,8 @@ def _emit_func_family_operation(cb, name_gen,
                 cb(sig_array[i*(nfunctions+1)], sigma[i]**-1)
 
             cb(intermed, matmul(v, sig_array, nfunctions, nfunctions))
-            cb(Ainv, matmul(intermed, ut, nfunctions, nfunctions))
-            cb(ab_coeffs, matmul(Ainv, coeff_rhs, nfunctions, 1))
+            cb(ainv, matmul(intermed, ut, nfunctions, nfunctions))
+            cb(ab_coeffs, matmul(ainv, coeff_rhs, nfunctions, 1))
 
         return _linear_comb(
                     [ab_coeffs[ii] for ii in range(hist_len)],
@@ -199,9 +199,9 @@ def _emit_func_family_operation(cb, name_gen,
         else:
             # SVD-based least squares solve
             u, sigma, v = la.svd(vdm_t, full_matrices=False)
-            Ainv = np.dot(v.transpose(), np.dot(la.inv(np.diag(sigma)),
+            ainv = np.dot(v.transpose(), np.dot(la.inv(np.diag(sigma)),
                 u.transpose()))
-            ab_coeffs = np.dot(Ainv, coeff_rhs)
+            ab_coeffs = np.dot(ainv, coeff_rhs)
 
         return _linear_comb(ab_coeffs, hist_vars)
 
