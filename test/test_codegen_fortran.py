@@ -317,6 +317,9 @@ def test_multirate_codegen(min_order, hist_length, method_name):
     else:
         fac = 5
 
+    if (hist_length != min_order):
+        fac = 12
+
     num_trips_one = 10*fac
     num_trips_two = 100*fac
 
@@ -442,6 +445,8 @@ def test_singlerate_squarewave(min_order, hist_length):
             """)
 
     code_str = codegen(code)
+    with open("abmethod_test.f90", "wt") as outf:
+        outf.write(code_str)
 
     run_fortran([
         ("abmethod.f90", code_str),

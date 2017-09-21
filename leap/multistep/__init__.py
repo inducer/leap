@@ -153,7 +153,8 @@ def _emit_func_family_operation(cb, name_gen,
             cb(Ainv, array(nfunctions*hist_len))
             cb(intermed, array(nfunctions*hist_len))
 
-            cb("u, sigma, vt", svd(vdmt, hist_len))
+            cb((u, sigma, vt), svd(vdmt, hist_len))
+
             cb(ut, transpose(u, nfunctions))
             cb(v, transpose(vt, hist_len))
 
