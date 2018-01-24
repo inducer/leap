@@ -594,7 +594,7 @@ class MultiRateMultiStepMethod(Method):
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
-        for isubstep in range(self.nsubsteps + 1):
+        for isubstep in range(self.nsubsteps):
             name_prefix = 'substep' + str(isubstep)
 
             current_rhss = {}
@@ -699,11 +699,6 @@ class MultiRateMultiStepMethod(Method):
 
             # }}}
 
-            if isubstep == self.nsubsteps:
-                cb.fence()
-                cb(self.bootstrap_step, self.bootstrap_step + 1)
-                break
-
             cb.fence()
 
             if isubstep == 0:
@@ -714,6 +709,9 @@ class MultiRateMultiStepMethod(Method):
             cb.fence()
 
             self.emit_small_rk_step(cb, name_prefix, name_gen, current_rhss)
+
+        cb.fence()
+        cb(self.bootstrap_step, self.bootstrap_step + 1)
 
         return cb
 
