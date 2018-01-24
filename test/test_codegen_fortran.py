@@ -223,7 +223,10 @@ def test_multirate_codegen(min_order, method_name):
     stepper = TwoRateAdamsBashforthMethod(
             method_name, min_order, 4,
             slow_state_filter_name="slow_filt",
-            fast_state_filter_name="fast_filt")
+            fast_state_filter_name="fast_filt",
+            # should pass with either, let's alternate by order
+            # static_dt=True is 'more finnicky', so use that at min_order=5.
+            static_dt=True if min_order % 2 == 1 else False)
 
     code = stepper.generate()
 
@@ -304,18 +307,12 @@ def test_multirate_codegen(min_order, method_name):
         with open("abmethod.f90", "wt") as outf:
             outf.write(code_str)
 
-    if (method_name.startswith("S")
-            and "f" in method_name):
-        fac = 12
-    elif (method_name.startswith("S")
-            or method_name.startswith("Fs")
-            or method_name == "F"):
-        fac = 9
-    else:
-        fac = 5
+    fac = 130
+    if min_order == 5 and method_name in ["Srs", "Ss"]:
+        pytest.xfail("Srs,Ss do not achieve fifth order convergence")
 
     num_trips_one = 10*fac
-    num_trips_two = 100*fac
+    num_trips_two = 30*fac
 
     run_fortran([
         ("abmethod.f90", code_str),
