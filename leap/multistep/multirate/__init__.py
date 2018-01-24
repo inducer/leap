@@ -969,9 +969,44 @@ class MultiRateMultiStepMethod(Method):
 
         # }}}
 
+        def norm(expr):
+            return var('<builtin>norm_2')(expr)
+
+        def history_check():
+            # At the start of a macrostep, ensure that the last computed
+            # RHS history corresponds to the current state
+            for comp_idx, (comp_name, component_rhss) in enumerate(
+                    zip(self.component_names, self.rhss)):
+                for irhs, rhs in enumerate(component_rhss):
+                    t_expr = self.t
+                    kwargs = dict(
+                            (self.comp_name_to_kwarg_name[arg_comp_name],
+                                get_state(arg_comp_name, 0))
+                            for arg_comp_name in rhs.arguments)
+                    test_rhs_var = var(
+                            name_gen(
+                                "test_rhs_{comp_name}_rhs{irhs}_0"
+                                .format(comp_name=comp_name, irhs=irhs)))
+                    zeroth_hist = var(
+                            name_gen(
+                                "zeroth_hist_{comp_name}_rhs{irhs}"
+                                .format(comp_name=comp_name, irhs=irhs)))
+                    error = var('error')
+
+                    cb(test_rhs_var, var(rhs.func_name)(t=t_expr, **kwargs))
+                    # Compare this computed RHS with the 0th history point using
+                    # built-in norm.
+                    cb(zeroth_hist, temp_hist_vars[comp_name, irhs][-1])
+                    cb.fence()
+                    cb(error, norm(test_rhs_var - zeroth_hist))
+                    with cb.if_(error, ">=", 1.0e-8):
+                        cb.raise_(HistoryCheck)
+
         # {{{ run_substep_loop
 
         def run_substep_loop():
+            # Check last history value from previous macrostep
+            history_check()
             for isubstep in range(self.nsubsteps+1):
                 for comp_idx, (comp_name, component_rhss) in enumerate(
                         zip(self.component_names, self.rhss)):
@@ -1296,5 +1331,7 @@ class TextualSchemeExplainer(SchemeExplainerBase):
 
 # }}}
 
+class HistoryCheck(RuntimeError):
+    pass
 
 # vim: foldmethod=marker
