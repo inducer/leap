@@ -705,8 +705,7 @@ class MultiRateMultiStepMethod(Method):
                 break
 
             if isubstep == 0:
-                with cb.if_(self.bootstrap_step, "==", bootstrap_steps+1):
-                    cb.fence()
+                with cb.if_(self.bootstrap_step, "==", bootstrap_steps):
                     cb.state_transition("primary")
                     cb.exit_step()
 
