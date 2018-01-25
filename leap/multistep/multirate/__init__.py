@@ -146,6 +146,10 @@ def _topologically_sort_comp_names_and_rhss(component_names, rhss):
 # }}}
 
 
+class InconsistentHistoryError:
+    pass
+
+
 # {{{ method
 
 class MultiRateMultiStepMethod(Method):
@@ -167,7 +171,7 @@ class MultiRateMultiStepMethod(Method):
             state_filter_names=None,
             component_arg_names=None,
             static_dt=False,
-            debug=False):
+            history_consistency_threshold=False):
         """
         :arg default_order: The order to be used for right-hand sides
             where no differing order is specified.
@@ -364,7 +368,7 @@ class MultiRateMultiStepMethod(Method):
         # }}}
 
         self.static_dt = static_dt
-        self.debug = debug
+        self.history_consistency_threshold = history_consistency_threshold
 
         if not self.static_dt:
             self.time_vars = {}
@@ -1000,16 +1004,21 @@ class MultiRateMultiStepMethod(Method):
                             /
                             norm(test_rhs_var))
 
-                    # Tolerance usable for both single and double precision
-                    with cb.if_(rel_rhs_error, ">=", 1.0e-5):
-                        cb.raise_("MRAB: top-of-history for RHS '%s' is "
+                    cb("rel_rhs_error", rel_rhs_error)
+
+                    # cb((), "<builtin>print(rel_rhs_error)")
+
+                    with cb.if_("rel_rhs_error", ">=",
+                            self.history_consistency_threshold):
+                        cb.raise_(InconsistentHistoryError,
+                                "MRAB: top-of-history for RHS '%s' is "
                                 "inconsistent with current state" % rhs.func_name)
 
         # {{{ run_substep_loop
 
         def run_substep_loop():
             # Check last history value from previous macrostep
-            if self.debug:
+            if self.history_consistency_threshold is not None:
                 check_history_consistency()
 
             for isubstep in range(self.nsubsteps+1):
@@ -1167,7 +1176,7 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
     def __init__(self, method, order, step_ratio,
             slow_state_filter_name=None,
             fast_state_filter_name=None,
-            static_dt=False, debug=False):
+            static_dt=False, history_consistency_threshold=False):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
                 "longer be used. Use the fully general "
@@ -1226,7 +1235,7 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
                 component_arg_names=("f", "s"),
 
                 static_dt=static_dt,
-                debug=debug)
+                history_consistency_threshold=history_consistency_threshold)
 
 # }}}
 

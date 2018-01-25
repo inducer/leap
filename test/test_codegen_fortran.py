@@ -227,7 +227,7 @@ def test_multirate_codegen(min_order, method_name):
             # should pass with either, let's alternate by order
             # static_dt=True is 'more finnicky', so use that at min_order=5.
             static_dt=True if min_order % 2 == 1 else False,
-            debug=True)
+            history_consistency_threshold=1e-4)
 
     code = stepper.generate()
 

@@ -62,7 +62,7 @@ class MultirateTimestepperAccuracyChecker(object):
         method = TwoRateAdamsBashforthMethod(
                 self.method, self.order, self.step_ratio,
                 static_dt=self.static_dt,
-                debug=True)
+                history_consistency_threshold=1e-4)
 
         return method.generate()
 
@@ -356,7 +356,8 @@ def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
 
 def test_dot(order=3, step_ratio=3, method_name="F", show=False):
     method = TwoRateAdamsBashforthMethod(
-            method_name, order=order, step_ratio=step_ratio, debug=True)
+            method_name, order=order, step_ratio=step_ratio,
+            history_consistency_threshold=1e-4)
     code = method.generate()
 
     from dagrt.language import get_dot_dependency_graph
