@@ -974,7 +974,7 @@ class MultiRateMultiStepMethod(Method):
         def norm(expr):
             return var('<builtin>norm_2')(expr)
 
-        def history_check():
+        def check_history_consistency():
             # At the start of a macrostep, ensure that the last computed
             # RHS history corresponds to the current state
             for comp_idx, (comp_name, component_rhss) in enumerate(
@@ -989,26 +989,29 @@ class MultiRateMultiStepMethod(Method):
                             name_gen(
                                 "test_rhs_{comp_name}_rhs{irhs}_0"
                                 .format(comp_name=comp_name, irhs=irhs)))
-                    zeroth_hist = var(
-                            name_gen(
-                                "zeroth_hist_{comp_name}_rhs{irhs}"
-                                .format(comp_name=comp_name, irhs=irhs)))
-                    error = var('error')
 
                     cb(test_rhs_var, var(rhs.func_name)(t=t_expr, **kwargs))
                     # Compare this computed RHS with the 0th history point using
                     # built-in norm.
-                    cb(zeroth_hist, temp_hist_vars[comp_name, irhs][-1])
-                    cb.fence()
-                    cb(error, norm(test_rhs_var - zeroth_hist))
-                    with cb.if_(error, ">=", 1.0e-8):
-                        cb.raise_(HistoryCheck)
+
+                    zeroth_hist = temp_hist_vars[comp_name, irhs][-1]
+                    rel_rhs_error = (
+                            norm(test_rhs_var - zeroth_hist)
+                            /
+                            norm(test_rhs_var))
+
+                    # Tolerance usable for both single and double precision
+                    with cb.if_(rel_rhs_error, ">=", 1.0e-5):
+                        cb.raise_("MRAB: top-of-history for RHS '%s' is "
+                                "inconsistent with current state" % rhs.func_name)
 
         # {{{ run_substep_loop
 
         def run_substep_loop():
             # Check last history value from previous macrostep
-            history_check()
+            if self.debug:
+                check_history_consistency()
+
             for isubstep in range(self.nsubsteps+1):
                 for comp_idx, (comp_name, component_rhss) in enumerate(
                         zip(self.component_names, self.rhss)):
@@ -1334,8 +1337,5 @@ class TextualSchemeExplainer(SchemeExplainerBase):
         self.lines.append("ROLL BACK %s" % rhs_name)
 
 # }}}
-
-class HistoryCheck(RuntimeError):
-    pass
 
 # vim: foldmethod=marker
