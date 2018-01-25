@@ -171,7 +171,7 @@ class MultiRateMultiStepMethod(Method):
             state_filter_names=None,
             component_arg_names=None,
             static_dt=False,
-            history_consistency_threshold=False):
+            history_consistency_threshold=None):
         """
         :arg default_order: The order to be used for right-hand sides
             where no differing order is specified.
