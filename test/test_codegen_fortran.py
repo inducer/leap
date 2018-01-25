@@ -226,7 +226,8 @@ def test_multirate_codegen(min_order, method_name):
             fast_state_filter_name="fast_filt",
             # should pass with either, let's alternate by order
             # static_dt=True is 'more finnicky', so use that at min_order=5.
-            static_dt=True if min_order % 2 == 1 else False)
+            static_dt=True if min_order % 2 == 1 else False,
+            debug=True)
 
     code = stepper.generate()
 

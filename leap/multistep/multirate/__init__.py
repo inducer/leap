@@ -166,7 +166,8 @@ class MultiRateMultiStepMethod(Method):
     def __init__(self, default_order, system_description,
             state_filter_names=None,
             component_arg_names=None,
-            static_dt=False):
+            static_dt=False,
+            debug=False):
         """
         :arg default_order: The order to be used for right-hand sides
             where no differing order is specified.
@@ -363,6 +364,7 @@ class MultiRateMultiStepMethod(Method):
         # }}}
 
         self.static_dt = static_dt
+        self.debug = debug
 
         if not self.static_dt:
             self.time_vars = {}
@@ -1162,7 +1164,7 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
     def __init__(self, method, order, step_ratio,
             slow_state_filter_name=None,
             fast_state_filter_name=None,
-            static_dt=False):
+            static_dt=False, debug=False):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
                 "longer be used. Use the fully general "
@@ -1219,7 +1221,9 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
                 # This is a hack to avoid having to change the 2RAB test
                 # cases, which use these arguments
                 component_arg_names=("f", "s"),
-                static_dt=static_dt)
+
+                static_dt=static_dt,
+                debug=debug)
 
 # }}}
 
