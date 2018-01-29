@@ -62,7 +62,7 @@ class MultirateTimestepperAccuracyChecker(object):
         method = TwoRateAdamsBashforthMethod(
                 self.method, self.order, self.step_ratio,
                 static_dt=self.static_dt,
-                history_consistency_threshold=1e-4)
+                history_consistency_threshold=1e-8)
 
         return method.generate()
 
@@ -251,8 +251,9 @@ def test_single_rate_identical(order=3):
                         'dt', 'slow', '=',
                         MRHistory(1, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late),
-                        ),)
-                )
+                        ),),
+                history_consistency_threshold=1e-8)
+
     multi_rate_code = multi_rate_method.generate()
 
     def rhs_fast(t, fast, slow):
@@ -302,6 +303,7 @@ def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
     method = TwoRateAdamsBashforthMethod(
             method_name, order=order, step_ratio=step_ratio)
+
     method.generate(explainer=explainer)
     print(explainer)
 
@@ -357,7 +359,7 @@ def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
 def test_dot(order=3, step_ratio=3, method_name="F", show=False):
     method = TwoRateAdamsBashforthMethod(
             method_name, order=order, step_ratio=step_ratio,
-            history_consistency_threshold=1e-4)
+            history_consistency_threshold=1e-8)
     code = method.generate()
 
     from dagrt.language import get_dot_dependency_graph
@@ -395,7 +397,8 @@ def test_dependent_state(order=3, step_ratio=3):
                         MRHistory(step_ratio, "<func>twice", ("fast",)),
                         ),
                     ),
-                static_dt=True)
+                static_dt=True,
+                history_consistency_threshold=1e-8)
 
     code = method.generate()
     print(code)

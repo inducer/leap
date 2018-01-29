@@ -1008,11 +1008,22 @@ class MultiRateMultiStepMethod(Method):
 
                     # cb((), "<builtin>print(rel_rhs_error)")
 
-                    with cb.if_("rel_rhs_error", ">=",
-                            self.history_consistency_threshold):
-                        cb.raise_(InconsistentHistoryError,
-                                "MRAB: top-of-history for RHS '%s' is "
-                                "inconsistent with current state" % rhs.func_name)
+                    early_threshold = 1.75*10**(-1)
+
+                    if rhs.rhs_policy == rhs_policy.early:
+                        # Check for scheme-order accuracy
+                        with cb.if_("rel_rhs_error", ">=",
+                                early_threshold):
+                            cb.raise_(InconsistentHistoryError,
+                                    "MRAB: top-of-history for RHS '%s' is not "
+                                    "consistent with current state" % rhs.func_name)
+                    else:
+                        # Check for floating-point accuracy
+                        with cb.if_("rel_rhs_error", ">=",
+                                self.history_consistency_threshold):
+                            cb.raise_(InconsistentHistoryError,
+                                    "MRAB: top-of-history for RHS '%s' is not "
+                                    "consistent with current state" % rhs.func_name)
 
         # {{{ run_substep_loop
 

@@ -227,7 +227,7 @@ def test_multirate_codegen(min_order, method_name):
             # should pass with either, let's alternate by order
             # static_dt=True is 'more finnicky', so use that at min_order=5.
             static_dt=True if min_order % 2 == 1 else False,
-            history_consistency_threshold=1e-4)
+            history_consistency_threshold=1e-8)
 
     code = stepper.generate()
 
@@ -448,7 +448,8 @@ def test_singlerate_squarewave(min_order):
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 @pytest.mark.parametrize("min_order", [4, 3, 2])
 def test_multirate_squarewave(min_order, method_name):
-    stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4)
+    stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4,
+                history_consistency_threshold=1e-8)
 
     code = stepper.generate()
 
