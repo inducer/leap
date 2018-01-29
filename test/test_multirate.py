@@ -397,8 +397,8 @@ def test_dependent_state(order=3, step_ratio=3):
                         MRHistory(step_ratio, "<func>twice", ("fast",)),
                         ),
                     ),
-                static_dt=True,
-                history_consistency_threshold=1e-8)
+                static_dt=True)
+                #history_consistency_threshold=1e-8)
 
     code = method.generate()
     print(code)
