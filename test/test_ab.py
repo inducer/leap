@@ -39,10 +39,6 @@ from utils import (  # noqa
     for order in [1, 3, 5]
     for static_dt in [True, False]
     ] + [
-    (AdamsBashforthMethod("y",
-        multistep.ABTrigMonomialIntegrationFunctionFamily(4, 0.1),
-        static_dt=True), 3)
-    ] + [
     (AdamsBashforthMethod("y", order, hist_length=order+1,
         static_dt=static_dt), order)
     for order in [1, 3, 5]
