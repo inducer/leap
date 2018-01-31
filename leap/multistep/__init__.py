@@ -74,35 +74,6 @@ class ABMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
         return 1/(func_idx+1) * x**(func_idx+1)
 
 
-class ABTrigMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
-    # FIXME: Doesn't yet work for on-the-fly coefficients
-
-    def __init__(self, order, alpha):
-        self.order = order
-        self.alpha = alpha
-
-    def __len__(self):
-        return self.order
-
-    def evaluate(self, func_idx, x):
-        func_idx += 1
-        n = func_idx // 2
-        if func_idx % 2 == 0:
-            return np.sin(self.alpha*n*x)
-        else:
-            return np.cos(self.alpha*n*x)
-
-    def antiderivative(self, func_idx, x):
-        func_idx += 1
-        n = func_idx // 2
-        if func_idx == 1:
-            return x
-        elif func_idx % 2 == 0:
-            return -1/(n*self.alpha) * np.cos(self.alpha*n*x)
-        else:
-            return 1/(n*self.alpha) * np.sin(self.alpha*n*x)
-
-
 def _emit_func_family_operation(cb, name_gen,
         function_family, time_values, hist_vars, rhs_func):
     if isinstance(time_values, var):
