@@ -58,11 +58,12 @@ class MultirateTimestepperAccuracyChecker(object):
         self.display_solution = display_solution
 
     @memoize_method
-    def get_code(self):
+    def get_code(self, dt):
         method = TwoRateAdamsBashforthMethod(
                 self.method, self.order, self.step_ratio,
                 static_dt=self.static_dt,
-                history_consistency_threshold=1e-8)
+                hist_consistency_threshold=1e-8,
+                early_hist_consistency_threshold=dt**self.order)
 
         return method.generate()
 
@@ -81,8 +82,8 @@ class MultirateTimestepperAccuracyChecker(object):
                 self.ode.f2f_rhs, self.ode.s2f_rhs, self.ode.f2s_rhs,
                 self.ode.s2s_rhs)}
 
-        print(self.get_code())
-        method = self.method_impl(self.get_code(), function_map=function_map)
+        print(self.get_code(dt))
+        method = self.method_impl(self.get_code(dt), function_map=function_map)
 
         t = self.ode.t_start
         y = self.ode.initial_values
@@ -252,7 +253,8 @@ def test_single_rate_identical(order=3):
                         MRHistory(1, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late),
                         ),),
-                history_consistency_threshold=1e-8)
+                hist_consistency_threshold=1e-8,
+                early_hist_consistency_threshold=dt**order)
 
     multi_rate_code = multi_rate_method.generate()
 
@@ -359,7 +361,7 @@ def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
 def test_dot(order=3, step_ratio=3, method_name="F", show=False):
     method = TwoRateAdamsBashforthMethod(
             method_name, order=order, step_ratio=step_ratio,
-            history_consistency_threshold=1e-8)
+            hist_consistency_threshold=1e-8)
     code = method.generate()
 
     from dagrt.language import get_dot_dependency_graph

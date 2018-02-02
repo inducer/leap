@@ -171,7 +171,9 @@ class MultiRateMultiStepMethod(Method):
             state_filter_names=None,
             component_arg_names=None,
             static_dt=False,
-            history_consistency_threshold=None):
+            hist_consistency_threshold=None,
+            early_hist_consistency_threshold=None):
+
         """
         :arg default_order: The order to be used for right-hand sides
             where no differing order is specified.
@@ -368,7 +370,12 @@ class MultiRateMultiStepMethod(Method):
         # }}}
 
         self.static_dt = static_dt
-        self.history_consistency_threshold = history_consistency_threshold
+        self.hist_consistency_threshold = hist_consistency_threshold
+        if isinstance(early_hist_consistency_threshold, str):
+            from dagrt.expression import parse
+            early_hist_consistency_threshold = parse(
+                    early_hist_consistency_threshold)
+        self.early_hist_consistency_threshold = early_hist_consistency_threshold
 
         if not self.static_dt:
             self.time_vars = {}
@@ -1008,19 +1015,26 @@ class MultiRateMultiStepMethod(Method):
 
                     # cb((), "<builtin>print(rel_rhs_error)")
 
-                    early_threshold = 1.75*10**(-1)
-
                     if rhs.rhs_policy == rhs_policy.early:
                         # Check for scheme-order accuracy
-                        with cb.if_("rel_rhs_error", ">=",
-                                early_threshold):
+                        if self.early_hist_consistency_threshold is not None:
+                            with cb.if_("rel_rhs_error", ">=",
+                                    self.early_hist_consistency_threshold):
+                                cb((), "<builtin>print(rel_rhs_error)")
+                                cb.raise_(InconsistentHistoryError,
+                                        "MRAB: top-of-history for RHS '%s' is not "
+                                        "consistent with current state"
+                                        % rhs.func_name)
+                        else:
                             cb.raise_(InconsistentHistoryError,
-                                    "MRAB: top-of-history for RHS '%s' is not "
-                                    "consistent with current state" % rhs.func_name)
+                                    "MRAB: RHS '%s' has early policy "
+                                    "and requires relaxed threshold input"
+                                    % rhs.func_name)
+
                     else:
                         # Check for floating-point accuracy
                         with cb.if_("rel_rhs_error", ">=",
-                                self.history_consistency_threshold):
+                                self.hist_consistency_threshold):
                             cb.raise_(InconsistentHistoryError,
                                     "MRAB: top-of-history for RHS '%s' is not "
                                     "consistent with current state" % rhs.func_name)
@@ -1029,7 +1043,7 @@ class MultiRateMultiStepMethod(Method):
 
         def run_substep_loop():
             # Check last history value from previous macrostep
-            if self.history_consistency_threshold is not None:
+            if self.hist_consistency_threshold is not None:
                 check_history_consistency()
 
             for isubstep in range(self.nsubsteps+1):
@@ -1187,7 +1201,8 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
     def __init__(self, method, order, step_ratio,
             slow_state_filter_name=None,
             fast_state_filter_name=None,
-            static_dt=False, history_consistency_threshold=False):
+            static_dt=False, hist_consistency_threshold=None,
+            early_hist_consistency_threshold=None):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
                 "longer be used. Use the fully general "
@@ -1246,7 +1261,8 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
                 component_arg_names=("f", "s"),
 
                 static_dt=static_dt,
-                history_consistency_threshold=history_consistency_threshold)
+                hist_consistency_threshold=hist_consistency_threshold,
+                early_hist_consistency_threshold=early_hist_consistency_threshold)
 
 # }}}
 
