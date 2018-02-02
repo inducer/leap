@@ -169,7 +169,7 @@ class MultirateTimestepperAccuracyChecker(object):
 
 
 @pytest.mark.slowtest
-@pytest.mark.parametrize(("order", "hist_length"), [(1, 1), (1, 2),
+@pytest.mark.parametrize(("order", "hist_length"), [(1, 1),
     (3, 3), (3, 4), ])
 @pytest.mark.parametrize("system", [
         #"Basic",
@@ -197,7 +197,7 @@ def test_multirate_accuracy(method_name, order, hist_length,
         method_impl=pmi_cg)()
 
 
-def test_single_rate_identical(order=3, hist_length=4):
+def test_single_rate_identical(order=3, hist_length=3):
     from leap.multistep import AdamsBashforthMethod
     from dagrt.exec_numpy import NumpyInterpreter
 
