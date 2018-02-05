@@ -65,6 +65,9 @@ class MultirateTimestepperAccuracyChecker(object):
                 hist_consistency_threshold=1e-8,
                 early_hist_consistency_threshold=dt**self.order)
 
+        # Early consistency threshold checked for convergence
+        # with timestep change - C. Mikida, 2/5/18 (commit hash 2e6ca077)
+
         return method.generate()
 
     def initialize_method(self, dt):

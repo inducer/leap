@@ -453,6 +453,9 @@ def test_multirate_squarewave(min_order, method_name):
                 hist_consistency_threshold=1e-8,
                 early_hist_consistency_threshold="3.5e3 * <dt>**%d" % min_order)
 
+    # Early consistency threshold checked for convergence
+    # with timestep change - C. Mikida, 2/5/18 (commit hash 2e6ca077)
+
     code = stepper.generate()
 
     from dagrt.function_registry import (
