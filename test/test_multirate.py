@@ -58,10 +58,24 @@ class MultirateTimestepperAccuracyChecker(object):
         self.display_solution = display_solution
 
     @memoize_method
-    def get_code(self):
+    def get_code(self, dt):
         method = TwoRateAdamsBashforthMethod(
                 self.method, self.order, self.step_ratio,
-                static_dt=self.static_dt)
+                static_dt=self.static_dt,
+                hist_consistency_threshold=1e-8,
+                early_hist_consistency_threshold=dt**self.order)
+
+        # Early consistency threshold checked for convergence
+        # with timestep change - C. Mikida, 2/6/18 (commit hash 2e6ca077)
+
+        # With method 4-Ss (limiting case), the following maximum relative
+        # errors were observed:
+        # for dt = 0.015625: 3.11E-09
+        # for dt = 0.0078125: 1.04e-10
+        # Corresponding EOC: 4.90
+
+        # Reported relative errors show that no constant factor is needed on
+        # early consistency threshold
 
         return method.generate()
 
@@ -80,8 +94,8 @@ class MultirateTimestepperAccuracyChecker(object):
                 self.ode.f2f_rhs, self.ode.s2f_rhs, self.ode.f2s_rhs,
                 self.ode.s2s_rhs)}
 
-        print(self.get_code())
-        method = self.method_impl(self.get_code(), function_map=function_map)
+        print(self.get_code(dt))
+        method = self.method_impl(self.get_code(dt), function_map=function_map)
 
         t = self.ode.t_start
         y = self.ode.initial_values
@@ -250,8 +264,10 @@ def test_single_rate_identical(order=3):
                         'dt', 'slow', '=',
                         MRHistory(1, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late),
-                        ),)
-                )
+                        ),),
+                hist_consistency_threshold=1e-8,
+                early_hist_consistency_threshold=dt**order)
+
     multi_rate_code = multi_rate_method.generate()
 
     def rhs_fast(t, fast, slow):
@@ -301,6 +317,7 @@ def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
     method = TwoRateAdamsBashforthMethod(
             method_name, order=order, step_ratio=step_ratio)
+
     method.generate(explainer=explainer)
     print(explainer)
 
@@ -355,7 +372,8 @@ def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
 
 def test_dot(order=3, step_ratio=3, method_name="F", show=False):
     method = TwoRateAdamsBashforthMethod(
-            method_name, order=order, step_ratio=step_ratio)
+            method_name, order=order, step_ratio=step_ratio,
+            hist_consistency_threshold=1e-8)
     code = method.generate()
 
     from dagrt.language import get_dot_dependency_graph

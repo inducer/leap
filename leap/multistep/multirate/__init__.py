@@ -146,6 +146,10 @@ def _topologically_sort_comp_names_and_rhss(component_names, rhss):
 # }}}
 
 
+class InconsistentHistoryError:
+    pass
+
+
 # {{{ method
 
 class MultiRateMultiStepMethod(Method):
@@ -166,7 +170,10 @@ class MultiRateMultiStepMethod(Method):
     def __init__(self, default_order, system_description,
             state_filter_names=None,
             component_arg_names=None,
-            static_dt=False):
+            static_dt=False,
+            hist_consistency_threshold=None,
+            early_hist_consistency_threshold=None):
+
         """
         :arg default_order: The order to be used for right-hand sides
             where no differing order is specified.
@@ -363,6 +370,12 @@ class MultiRateMultiStepMethod(Method):
         # }}}
 
         self.static_dt = static_dt
+        self.hist_consistency_threshold = hist_consistency_threshold
+        if isinstance(early_hist_consistency_threshold, str):
+            from dagrt.expression import parse
+            early_hist_consistency_threshold = parse(
+                    early_hist_consistency_threshold)
+        self.early_hist_consistency_threshold = early_hist_consistency_threshold
 
         if not self.static_dt:
             self.time_vars = {}
@@ -594,7 +607,7 @@ class MultiRateMultiStepMethod(Method):
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
-        for isubstep in range(self.nsubsteps + 1):
+        for isubstep in range(self.nsubsteps):
             name_prefix = 'substep' + str(isubstep)
 
             current_rhss = {}
@@ -699,18 +712,19 @@ class MultiRateMultiStepMethod(Method):
 
             # }}}
 
-            if isubstep == self.nsubsteps:
-                cb.fence()
-                cb(self.bootstrap_step, self.bootstrap_step + 1)
-                break
+            cb.fence()
 
             if isubstep == 0:
                 with cb.if_(self.bootstrap_step, "==", bootstrap_steps):
                     cb.state_transition("primary")
+                    cb.exit_step()
 
             cb.fence()
 
             self.emit_small_rk_step(cb, name_prefix, name_gen, current_rhss)
+
+        cb.fence()
+        cb(self.bootstrap_step, self.bootstrap_step + 1)
 
         return cb
 
@@ -968,9 +982,70 @@ class MultiRateMultiStepMethod(Method):
 
         # }}}
 
+        def norm(expr):
+            return var('<builtin>norm_2')(expr)
+
+        def check_history_consistency():
+            # At the start of a macrostep, ensure that the last computed
+            # RHS history corresponds to the current state
+            for comp_idx, (comp_name, component_rhss) in enumerate(
+                    zip(self.component_names, self.rhss)):
+                for irhs, rhs in enumerate(component_rhss):
+                    t_expr = self.t
+                    kwargs = dict(
+                            (self.comp_name_to_kwarg_name[arg_comp_name],
+                                get_state(arg_comp_name, 0))
+                            for arg_comp_name in rhs.arguments)
+                    test_rhs_var = var(
+                            name_gen(
+                                "test_rhs_{comp_name}_rhs{irhs}_0"
+                                .format(comp_name=comp_name, irhs=irhs)))
+
+                    cb(test_rhs_var, var(rhs.func_name)(t=t_expr, **kwargs))
+                    # Compare this computed RHS with the 0th history point using
+                    # built-in norm.
+
+                    zeroth_hist = temp_hist_vars[comp_name, irhs][-1]
+                    rel_rhs_error = (
+                            norm(test_rhs_var - zeroth_hist)
+                            /
+                            norm(test_rhs_var))
+
+                    cb("rel_rhs_error", rel_rhs_error)
+
+                    # cb((), "<builtin>print(rel_rhs_error)")
+
+                    if rhs.rhs_policy == rhs_policy.early:
+                        # Check for scheme-order accuracy
+                        if self.early_hist_consistency_threshold is not None:
+                            with cb.if_("rel_rhs_error", ">=",
+                                    self.early_hist_consistency_threshold):
+                                cb((), "<builtin>print(rel_rhs_error)")
+                                cb.raise_(InconsistentHistoryError,
+                                        "MRAB: top-of-history for RHS '%s' is not "
+                                        "consistent with current state"
+                                        % rhs.func_name)
+                        else:
+                            cb.raise_(InconsistentHistoryError,
+                                    "MRAB: RHS '%s' has early policy "
+                                    "and requires relaxed threshold input"
+                                    % rhs.func_name)
+
+                    else:
+                        # Check for floating-point accuracy
+                        with cb.if_("rel_rhs_error", ">=",
+                                self.hist_consistency_threshold):
+                            cb.raise_(InconsistentHistoryError,
+                                    "MRAB: top-of-history for RHS '%s' is not "
+                                    "consistent with current state" % rhs.func_name)
+
         # {{{ run_substep_loop
 
         def run_substep_loop():
+            # Check last history value from previous macrostep
+            if self.hist_consistency_threshold is not None:
+                check_history_consistency()
+
             for isubstep in range(self.nsubsteps+1):
                 for comp_idx, (comp_name, component_rhss) in enumerate(
                         zip(self.component_names, self.rhss)):
@@ -1126,7 +1201,8 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
     def __init__(self, method, order, step_ratio,
             slow_state_filter_name=None,
             fast_state_filter_name=None,
-            static_dt=False):
+            static_dt=False, hist_consistency_threshold=None,
+            early_hist_consistency_threshold=None):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
                 "longer be used. Use the fully general "
@@ -1183,7 +1259,10 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
                 # This is a hack to avoid having to change the 2RAB test
                 # cases, which use these arguments
                 component_arg_names=("f", "s"),
-                static_dt=static_dt)
+
+                static_dt=static_dt,
+                hist_consistency_threshold=hist_consistency_threshold,
+                early_hist_consistency_threshold=early_hist_consistency_threshold)
 
 # }}}
 
@@ -1294,6 +1373,5 @@ class TextualSchemeExplainer(SchemeExplainerBase):
         self.lines.append("ROLL BACK %s" % rhs_name)
 
 # }}}
-
 
 # vim: foldmethod=marker

@@ -223,7 +223,23 @@ def test_multirate_codegen(min_order, method_name):
     stepper = TwoRateAdamsBashforthMethod(
             method_name, min_order, 4,
             slow_state_filter_name="slow_filt",
-            fast_state_filter_name="fast_filt")
+            fast_state_filter_name="fast_filt",
+            # should pass with either, let's alternate by order
+            # static_dt=True is 'more finnicky', so use that at min_order=5.
+            static_dt=True if min_order % 2 == 1 else False,
+            hist_consistency_threshold=1e-8,
+            early_hist_consistency_threshold="1.25e3 * <dt>**%d" % min_order)
+
+    # Early consistency threshold checked for convergence
+    # with timestep change - C. Mikida, 2/6/18 (commit hash 2e6ca077)
+
+    # With method 5-Fqs (limiting case), the following maximum relative
+    # errors were observed:
+    # for dt = 0.0384: 1.03E-04
+    # for dt = 0.0128: 5.43E-08
+
+    # Reported relative errors motivate constant factor of 1.25e3 for early
+    # consistency threshold
 
     code = stepper.generate()
 
@@ -304,18 +320,12 @@ def test_multirate_codegen(min_order, method_name):
         with open("abmethod.f90", "wt") as outf:
             outf.write(code_str)
 
-    if (method_name.startswith("S")
-            and "f" in method_name):
-        fac = 12
-    elif (method_name.startswith("S")
-            or method_name.startswith("Fs")
-            or method_name == "F"):
-        fac = 9
-    else:
-        fac = 5
+    fac = 130
+    if min_order == 5 and method_name in ["Srs", "Ss"]:
+        pytest.xfail("Srs,Ss do not achieve fifth order convergence")
 
     num_trips_one = 10*fac
-    num_trips_two = 100*fac
+    num_trips_two = 30*fac
 
     run_fortran([
         ("abmethod.f90", code_str),
@@ -450,7 +460,21 @@ def test_singlerate_squarewave(min_order):
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 @pytest.mark.parametrize("min_order", [4, 3, 2])
 def test_multirate_squarewave(min_order, method_name):
-    stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4)
+    stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4,
+                hist_consistency_threshold=1e-8,
+                early_hist_consistency_threshold="3.0e3 * <dt>**%d" % min_order)
+
+    # Early consistency threshold checked for convergence
+    # with timestep change - C. Mikida, 2/6/18 (commit hash 2e6ca077)
+
+    # With method 4-Ss (limiting case), the following maximum relative
+    # errors were observed:
+    # for dt = 0.009167: 5.55E-08
+    # for dt = 0.00611: 1.59E-08
+    # Corresponding EOC: 3.08
+
+    # Reported relative errors motivate constant factor of 3.0e3 for early
+    # consistency threshold
 
     code = stepper.generate()
 
@@ -515,6 +539,8 @@ def test_multirate_squarewave(min_order, method_name):
 
     if min_order == 2:
         fac = 200
+    elif min_order == 3:
+        fac = 100
     else:
         fac = 12
     num_trips_one = 100*fac

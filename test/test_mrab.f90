@@ -15,7 +15,7 @@ program test_mrabmethod
 
   integer run_count
   real*8 t_fin
-  parameter (run_count=2, t_fin=10d-0)
+  parameter (run_count=2, t_fin=50d-0)
 
   real*8, dimension(run_count):: dt_values, error_slow, error_fast
 
