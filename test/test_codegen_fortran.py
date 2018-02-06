@@ -230,6 +230,17 @@ def test_multirate_codegen(min_order, method_name):
             hist_consistency_threshold=1e-8,
             early_hist_consistency_threshold="1.25e3 * <dt>**%d" % min_order)
 
+    # Early consistency threshold checked for convergence
+    # with timestep change - C. Mikida, 2/6/18 (commit hash 2e6ca077)
+
+    # With method 5-Fqs (limiting case), the following maximum relative
+    # errors were observed:
+    # for dt = 0.0384: 1.03E-04
+    # for dt = 0.0128: 5.43E-08
+
+    # Reported relative errors motivate constant factor of 1.25e3 for early
+    # consistency threshold
+
     code = stepper.generate()
 
     from dagrt.function_registry import (
@@ -451,10 +462,19 @@ def test_singlerate_squarewave(min_order):
 def test_multirate_squarewave(min_order, method_name):
     stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4,
                 hist_consistency_threshold=1e-8,
-                early_hist_consistency_threshold="3.5e3 * <dt>**%d" % min_order)
+                early_hist_consistency_threshold="3.0e3 * <dt>**%d" % min_order)
 
     # Early consistency threshold checked for convergence
-    # with timestep change - C. Mikida, 2/5/18 (commit hash 2e6ca077)
+    # with timestep change - C. Mikida, 2/6/18 (commit hash 2e6ca077)
+
+    # With method 4-Ss (limiting case), the following maximum relative
+    # errors were observed:
+    # for dt = 0.009167: 5.55E-08
+    # for dt = 0.00611: 1.59E-08
+    # Corresponding EOC: 3.08
+
+    # Reported relative errors motivate constant factor of 3.0e3 for early
+    # consistency threshold
 
     code = stepper.generate()
 

@@ -66,7 +66,16 @@ class MultirateTimestepperAccuracyChecker(object):
                 early_hist_consistency_threshold=dt**self.order)
 
         # Early consistency threshold checked for convergence
-        # with timestep change - C. Mikida, 2/5/18 (commit hash 2e6ca077)
+        # with timestep change - C. Mikida, 2/6/18 (commit hash 2e6ca077)
+
+        # With method 4-Ss (limiting case), the following maximum relative
+        # errors were observed:
+        # for dt = 0.015625: 3.11E-09
+        # for dt = 0.0078125: 1.04e-10
+        # Corresponding EOC: 4.90
+
+        # Reported relative errors show that no constant factor is needed on
+        # early consistency threshold
 
         return method.generate()
 
