@@ -46,10 +46,11 @@ from utils import (  # noqa
 class MultirateTimestepperAccuracyChecker(object):
     """Check that the multirate timestepper has the advertised accuracy."""
 
-    def __init__(self, method, order, step_ratio, static_dt, ode, method_impl,
-                 display_dag=False, display_solution=False):
+    def __init__(self, method, order, hist_length, step_ratio, static_dt, ode,
+            method_impl, display_dag=False, display_solution=False):
         self.method = method
         self.order = order
+        self.hist_length = hist_length
         self.step_ratio = step_ratio
         self.static_dt = static_dt
         self.ode = ode
@@ -63,7 +64,9 @@ class MultirateTimestepperAccuracyChecker(object):
                 self.method, self.order, self.step_ratio,
                 static_dt=self.static_dt,
                 hist_consistency_threshold=1e-8,
-                early_hist_consistency_threshold=dt**self.order)
+                early_hist_consistency_threshold=dt**self.order,
+                hist_length_slow=self.hist_length,
+                hist_length_fast=self.hist_length)
 
         # Early consistency threshold checked for convergence
         # with timestep change - C. Mikida, 2/6/18 (commit hash 2e6ca077)
@@ -180,7 +183,8 @@ class MultirateTimestepperAccuracyChecker(object):
 
 
 @pytest.mark.slowtest
-@pytest.mark.parametrize("order", [1, 3])
+@pytest.mark.parametrize(("order", "hist_length"), [(1, 1),
+    (3, 3), (3, 4), ])
 @pytest.mark.parametrize("system", [
         #"Basic",
         "Full",
@@ -189,7 +193,8 @@ class MultirateTimestepperAccuracyChecker(object):
         ])
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
 @pytest.mark.parametrize("static_dt", [True, False])
-def test_multirate_accuracy(method_name, order, system, static_dt, step_ratio=2):
+def test_multirate_accuracy(method_name, order, hist_length,
+        system, static_dt, step_ratio=2):
     """Check that the multirate timestepper has the advertised accuracy"""
 
     import multirate_test_systems
@@ -201,12 +206,12 @@ def test_multirate_accuracy(method_name, order, system, static_dt, step_ratio=2)
     print("------------------------------------------------------")
 
     MultirateTimestepperAccuracyChecker(
-        method_name, order, step_ratio, static_dt=static_dt,
+        method_name, order, hist_length, step_ratio, static_dt=static_dt,
         ode=system(),
         method_impl=pmi_cg)()
 
 
-def test_single_rate_identical(order=3):
+def test_single_rate_identical(order=3, hist_length=3):
     from leap.multistep import AdamsBashforthMethod
     from dagrt.exec_numpy import NumpyInterpreter
 
@@ -218,7 +223,8 @@ def test_single_rate_identical(order=3):
 
     # {{{ single rate
 
-    single_rate_method = AdamsBashforthMethod("y", order=order)
+    single_rate_method = AdamsBashforthMethod("y", order=order,
+            hist_length=hist_length)
     single_rate_code = single_rate_method.generate()
 
     def single_rate_rhs(t, y):
@@ -258,12 +264,13 @@ def test_single_rate_identical(order=3):
                 (
                     (
                         'dt', 'fast', '=',
-                        MRHistory(1, "<func>f", ("fast", "slow",)),
+                        MRHistory(1, "<func>f", ("fast", "slow",),
+                            hist_length=hist_length),
                         ),
                     (
                         'dt', 'slow', '=',
                         MRHistory(1, "<func>s", ("fast", "slow",),
-                            rhs_policy=rhs_policy.late),
+                            rhs_policy=rhs_policy.late, hist_length=hist_length),
                         ),),
                 hist_consistency_threshold=1e-8,
                 early_hist_consistency_threshold=dt**order)

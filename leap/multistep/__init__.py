@@ -84,6 +84,9 @@ def _emit_func_family_operation(cb, name_gen,
 
         array = var("<builtin>array")
         linear_solve = var("<builtin>linear_solve")
+        svd = var("<builtin>svd")
+        matmul = var("<builtin>matmul")
+        transpose = var("<builtin>transpose")
 
         # use:
         # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
@@ -92,7 +95,7 @@ def _emit_func_family_operation(cb, name_gen,
         cb(vdmt, array(nfunctions*hist_len))
 
         coeff_rhs = var(name_gen("coeff_rhs"))
-        cb(coeff_rhs, array(hist_len))
+        cb(coeff_rhs, array(nfunctions))
 
         j = var(name_gen("vdm_j"))
 
@@ -104,7 +107,42 @@ def _emit_func_family_operation(cb, name_gen,
             cb(coeff_rhs[i], rhs_func(i))
 
         ab_coeffs = var(name_gen("ab_coeffs"))
-        cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+
+        if hist_len == nfunctions:
+            cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+        else:
+            # Least squares with SVD builtin
+            u = var(name_gen("u"))
+            ut = var(name_gen("ut"))
+            intermed = var(name_gen("intermed"))
+            ainv = var(name_gen("ainv"))
+            sigma = var(name_gen("sigma"))
+            sig_array = var(name_gen("sig_array"))
+            v = var(name_gen("v"))
+            vt = var(name_gen("vt"))
+
+            cb(ainv, array(nfunctions*hist_len))
+            cb(intermed, array(nfunctions*hist_len))
+
+            cb((u, sigma, vt), svd(vdmt, hist_len))
+
+            cb(ut, transpose(u, nfunctions))
+            cb(v, transpose(vt, hist_len))
+
+            # Make singular value array
+            cb(sig_array, array(nfunctions*nfunctions))
+
+            for j in range(len(function_family)*len(function_family)):
+                cb(sig_array[j], 0)
+
+            cb.fence()
+
+            for i in range(len(function_family)):
+                cb(sig_array[i*(nfunctions+1)], sigma[i]**-1)
+
+            cb(intermed, matmul(v, sig_array, nfunctions, nfunctions))
+            cb(ainv, matmul(intermed, ut, nfunctions, nfunctions))
+            cb(ab_coeffs, matmul(ainv, coeff_rhs, nfunctions, 1))
 
         return _linear_comb(
                     [ab_coeffs[ii] for ii in range(hist_len)],
@@ -127,7 +165,14 @@ def _emit_func_family_operation(cb, name_gen,
 
             coeff_rhs[i] = rhs_func(i)
 
-        ab_coeffs = la.solve(vdm_t, coeff_rhs)
+        if hist_len == nfunctions:
+            ab_coeffs = la.solve(vdm_t, coeff_rhs)
+        else:
+            # SVD-based least squares solve
+            u, sigma, v = la.svd(vdm_t, full_matrices=False)
+            ainv = np.dot(v.transpose(), np.dot(la.inv(np.diag(sigma)),
+                u.transpose()))
+            ab_coeffs = np.dot(ainv, coeff_rhs)
 
         return _linear_comb(ab_coeffs, hist_vars)
 
@@ -164,18 +209,32 @@ class AdamsBashforthMethod(Method):
     .. automethod:: generate
     """
 
-    def __init__(self, component_id, order, state_filter_name=None,
-            hist_length=None, static_dt=False):
+    def __init__(self, component_id, function_family=None, state_filter_name=None,
+            hist_length=None, static_dt=False, order=None):
         """
+        :arg function_family: Accepts an instance of
+            :class:`ABIntegrationFunctionFamily`
+            or an integer, in which case the classical monomial function family
+            with the order given by the integer is used.
         :arg static_dt: If *True*, changing the timestep during time integration
             is not allowed.
         """
 
+        if function_family is not None and order is not None:
+            raise ValueError("may not specify both function_family and order")
+
+        if function_family is None:
+            function_family = order
+            del order
+
+        if isinstance(function_family, int):
+            function_family = ABMonomialIntegrationFunctionFamily(function_family)
+
         super(AdamsBashforthMethod, self).__init__()
-        self.order = order
+        self.function_family = function_family
 
         if hist_length is None:
-            hist_length = order
+            hist_length = len(function_family)
 
         self.hist_length = hist_length
         self.static_dt = static_dt
@@ -243,7 +302,7 @@ class AdamsBashforthMethod(Method):
 
             ab_sum = emit_ab_integration(
                             cb_primary, name_gen,
-                            ABMonomialIntegrationFunctionFamily(self.order),
+                            self.function_family,
                             time_hist, history,
                             0, t_end)
 
@@ -319,7 +378,7 @@ class AdamsBashforthMethod(Method):
                     cb(self.time_history[i], self.t)
 
         from leap.rk import ORDER_TO_RK_METHOD
-        rk_method = ORDER_TO_RK_METHOD[self.order]
+        rk_method = ORDER_TO_RK_METHOD[self.function_family.order]
         rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
         rk_coeffs = rk_method.output_coeffs
 

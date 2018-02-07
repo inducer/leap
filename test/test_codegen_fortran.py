@@ -413,14 +413,15 @@ def test_adaptive_rk_codegen_error():
         ])
 
 
-@pytest.mark.parametrize("min_order", [2, 3, 4, 5])
-def test_singlerate_squarewave(min_order):
+@pytest.mark.parametrize(("min_order", "hist_length"), [(5, 5), (4, 4), (4, 5),
+    (3, 3), (3, 4), (2, 2), ])
+def test_singlerate_squarewave(min_order, hist_length):
     from leap.multistep import AdamsBashforthMethod
 
     component_id = 'y'
     rhs_function = '<func>y'
 
-    stepper = AdamsBashforthMethod("y", min_order)
+    stepper = AdamsBashforthMethod("y", min_order, hist_length=hist_length)
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs)
@@ -448,6 +449,8 @@ def test_singlerate_squarewave(min_order):
             """)
 
     code_str = codegen(code)
+    with open("abmethod_test.f90", "wt") as outf:
+        outf.write(code_str)
 
     run_fortran([
         ("abmethod.f90", code_str),
@@ -458,22 +461,23 @@ def test_singlerate_squarewave(min_order):
 
 
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
-@pytest.mark.parametrize("min_order", [4, 3, 2])
-def test_multirate_squarewave(min_order, method_name):
+@pytest.mark.parametrize(("min_order", "hist_length"), [(4, 4), (4, 5),
+    (3, 3), (3, 4), (2, 2), ])
+def test_multirate_squarewave(min_order, hist_length, method_name):
     stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4,
                 hist_consistency_threshold=1e-8,
-                early_hist_consistency_threshold="3.0e3 * <dt>**%d" % min_order)
+                early_hist_consistency_threshold="3.5e3 * <dt>**%d" % min_order,
+                hist_length_slow=hist_length, hist_length_fast=hist_length)
 
     # Early consistency threshold checked for convergence
-    # with timestep change - C. Mikida, 2/6/18 (commit hash 2e6ca077)
+    # with timestep change - C. Mikida, 2/6/18 (commit hash 0fb6148)
 
-    # With method 4-Ss (limiting case), the following maximum relative
+    # With method 3-4-Ss (limiting case), the following maximum relative
     # errors were observed:
-    # for dt = 0.009167: 5.55E-08
-    # for dt = 0.00611: 1.59E-08
-    # Corresponding EOC: 3.08
+    # for dt = 0.0011: 6.96E-08
+    # for dt = 0.00073: 5.90E-09
 
-    # Reported relative errors motivate constant factor of 3.0e3 for early
+    # Reported relative errors motivate constant factor of 3.5e3 for early
     # consistency threshold
 
     code = stepper.generate()

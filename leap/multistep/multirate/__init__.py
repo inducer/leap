@@ -66,7 +66,8 @@ class MultiRateHistory(Record):
     .. automethod:: __init__
     """
     def __init__(self, interval, func_name, arguments, order=None,
-            rhs_policy=rhs_policy.late, invalidate_computed_state=False):
+            rhs_policy=rhs_policy.late, invalidate_computed_state=False,
+            hist_length=None):
         """
         :arg interval: An integer indicating the interval (relative to the
             smallest available timestep) at which this history is to be
@@ -81,6 +82,9 @@ class MultiRateHistory(Record):
         :arg invalidate_dependent_state: Whether evaluating this
             right-hand side should force a recomputation of any
             state that depended upon now-superseded state.
+        :arg hist_length: history length.  If greater than order, we use a
+            least-squares solve rather than a linear solve to obtain the AB
+            coefficients for this history
         """
         super(MultiRateHistory, self).__init__(
                 interval=interval,
@@ -88,11 +92,12 @@ class MultiRateHistory(Record):
                 arguments=arguments,
                 order=order,
                 rhs_policy=rhs_policy,
-                invalidate_computed_state=invalidate_computed_state)
+                invalidate_computed_state=invalidate_computed_state,
+                hist_length=hist_length)
 
     @property
     def history_length(self):
-        return self.order
+        return self.hist_length
 
 
 class RHS(MultiRateHistory):
@@ -310,17 +315,21 @@ class MultiRateMultiStepMethod(Method):
 
         # }}}
 
-        # {{{ plug default order into rhss
+        # {{{ plug default order, history length into rhss
 
         new_rhss = []
         for component_rhss in rhss:
             new_component_rhss = []
             for rhs in component_rhss:
                 order = rhs.order
+                hist_length = rhs.hist_length
                 if order is None:
                     order = default_order
+                if hist_length is None:
+                    hist_length = order
 
-                new_component_rhss.append(rhs.copy(order=order))
+                new_component_rhss.append(rhs.copy(order=order,
+                    hist_length=hist_length))
 
             new_rhss.append(tuple(new_component_rhss))
 
@@ -340,6 +349,10 @@ class MultiRateMultiStepMethod(Method):
                 zip(component_names, component_arg_names))
 
         self.max_order = max(rhs.order
+                for component_rhss in self.rhss
+                for rhs in component_rhss)
+
+        self.max_hist_length = max(rhs.hist_length
                 for component_rhss in self.rhss
                 for rhs in component_rhss)
 
@@ -600,7 +613,7 @@ class MultiRateMultiStepMethod(Method):
         """Initialize the stepper with an RK method. Return the code that
         computes the startup history."""
 
-        bootstrap_steps = self.max_order - 1
+        bootstrap_steps = self.max_hist_length - 1
 
         final_iglobal_substep = bootstrap_steps * self.nsubsteps
 
@@ -695,12 +708,12 @@ class MultiRateMultiStepMethod(Method):
                     for irhs, rhs in enumerate(component_rhss):
                         if (substeps_from_start % rhs.interval == 0
                                 and (substeps_from_start // rhs.interval
-                                    < rhs.order)):
+                                    < rhs.history_length)):
 
                             intervals_from_start = (
                                     substeps_from_start // rhs.interval)
 
-                            i = rhs.order - 1 - intervals_from_start
+                            i = rhs.history_length - 1 - intervals_from_start
                             assert i >= 0
 
                             with cb.if_(self.bootstrap_step, "==", test_step):
@@ -754,7 +767,7 @@ class MultiRateMultiStepMethod(Method):
                     key = comp_name, irhs
 
                     temp_hist_substeps[key] = list(range(
-                        -rhs.interval*(rhs.order-1), 1, rhs.interval))
+                        -rhs.interval*(rhs.history_length-1), 1, rhs.interval))
 
                     if self.static_dt:
                         temp_time_vars[key] = list(
@@ -1101,13 +1114,14 @@ class MultiRateMultiStepMethod(Method):
                     if not self.static_dt:
                         for time_var, time_expr in zip(
                                 self.time_vars[key],
-                                temp_time_vars[comp_name, irhs][-rhs.order:]):
+                                temp_time_vars[comp_name,
+                                    irhs][-rhs.history_length:]):
                             cb(time_var, time_expr)
                             cb.fence()
 
                     for hist_var, hist_expr in zip(
                             self.history_vars[key],
-                            temp_hist_vars[comp_name, irhs][-rhs.order:]):
+                            temp_hist_vars[comp_name, irhs][-rhs.history_length:]):
                         cb(hist_var, hist_expr)
                         cb.fence()
 
@@ -1202,7 +1216,9 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
             slow_state_filter_name=None,
             fast_state_filter_name=None,
             static_dt=False, hist_consistency_threshold=None,
-            early_hist_consistency_threshold=None):
+            early_hist_consistency_threshold=None,
+            hist_length_slow=None,
+            hist_length_fast=None):
         from warnings import warn
         warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
                 "longer be used. Use the fully general "
@@ -1234,21 +1250,29 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
         else:
             s2f_policy = rhs_policy.late
 
+        if hist_length_slow is None:
+            hist_length_slow = order
+
+        if hist_length_fast is None:
+            hist_length_slow = order
+
         super(TwoRateAdamsBashforthMethod, self).__init__(
                 order,
                 (
                     (
                         "dt", "fast", "=",
-                        MultiRateHistory(1, "<func>f2f", ("fast", "slow",)),
+                        MultiRateHistory(1, "<func>f2f", ("fast", "slow",),
+                            hist_length=hist_length_fast),
                         MultiRateHistory(s2f_interval, "<func>s2f",
-                            ("fast", "slow",), rhs_policy=s2f_policy),
+                            ("fast", "slow",), rhs_policy=s2f_policy,
+                            hist_length=hist_length_fast),
                         ),
                     (
                         "dt", "slow", "=",
                         MultiRateHistory(step_ratio, "<func>f2s", ("fast", "slow",),
-                            rhs_policy=f2s_policy),
+                            rhs_policy=f2s_policy, hist_length=hist_length_slow),
                         MultiRateHistory(step_ratio, "<func>s2s", ("fast", "slow",),
-                            rhs_policy=s2s_policy),
+                            rhs_policy=s2s_policy, hist_length=hist_length_slow),
                         ),),
 
                 state_filter_names={
