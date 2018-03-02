@@ -58,14 +58,14 @@ def _update_t_by_dt_factor(factor, instructions):
             for insn in instructions]
 
 
-def strang_splitting(dag1, dag2, stepping_state):
+def strang_splitting(dag1, dag2, stepping_phase):
     """Given two time advancement routines (in *dag1* and *dag2*), returns a
     single second-order accurate time advancement routine representing the sum
     of both of those advancements.
 
     :arg dag1: a :class:`dagrt.language.DAGCode`
     :arg dag2: a :class:`dagrt.language.DAGCode`
-    :arg stepping_state: the name of the state in *dag1* and *dag2* that carries
+    :arg stepping_phase: the name of the phase in *dag1* and *dag2* that carries
         out time stepping to which Strang splitting is to be applied.
     :returns: a :class:`dagrt.language.DAGCode`
     """
@@ -91,39 +91,39 @@ def strang_splitting(dag1, dag2, stepping_state):
 
     # }}}
 
-    all_states = frozenset(dag1.states) | frozenset(dag2.states)
-    from dagrt.language import DAGCode, ExecutionState
-    new_states = {}
-    for state_name in all_states:
-        state1 = dag1.states.get(state_name)
-        state2 = dag2.states.get(state_name)
+    all_phases = frozenset(dag1.phases) | frozenset(dag2.phases)
+    from dagrt.language import DAGCode, ExecutionPhase
+    new_phases = {}
+    for phase_name in all_phases:
+        phase1 = dag1.phases.get(phase_name)
+        phase2 = dag2.phases.get(phase_name)
 
         substed_s2_insns = [
                 insn.map_expressions(subst2_mapper)
-                for insn in state2.instructions]
+                for insn in phase2.instructions]
 
-        if state_name == stepping_state:
-            assert state1 is not None
-            assert state2 is not None
+        if phase_name == stepping_phase:
+            assert phase1 is not None
+            assert phase2 is not None
 
             from pymbolic import var
             dt_half = SubstitutionMapper(
                     make_subst_func({"<dt>": var("<dt>") / 2}))
 
-            state1_half_dt = [
+            phase1_half_dt = [
                         insn.map_expressions(dt_half)
-                        for insn in state1.instructions]
+                        for insn in phase1.instructions]
 
-            if state1.next_state != state2.next_state:
+            if phase1.next_phase != phase2.next_phase:
                 raise ValueError("DAGs don't agree on default "
-                        "state transition out of state '%s'"
-                        % state_name)
+                        "phase transition out of phase '%s'"
+                        % phase_name)
 
-            s2_name = state_name + "_s2"
-            s3_name = state_name + "_s3"
+            s2_name = phase_name + "_s2"
+            s3_name = phase_name + "_s3"
 
-            assert s2_name not in all_states
-            assert s3_name not in all_states
+            assert s2_name not in all_phases
+            assert s3_name not in all_phases
 
             """
             du/dt = A + B
@@ -133,31 +133,31 @@ def strang_splitting(dag1, dag2, stepping_state):
             3. Starting with u2, solve du / dt = A from t = 1/2 to 1, get u3
             4. Return u3
             """
-            new_states[state_name] = ExecutionState(
-                    next_state=s2_name,
-                    depends_on=state1.depends_on,
+            new_phases[phase_name] = ExecutionPhase(
+                    next_phase=s2_name,
+                    depends_on=phase1.depends_on,
                     instructions=(
                         _update_t_by_dt_factor(0,
                             _elide_yield_state(
-                                state1_half_dt))))
-            new_states[s2_name] = ExecutionState(
-                    next_state=s3_name,
-                    depends_on=state2.depends_on,
+                                phase1_half_dt))))
+            new_phases[s2_name] = ExecutionPhase(
+                    next_phase=s3_name,
+                    depends_on=phase2.depends_on,
                     instructions=(
                         _update_t_by_dt_factor(1/2,
                             _elide_yield_state(
                                 substed_s2_insns))))
-            new_states[s3_name] = ExecutionState(
-                    next_state=state1.next_state,
-                    depends_on=state1.depends_on,
-                    instructions=state1_half_dt)
+            new_phases[s3_name] = ExecutionPhase(
+                    next_phase=phase1.next_phase,
+                    depends_on=phase1.depends_on,
+                    instructions=phase1_half_dt)
         else:
-            from dagrt.transform import fuse_two_states
-            new_states[state_name] = fuse_two_states(state_name,
-                    state1,
-                    state2.copy(instructions=substed_s2_insns))
+            from dagrt.transform import fuse_two_phases
+            new_phases[phase_name] = fuse_two_phases(phase_name,
+                    phase1,
+                    phase2.copy(instructions=substed_s2_insns))
 
-    if dag1.initial_state != dag2.initial_state:
-        raise ValueError("DAGs don't agree on initial state")
+    if dag1.initial_phase != dag2.initial_phase:
+        raise ValueError("DAGs don't agree on initial phase")
 
-    return DAGCode(new_states, dag1.initial_state)
+    return DAGCode(new_phases, dag1.initial_phase)

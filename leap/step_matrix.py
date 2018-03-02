@@ -94,8 +94,8 @@ class StepMatrixFinder(object):
     def _get_state_variables(self):
         """Extract all state-related variables from the code."""
         all_var_ids = set()
-        for state in six.itervalues(self.code.states):
-            for inst in state.instructions:
+        for phase in six.itervalues(self.code.phases):
+            for inst in phase.instructions:
                 all_var_ids |= inst.get_written_variables()
                 all_var_ids |= inst.get_read_variables()
 
@@ -112,11 +112,11 @@ class StepMatrixFinder(object):
 
     VectorComponent = namedtuple("VectorComponent", "name, index")
 
-    def run_symbolic_step(self, state_name, shapes={}):
+    def run_symbolic_step(self, phase_name, shapes={}):
         """
         `shapes` maps variable names to vector lengths.
         """
-        state = self.code.states[state_name]
+        phase = self.code.phases[phase_name]
 
         from pymbolic import var
 
@@ -143,14 +143,14 @@ class StepMatrixFinder(object):
         self.context["<t>"] = 0
 
         self.exec_controller.reset()
-        self.exec_controller.update_plan(state, state.depends_on)
-        for event in self.exec_controller(state, self):
+        self.exec_controller.update_plan(phase, phase.depends_on)
+        for event in self.exec_controller(phase, self):
             pass
 
         return components, initial_vals
 
-    def get_maxima_expressions(self, state_name, shapes={}):
-        components, initial_vals = self.run_symbolic_step(state_name, shapes)
+    def get_maxima_expressions(self, phase_name, shapes={}):
+        components, initial_vals = self.run_symbolic_step(phase_name, shapes)
 
         lines = []
 
@@ -184,7 +184,7 @@ class StepMatrixFinder(object):
 
         return "\n".join(lines)
 
-    def get_state_step_matrix(self, state_name, shapes={}, sparse=False):
+    def get_phase_step_matrix(self, phase_name, shapes={}, sparse=False):
         """
         `shapes` maps variable names to vector lengths.
 
@@ -193,7 +193,7 @@ class StepMatrixFinder(object):
              Otherwise returns a numpy object array.
         """
 
-        components, initial_vals = self.run_symbolic_step(state_name, shapes)
+        components, initial_vals = self.run_symbolic_step(phase_name, shapes)
 
         from pymbolic.mapper.differentiator import DifferentiationMapper
         from pymbolic.mapper.dependency import DependencyMapper
@@ -270,7 +270,7 @@ class StepMatrixFinder(object):
     def exec_FailStep(self, insn):
         raise FailStepException()
 
-    def exec_StateTransition(self, insn):
+    def exec_PhaseTransition(self, insn):
         pass
 
     # }}}

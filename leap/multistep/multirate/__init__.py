@@ -729,7 +729,7 @@ class MultiRateMultiStepMethod(Method):
 
             if isubstep == 0:
                 with cb.if_(self.bootstrap_step, "==", bootstrap_steps):
-                    cb.state_transition("primary")
+                    cb.phase_transition("primary")
                     cb.exit_step()
 
             cb.fence()
@@ -1167,12 +1167,12 @@ class MultiRateMultiStepMethod(Method):
             self.emit_rk_bootstrap(cb_bootstrap)
 
         return DAGCode(
-                states={
-                    "initialization": cb_init.as_execution_state("bootstrap"),
-                    "bootstrap": cb_bootstrap.as_execution_state("bootstrap"),
-                    "primary": cb_primary.as_execution_state("primary"),
+                phases={
+                    "initialization": cb_init.as_execution_phase("bootstrap"),
+                    "bootstrap": cb_bootstrap.as_execution_phase("bootstrap"),
+                    "primary": cb_primary.as_execution_phase("primary"),
                     },
-                initial_state="initialization")
+                initial_phase="initialization")
 
         # }}}
 

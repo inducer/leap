@@ -53,10 +53,10 @@ def replace_AssignSolved(dag, solver_hooks):
 
     from dagrt.language import AssignExpression, AssignSolved
 
-    new_states = {}
+    new_phases = {}
 
-    for state_name, state in dag.states.items():
-        for insn in state.instructions:
+    for phase_name, phase in dag.phases.items():
+        for insn in phase.instructions:
 
             if not isinstance(insn, AssignSolved):
                 new_instructions.append(insn)
@@ -81,6 +81,6 @@ def replace_AssignSolved(dag, solver_hooks):
                     condition=insn.condition,
                     depends_on=insn.depends_on))
 
-        new_states[state_name] = state.copy(instructions=new_instructions)
+        new_phases[phase_name] = phase.copy(instructions=new_instructions)
 
-    return dag.copy(states=new_states)
+    return dag.copy(phases=new_phases)
