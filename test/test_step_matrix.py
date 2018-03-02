@@ -63,7 +63,7 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
 
     finder = StepMatrixFinder(code, function_map={"<func>" + component_id: rhs_sym})
 
-    mat = finder.get_state_step_matrix("primary")
+    mat = finder.get_phase_step_matrix("primary")
 
     if show_matrix:
         print('Variables: %s' % finder.variables)
@@ -82,17 +82,17 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     interp = NumpyInterpreter(code, function_map={"<func>" + component_id: rhs})
     interp.set_up(t_start=0, dt_start=dt, context={component_id: 15})
 
-    assert interp.next_state == "initial"
+    assert interp.next_phase == "initial"
     for event in interp.run_single_step():
         pass
-    assert interp.next_state == "primary"
+    assert interp.next_phase == "primary"
 
     start_values = np.array(
             [interp.context[v] for v in finder.variables])
 
     for event in interp.run_single_step():
         pass
-    assert interp.next_state == "primary"
+    assert interp.next_phase == "primary"
 
     stop_values = np.array(
             [interp.context[v] for v in finder.variables])
@@ -139,7 +139,7 @@ def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
         code, function_map={"<func>" + component_id: rhs_sym},
         variables=["<state>" + component_id])
 
-    mat = finder.get_state_step_matrix("primary",
+    mat = finder.get_phase_step_matrix("primary",
         shapes={"<state>" + component_id: 3})
 
     if show_matrix:
@@ -168,7 +168,7 @@ def test_step_matrix_fast_eval():
         code, function_map={"<func>" + component_id: rhs_sym},
         variables=["<state>" + component_id])
 
-    mat = finder.get_state_step_matrix("primary",
+    mat = finder.get_phase_step_matrix("primary",
         shapes={"<state>" + component_id: 3})
 
     eval_mat = fast_evaluator(mat)
@@ -192,7 +192,7 @@ def test_step_matrix_sparse():
 
     dt = var("<dt>")
 
-    mat = finder.get_state_step_matrix("primary",
+    mat = finder.get_phase_step_matrix("primary",
         shapes={"<state>" + component_id: 3},
         sparse=True)
 

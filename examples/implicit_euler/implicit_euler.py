@@ -53,8 +53,8 @@ class ImplicitEulerMethod(Method):
         with CodeBuilder(label="primary") as cb:
             self._make_primary(cb)
 
-        code = DAGCode.create_with_steady_state(
-            dep_on=cb.state_dependencies,
+        code = DAGCode.create_with_steady_phase(
+            dep_on=cb.phase_dependencies,
             instructions=cb.instructions)
 
         from leap.implicit import replace_AssignSolved

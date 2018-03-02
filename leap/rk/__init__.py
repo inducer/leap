@@ -149,6 +149,7 @@ class ButcherTableauMethod(Method):
                 coeff_sum = sum(stage_coeff_sets[name][istage])
                 assert abs(coeff_sum - self.c[istage]) < 1e-12, (
                         name, istage, coeff_sum, self.c[istage])
+
         # }}}
 
         # {{{ initialization
@@ -340,11 +341,11 @@ class ButcherTableauMethod(Method):
         # }}}
 
         return DAGCode(
-                states={
-                    "initial": cb_init.as_execution_state(next_state="primary"),
-                    "primary": cb_primary.as_execution_state(next_state="primary")
+                phases={
+                    "initial": cb_init.as_execution_phase(next_phase="primary"),
+                    "primary": cb_primary.as_execution_phase(next_phase="primary")
                     },
-                initial_state="initial")
+                initial_phase="initial")
 
     def finish(self, cb, estimate_names, estimate_vars):
         cb(self.state, estimate_vars[0])
@@ -769,11 +770,11 @@ class LSRK4Method(Method):
 
         from dagrt.language import DAGCode
         return DAGCode(
-                states={
-                    "initial": cb_init.as_execution_state(next_state="primary"),
-                    "primary": cb_primary.as_execution_state(next_state="primary")
+                phases={
+                    "initial": cb_init.as_execution_phase(next_phase="primary"),
+                    "primary": cb_primary.as_execution_phase(next_phase="primary")
                     },
-                initial_state="initial")
+                initial_phase="initial")
 
 # }}}
 

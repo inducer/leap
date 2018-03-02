@@ -47,7 +47,7 @@ def main():
                 },
             exclude_variables=["<p>bootstrap_step"])
 
-    mat = finder.get_state_step_matrix("primary")
+    mat = finder.get_phase_step_matrix("primary")
 
     left = -3
     right = 1

@@ -24,7 +24,7 @@ def main():
             exclude_variables=["<p>step"])
 
     print(finder.get_maxima_expressions("primary"))
-    mat = finder.get_state_step_matrix("primary")
+    mat = finder.get_phase_step_matrix("primary")
 
     print('Variables: %s' % finder.variables)
     np.set_printoptions(formatter={"all": str})

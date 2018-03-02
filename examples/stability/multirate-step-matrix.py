@@ -33,7 +33,7 @@ def main():
                 },
             exclude_variables=["<p>bootstrap_step"])
 
-    mat = finder.get_state_step_matrix("primary")
+    mat = finder.get_phase_step_matrix("primary")
 
     if 0:
         print('Variables: %s' % finder.variables)
