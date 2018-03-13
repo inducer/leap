@@ -46,7 +46,17 @@ def make_solver_call(template, pieces, guess=None, guess_name=None):
 def replace_AssignSolved(dag, solver_hooks):
     """
     :arg dag: The :class:`DAGCode` instance
-    :arg solver_hooks: A map from solver names to expression generators
+    :arg solver_hooks: A map from solver names to functions that generate solver
+        calls.
+        A solver hook should have the signature::
+
+            def solver_hook(expr, var, id, **kwargs):
+
+        where:
+         * *expr* is the expression passed to the AssignSolved instruction
+         * *var* is the name of the unknown
+         * *id* is the *solver_id* field of the AssignSolved instruction
+         * any other arguments are passed in *kwargs*
     """
 
     new_statements = []
@@ -68,15 +78,19 @@ def replace_AssignSolved(dag, solver_hooks):
                            "returning multiple values.")
 
             expression = stmt.expressions[0]
+            solve_variable = stmt.solve_variables[0]
+            solver_id = stmt.solver_id
             other_params = stmt.other_params
 
-            solver = solver_hooks[stmt.solver_id]
+            solver_hook = solver_hooks[stmt.solver_id]
+            solver_expression = solver_hook(expression, solve_variable,
+                                            solver_id, **other_params)
 
             new_statements.append(
                 AssignExpression(
                     assignee=stmt.assignees[0],
                     assignee_subscript=(),
-                    expression=solver(expression, **other_params),
+                    expression=solver_expression,
                     id=stmt.id,
                     condition=stmt.condition,
                     depends_on=stmt.depends_on))
