@@ -6,7 +6,7 @@ leap
 
 leap describes both implicit and explicit `time stepping methods
 <https://en.wikipedia.org/wiki/Time_stepping>`_. Methods are
-described using a small virtual machine whose instructions can
+described using a small virtual machine whose statements can
 then be used to either generate code or simply execute the time
 integrator.
 

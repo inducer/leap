@@ -30,15 +30,15 @@ __doc__ = """
 """
 
 
-def _elide_yield_state(instructions):
+def _elide_yield_state(statements):
     from dagrt.language import YieldState, Nop
-    return [insn
-            if not isinstance(insn, YieldState)
-            else Nop(id=insn.id, depends_on=insn.depends_on)
-            for insn in instructions]
+    return [stmt
+            if not isinstance(stmt, YieldState)
+            else Nop(id=stmt.id, depends_on=stmt.depends_on)
+            for stmt in statements]
 
 
-def _update_t_by_dt_factor(factor, instructions):
+def _update_t_by_dt_factor(factor, statements):
     from dagrt.language import AssignExpression, Nop
     from pymbolic import var
     from pymbolic.mapper.substitutor import make_subst_func, SubstitutionMapper
@@ -46,16 +46,16 @@ def _update_t_by_dt_factor(factor, instructions):
     mapper = SubstitutionMapper(
         make_subst_func({"<dt>": factor * var("<dt>")}))
 
-    def updater(insn):
+    def updater(stmt):
         if factor == 0:
-            return Nop(id=insn.id, depends_on=insn.depends_on)
-        return insn.map_expressions(mapper)
+            return Nop(id=stmt.id, depends_on=stmt.depends_on)
+        return stmt.map_expressions(mapper)
 
-    return [insn
-            if (not isinstance(insn, AssignExpression)
-                or insn.lhs != var("<t>"))
-            else updater(insn)
-            for insn in instructions]
+    return [stmt
+            if (not isinstance(stmt, AssignExpression)
+                or stmt.lhs != var("<t>"))
+            else updater(stmt)
+            for stmt in statements]
 
 
 def strang_splitting(dag1, dag2, stepping_phase):
@@ -98,9 +98,9 @@ def strang_splitting(dag1, dag2, stepping_phase):
         phase1 = dag1.phases.get(phase_name)
         phase2 = dag2.phases.get(phase_name)
 
-        substed_s2_insns = [
-                insn.map_expressions(subst2_mapper)
-                for insn in phase2.instructions]
+        substed_s2_stmts = [
+                stmt.map_expressions(subst2_mapper)
+                for stmt in phase2.statements]
 
         if phase_name == stepping_phase:
             assert phase1 is not None
@@ -111,8 +111,8 @@ def strang_splitting(dag1, dag2, stepping_phase):
                     make_subst_func({"<dt>": var("<dt>") / 2}))
 
             phase1_half_dt = [
-                        insn.map_expressions(dt_half)
-                        for insn in phase1.instructions]
+                        stmt.map_expressions(dt_half)
+                        for stmt in phase1.statements]
 
             if phase1.next_phase != phase2.next_phase:
                 raise ValueError("DAGs don't agree on default "
@@ -136,26 +136,26 @@ def strang_splitting(dag1, dag2, stepping_phase):
             new_phases[phase_name] = ExecutionPhase(
                     next_phase=s2_name,
                     depends_on=phase1.depends_on,
-                    instructions=(
+                    statements=(
                         _update_t_by_dt_factor(0,
                             _elide_yield_state(
                                 phase1_half_dt))))
             new_phases[s2_name] = ExecutionPhase(
                     next_phase=s3_name,
                     depends_on=phase2.depends_on,
-                    instructions=(
+                    statements=(
                         _update_t_by_dt_factor(1/2,
                             _elide_yield_state(
-                                substed_s2_insns))))
+                                substed_s2_stmts))))
             new_phases[s3_name] = ExecutionPhase(
                     next_phase=phase1.next_phase,
                     depends_on=phase1.depends_on,
-                    instructions=phase1_half_dt)
+                    statements=phase1_half_dt)
         else:
             from dagrt.transform import fuse_two_phases
             new_phases[phase_name] = fuse_two_phases(phase_name,
                     phase1,
-                    phase2.copy(instructions=substed_s2_insns))
+                    phase2.copy(statements=substed_s2_stmts))
 
     if dag1.initial_phase != dag2.initial_phase:
         raise ValueError("DAGs don't agree on initial phase")

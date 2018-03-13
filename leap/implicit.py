@@ -59,42 +59,42 @@ def replace_AssignSolved(dag, solver_hooks):
          * any other arguments are passed in *kwargs*
     """
 
-    new_instructions = []
+    new_statements = []
 
     from dagrt.language import AssignExpression, AssignSolved
 
     new_phases = {}
 
     for phase_name, phase in dag.phases.items():
-        for insn in phase.instructions:
+        for stmt in phase.statements:
 
-            if not isinstance(insn, AssignSolved):
-                new_instructions.append(insn)
+            if not isinstance(stmt, AssignSolved):
+                new_statements.append(stmt)
                 continue
 
-            if len(insn.assignees) != 1:
+            if len(stmt.assignees) != 1:
                 from dagrt.utils import TODO
-                raise TODO("Implement lowering for AssignSolved instructions "
+                raise TODO("Implement lowering for AssignSolved statements "
                            "returning multiple values.")
 
-            expression = insn.expressions[0]
-            solve_variable = insn.solve_variables[0]
-            solver_id = insn.solver_id
-            other_params = insn.other_params
+            expression = stmt.expressions[0]
+            solve_variable = stmt.solve_variables[0]
+            solver_id = stmt.solver_id
+            other_params = stmt.other_params
 
-            solver_hook = solver_hooks[insn.solver_id]
+            solver_hook = solver_hooks[stmt.solver_id]
             solver_expression = solver_hook(expression, solve_variable,
                                             solver_id, **other_params)
 
-            new_instructions.append(
+            new_statements.append(
                 AssignExpression(
-                    assignee=insn.assignees[0],
+                    assignee=stmt.assignees[0],
                     assignee_subscript=(),
                     expression=solver_expression,
-                    id=insn.id,
-                    condition=insn.condition,
-                    depends_on=insn.depends_on))
+                    id=stmt.id,
+                    condition=stmt.condition,
+                    depends_on=stmt.depends_on))
 
-        new_phases[phase_name] = phase.copy(instructions=new_instructions)
+        new_phases[phase_name] = phase.copy(statements=new_statements)
 
     return dag.copy(phases=new_phases)

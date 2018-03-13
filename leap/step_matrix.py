@@ -60,7 +60,7 @@ class StepMatrixFinder(object):
     """Constructs a step matrix on-the-fly while interpreting code.
 
     Assumes that all function evaluations occur as the root node of
-    a separate assignment instruction.
+    a separate assignment statement.
     """
 
     def __init__(self, code, function_map, variables=None,
@@ -95,7 +95,7 @@ class StepMatrixFinder(object):
         """Extract all state-related variables from the code."""
         all_var_ids = set()
         for phase in six.itervalues(self.code.phases):
-            for inst in phase.instructions:
+            for inst in phase.statements:
                 all_var_ids |= inst.get_written_variables()
                 all_var_ids |= inst.get_read_variables()
 
@@ -236,41 +236,41 @@ class StepMatrixFinder(object):
         else:
             return SparseStepMatrix(shape, indices, data)
 
-    def evaluate_condition(self, insn):
-        if insn.condition is not True:
+    def evaluate_condition(self, stmt):
+        if stmt.condition is not True:
             raise RuntimeError("matrices don't represent conditionals well, "
                 "so StepMatrixFinder cannot support them")
         return True
 
     # {{{ exec methods
 
-    def exec_AssignExpression(self, insn):
-        self.context[insn.assignee] = self.eval_mapper(insn.expression)
+    def exec_AssignExpression(self, stmt):
+        self.context[stmt.assignee] = self.eval_mapper(stmt.expression)
 
-    def exec_AssignFunctionCall(self, insn):
-        results = self.eval_mapper(insn.as_expression())
+    def exec_AssignFunctionCall(self, stmt):
+        results = self.eval_mapper(stmt.as_expression())
 
-        if len(insn.assignees) == 1:
+        if len(stmt.assignees) == 1:
             results = (results,)
 
-        assert len(results) == len(insn.assignees)
+        assert len(results) == len(stmt.assignees)
 
-        for assignee, res in zip(insn.assignees, results):
+        for assignee, res in zip(stmt.assignees, results):
             self.context[assignee] = res
 
-    def exec_Nop(self, insn):
+    def exec_Nop(self, stmt):
         pass
 
-    def exec_YieldState(self, insn):
+    def exec_YieldState(self, stmt):
         pass
 
-    def exec_Raise(self, insn):
-        raise insn.error_condition(insn.error_message)
+    def exec_Raise(self, stmt):
+        raise stmt.error_condition(stmt.error_message)
 
-    def exec_FailStep(self, insn):
+    def exec_FailStep(self, stmt):
         raise FailStepException()
 
-    def exec_PhaseTransition(self, insn):
+    def exec_PhaseTransition(self, stmt):
         pass
 
     # }}}
