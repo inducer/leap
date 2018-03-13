@@ -41,11 +41,12 @@ def solver(f, t, sub_y, coeff, guess):
     return root(lambda unk: unk - f(t=t, y=sub_y + coeff*unk), guess).x
 
 
-def solver_hook(solve_expr, guess):
+def solver_hook(solve_expr, solve_var, solver_id, guess):
     from dagrt.expression import match
     from leap.implicit import make_solver_call
 
-    pieces = match("unk - <func>rhs(t=t, y=sub_y + coeff*unk)", solve_expr)
+    pieces = match("unk - <func>rhs(t=t, y=sub_y + coeff*unk)", solve_expr,
+                   pre_match={"unk": solve_var})
     return make_solver_call("<func>solver(t, sub_y, coeff, guess)",
                             pieces,
                             guess, guess_name="guess")
