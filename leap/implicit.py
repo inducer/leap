@@ -26,24 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
 import six
-
-
-def make_solver_call(template, pieces, guess=None, guess_name=None):
-    """
-    :arg template: A template for a solver call
-    :arg pieces: A dictionary mapping variable names to subexpressions, to
-                 substitute into the template
-    :arg guess: The expression for the initial guess
-    :arg guess_name: The variable name for the initial guess
-    """
-    if isinstance(template, str):
-        from dagrt.expression import parse
-        template = parse(template)
-    from pymbolic import substitute
-    pieces.update({guess_name: guess})
-    return substitute(template, pieces)
 
 
 def replace_AssignSolved(dag, solver_hooks):
