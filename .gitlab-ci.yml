@@ -25,12 +25,11 @@ Python 3.5:
 Python 3.5 Examples:
   script:
   - py_version=3.5
-  - EXTRA_INSTALL="numpy scipy matplotlib"
+  - export EXTRA_INSTALL="numpy scipy matplotlib"
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-py-project-and-run-examples.sh
   - ". ./build-py-project-and-run-examples.sh"
   tags:
   - python3.5
-  - gfortran
   except:
   - tags
 
