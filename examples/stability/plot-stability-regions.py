@@ -1,6 +1,10 @@
 from __future__ import division, print_function
 
 
+import matplotlib
+matplotlib.use("Agg")
+
+
 def plot_stability_region(code, parallel=None, scale_factor=None, **kwargs):
     from leap.stability import find_stability_region
     points = find_stability_region(code, parallel=parallel,
@@ -13,7 +17,7 @@ def plot_stability_region(code, parallel=None, scale_factor=None, **kwargs):
     fill(points.real, points.imag, **kwargs)
 
 
-def main(save_pdfs=False):
+def main(save_pdfs=True):
     import matplotlib.pyplot as pt
     pt.rc("font", size=20)
     #title("Stability Region")
@@ -47,6 +51,7 @@ def main(save_pdfs=False):
         pt.ylim([-xsize/2*0.75, xsize/2*0.75])
         pt.savefig("stab-regions-eq-aspect.pdf")
 
+        print("Output written to stab-regions.pdf and stab-regions-eq-aspect.pdf")
     else:
         pt.show()
 

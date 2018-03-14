@@ -1,4 +1,8 @@
 from __future__ import division, print_function
+
+import matplotlib
+matplotlib.use("Agg")  # noqa
+
 import numpy as np
 import numpy.linalg as la
 from leap.multistep.multirate import TwoRateAdamsBashforthMethod
@@ -81,7 +85,10 @@ def main():
 
     pt.legend(loc="best")
     pt.grid()
-    pt.show()
+
+    outfile = "mr-stability-diagram.pdf"
+    pt.savefig(outfile)
+    print("Output written to %s" % outfile)
 
 
 if __name__ == "__main__":
