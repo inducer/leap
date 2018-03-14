@@ -27,11 +27,16 @@ THE SOFTWARE.
 """
 
 
+
+import six
+
+
 def replace_AssignSolved(dag, solver_hooks):
     """
     :arg dag: The :class:`DAGCode` instance
-    :arg solver_hooks: A map from solver names to functions that generate solver
-        calls.
+    :arg solver_hooks: Either a callable, or a map from solver names to
+        functions that generate solver calls.
+
         A solver hook should have the signature::
 
             def solver_hook(expr, var, id, **kwargs):
@@ -40,8 +45,13 @@ def replace_AssignSolved(dag, solver_hooks):
          * *expr* is the expression passed to the AssignSolved instruction
          * *var* is the name of the unknown
          * *id* is the *solver_id* field of the AssignSolved instruction
-         * any other arguments are passed in *kwargs*
+         * any other arguments are passed in *kwargs*.
     """
+
+    if six.callable(solver_hooks):
+        hook = solver_hooks
+        from collections import defaultdict
+        solver_hooks = defaultdict(lambda: hook)
 
     new_statements = []
 
