@@ -48,11 +48,10 @@ def solver(f, t, h, y, guess):
 
 
 def solver_hook(expr, var, solver_id, guess):
-    from dagrt.expression import match
-    from leap.implicit import make_solver_call
+    from dagrt.expression import match, substitute
     pieces = match("unk-y-h*<func>f(t=t,y=unk)", expr, pre_match={"unk": var})
-    return make_solver_call("<func>solver(t,h,y,guess)",
-                            pieces, guess, guess_name="guess")
+    pieces["guess"] = guess
+    return substitute("<func>solver(t,h,y,guess)", pieces)
 
 
 @pytest.mark.parametrize("python_method_impl",
