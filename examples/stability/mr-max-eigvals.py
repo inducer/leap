@@ -1,4 +1,8 @@
 from __future__ import division
+
+import matplotlib
+matplotlib.use("Agg")  # noqa
+
 import numpy as np
 import numpy.linalg as la
 from leap.multistep.multirate import TwoRateAdamsBashforthMethod
@@ -82,7 +86,10 @@ def main():
     pt.gca().set_aspect("equal")
     pt.grid()
 
-    pt.show()
+    outfile = "mr-max-eigvals.pdf"
+    pt.savefig(outfile)
+
+    print("Output written to %s" % outfile)
 
 
 if __name__ == "__main__":
