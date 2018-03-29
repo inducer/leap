@@ -1,6 +1,8 @@
 leap
 ====
 
+.. image:: https://gitlab.tiker.net/inducer/leap/badges/master/pipeline.svg
+   :target: https://gitlab.tiker.net/inducer/leap/commits/master
 .. image:: https://badge.fury.io/py/leap.png
     :target: http://pypi.python.org/pypi/leap
 
