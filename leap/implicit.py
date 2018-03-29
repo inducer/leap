@@ -26,28 +26,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
-def make_solver_call(template, pieces, guess=None, guess_name=None):
-    """
-    :arg template: A template for a solver call
-    :arg pieces: A dictionary mapping variable names to subexpressions, to
-                 substitute into the template
-    :arg guess: The expression for the initial guess
-    :arg guess_name: The variable name for the initial guess
-    """
-    if isinstance(template, str):
-        from dagrt.expression import parse
-        template = parse(template)
-    from pymbolic import substitute
-    pieces.update({guess_name: guess})
-    return substitute(template, pieces)
+import six
 
 
 def replace_AssignSolved(dag, solver_hooks):
     """
     :arg dag: The :class:`DAGCode` instance
-    :arg solver_hooks: A map from solver names to expression generators
+    :arg solver_hooks: Either a callable, or a map from solver names to
+        functions that generate solver calls.
+
+        A solver hook should have the signature::
+
+            def solver_hook(expr, var, id, **kwargs):
+
+        where:
+         * *expr* is the expression passed to the AssignSolved instruction
+         * *var* is the name of the unknown
+         * *id* is the *solver_id* field of the AssignSolved instruction
+         * any other arguments are passed in *kwargs*.
     """
+
+    if six.callable(solver_hooks):
+        hook = solver_hooks
+        from collections import defaultdict
+        solver_hooks = defaultdict(lambda: hook)
 
     new_statements = []
 
@@ -68,15 +70,19 @@ def replace_AssignSolved(dag, solver_hooks):
                            "returning multiple values.")
 
             expression = stmt.expressions[0]
+            solve_variable = stmt.solve_variables[0]
+            solver_id = stmt.solver_id
             other_params = stmt.other_params
 
-            solver = solver_hooks[stmt.solver_id]
+            solver_hook = solver_hooks[stmt.solver_id]
+            solver_expression = solver_hook(expression, solve_variable,
+                                            solver_id, **other_params)
 
             new_statements.append(
                 AssignExpression(
                     assignee=stmt.assignees[0],
                     assignee_subscript=(),
-                    expression=solver(expression, **other_params),
+                    expression=solver_expression,
                     id=stmt.id,
                     condition=stmt.condition,
                     depends_on=stmt.depends_on))
