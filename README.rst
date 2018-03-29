@@ -23,5 +23,5 @@ leap requires Python 2.6 or newer.
 
 Resources:
 
-* `wiki home page <http://wiki.tiker.net/Leap>`_
+* `Documentation <https://documen.tician.de/leap>`_
 * `source code via git <https://github.com/inducer/leap>`_
