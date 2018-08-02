@@ -2,7 +2,6 @@ Python 2.6:
   script:
   - py_version=2.6
   - EXTRA_INSTALL="numpy scipy"
-  - export FC=gfortran-7  # https://gitlab.tiker.net/inducer/leap/issues/122
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-and-test-py-project.sh
   - ". ./build-and-test-py-project.sh"
   tags:
@@ -15,7 +14,6 @@ Python 2.7:
   script:
   - py_version=2.7
   - EXTRA_INSTALL="numpy scipy"
-  - export FC=gfortran-7  # https://gitlab.tiker.net/inducer/leap/issues/122
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-and-test-py-project.sh
   - ". ./build-and-test-py-project.sh"
   tags:
@@ -28,7 +26,6 @@ Python 3.5:
   script:
   - py_version=3.5
   - EXTRA_INSTALL="numpy scipy"
-  - export FC=gfortran-7  # https://gitlab.tiker.net/inducer/leap/issues/122
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-and-test-py-project.sh
   - ". ./build-and-test-py-project.sh"
   tags:
@@ -41,7 +38,6 @@ Python 3.6:
   script:
   - py_version=3.6
   - EXTRA_INSTALL="numpy scipy"
-  - export FC=gfortran-7  # https://gitlab.tiker.net/inducer/leap/issues/122
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-and-test-py-project.sh
   - ". ./build-and-test-py-project.sh"
   tags:
