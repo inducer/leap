@@ -46,7 +46,9 @@ program test_rkmethod
 
     do istep = 1,ntrips(irun)
       call timestep_run(dagrt_state=state_ptr)
-      write(*,*) state%ret_state_y
+      if (associated(state%ret_state_y)) then
+        write(*,*) state%ret_state_y
+      endif
     enddo
 
     true_sol = initial_condition * exp(-2*state%ret_time_y)
