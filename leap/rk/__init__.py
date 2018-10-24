@@ -94,7 +94,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 
             and all(
                 _truncate_final_zeros(coeff_set[-1])
-                ==
+                ==  # noqa: W504
                 _truncate_final_zeros(output_stage_coefficients)
                 for coeff_set in six.itervalues(coeff_sets)))
 
@@ -299,7 +299,7 @@ class ButcherTableauMethod(Method):
 
                 if (
                         last_state_est_var_valid
-                        and
+                        and  # noqa: W504
                         _is_last_stage_same_as_output(self.c,
                             stage_coeff_sets, out_coeffs)):
                     state_est = last_state_est_var

@@ -475,7 +475,7 @@ def test_dependent_state(order=3, step_ratio=3):
 
         error = (
                 la.norm(f_err) / la.norm(f_values_true)
-                +
+                +  # noqa: W504
                 la.norm(s_err) / la.norm(s_values_true))
 
         eocrec.add_data_point(dt, error)

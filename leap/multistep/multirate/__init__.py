@@ -1021,7 +1021,7 @@ class MultiRateMultiStepMethod(Method):
                     zeroth_hist = temp_hist_vars[comp_name, irhs][-1]
                     rel_rhs_error = (
                             norm(test_rhs_var - zeroth_hist)
-                            /
+                            /  # noqa: W504
                             norm(test_rhs_var))
 
                     cb("rel_rhs_error", rel_rhs_error)

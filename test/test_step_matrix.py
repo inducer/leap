@@ -107,7 +107,7 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
 
     rel_err = (
             la.norm(stop_values - stop_values_from_mat)
-            /
+            /  # noqa: W504
             la.norm(stop_values))
 
     assert rel_err < 1e-12

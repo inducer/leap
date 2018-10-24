@@ -117,11 +117,12 @@ class TwoOrderAdaptiveMethod(Method):
 
         cb(norm_start_state, norm(self.state))
         cb(norm_end_state, norm(low_order_estimate))
-        cb(rel_error_raw, norm(high_order_estimate - low_order_estimate) /
-                               (var('<builtin>len')(self.state) ** 0.5 *
-                                (self.atol + self.rtol *
-                                 Max((norm_start_state, norm_end_state))
-                                 )))
+        cb(rel_error_raw, norm(high_order_estimate - low_order_estimate)
+                / (var('<builtin>len')(self.state) ** 0.5
+                    * (
+                        self.atol + self.rtol
+                        * Max((norm_start_state, norm_end_state))
+                        )))
 
         cb(rel_error, IfThenElse(Comparison(rel_error_raw, "==", 0),
                                  1.0e-14, rel_error_raw))
@@ -132,9 +133,9 @@ class TwoOrderAdaptiveMethod(Method):
             with cb.if_(var('<builtin>isnan')(rel_error)):
                 cb(self.dt, self.min_dt_shrinkage * self.dt)
             with cb.else_():
-                cb(self.dt, Max((0.9 * self.dt *
-                                 rel_error ** (-1 / self.low_order),
-                                 self.min_dt_shrinkage * self.dt)))
+                cb(self.dt, Max((0.9 * self.dt
+                    * rel_error ** (-1 / self.low_order),
+                    self.min_dt_shrinkage * self.dt)))
 
             with cb.if_(self.t + self.dt, '==', self.t):
                 cb.raise_(TimeStepUnderflow)
