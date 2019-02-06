@@ -28,14 +28,14 @@ Python 2.7:
     reports:
       junit: test/pytest.xml
 
-Python 3.6:
+Python 3:
   script:
-  - py_version=3.6
+  - py_version=3
   - EXTRA_INSTALL="numpy scipy"
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-and-test-py-project.sh
   - ". ./build-and-test-py-project.sh"
   tags:
-  - python3.6
+  - python3
   - gfortran
   except:
   - tags
@@ -43,29 +43,14 @@ Python 3.6:
     reports:
       junit: test/pytest.xml
 
-Python 3.7:
+Python 3 Examples:
   script:
-  - py_version=3.7
-  - EXTRA_INSTALL="numpy scipy"
-  - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-and-test-py-project.sh
-  - ". ./build-and-test-py-project.sh"
-  tags:
-  - python3.7
-  - gfortran
-  except:
-  - tags
-  artifacts:
-    reports:
-      junit: test/pytest.xml
-
-Python 3.7 Examples:
-  script:
-  - py_version=3.7
+  - py_version=3
   - EXTRA_INSTALL="numpy scipy matplotlib"
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-py-project-and-run-examples.sh
   - ". ./build-py-project-and-run-examples.sh"
   tags:
-  - python3.7
+  - python3
   except:
   - tags
   artifacts:
@@ -78,7 +63,7 @@ Documentation:
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-docs.sh
   - ". ./build-docs.sh"
   tags:
-  - python3.5
+  - python3
   only:
   - master
 
@@ -87,6 +72,6 @@ Flake8:
   - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-flake8.sh
   - ". ./prepare-and-run-flake8.sh leap test"
   tags:
-  - python3.5
+  - python3
   except:
   - tags
