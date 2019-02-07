@@ -362,8 +362,12 @@ class MultiRateMultiStepMethod(Method):
                 for component_rhss in self.rhss
                 for rhs in component_rhss)
 
-        if gcd(intervals) != 1:
-            raise ValueError("intervals must be relatively prime")
+        interval_gcd = gcd(intervals)
+        if interval_gcd != 1:
+            raise ValueError(
+                    "integration intervals must be relatively prime: "
+                    "found intervals %s with common factor %d"
+                    % (intervals, interval_gcd))
 
         self.nsubsteps = lcm(intervals)
 
