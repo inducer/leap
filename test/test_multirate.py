@@ -391,6 +391,101 @@ def test_dot(order=3, step_ratio=3, method_name="F", show=False):
         show_dependency_graph(code)
 
 
+@pytest.mark.parametrize(
+    "fast_interval, slow_interval",
+    (
+        (1, 2),
+        (3, 4)))
+def test_two_rate_intervals(fast_interval, slow_interval, order=3):
+    # Solve
+    # f' = f+s
+    # s' = -f+s
+
+    def true_f(t):
+        return np.exp(t)*np.sin(t)
+
+    def true_s(t):
+        return np.exp(t)*np.cos(t)
+
+    method = MultiRateMultiStepMethod(
+                order,
+                (
+                    (
+                        "dt", "fast", "=",
+                        MRHistory(fast_interval, "<func>f", ("fast", "slow",)),
+                        ),
+                    (
+                        "dt", "slow", "=",
+                        MRHistory(slow_interval, "<func>s", ("fast", "slow"))
+                        ),
+                    ),
+                static_dt=True)
+
+    code = method.generate()
+    print(code)
+
+    from pytools.convergence import EOCRecorder
+    eocrec = EOCRecorder()
+
+    from dagrt.codegen import PythonCodeGenerator
+    codegen = PythonCodeGenerator(class_name='Method')
+
+    stepper_cls = codegen.get_class(code)
+
+    for n in range(4, 7):
+        t = 0
+        dt = fast_interval * slow_interval * 2**(-n)
+        final_t = 10
+
+        stepper = stepper_cls(
+                function_map={
+                    "<func>f": lambda t, fast, slow: fast + slow,
+                    "<func>s": lambda t, fast, slow: -fast + slow,
+                    })
+
+        stepper.set_up(
+                t_start=t, dt_start=dt,
+                context={
+                    "fast": true_f(t),
+                    "slow": true_s(t),
+                    })
+
+        f_times = []
+        f_values = []
+        s_times = []
+        s_values = []
+        for event in stepper.run(t_end=final_t):
+            if isinstance(event, stepper_cls.StateComputed):
+                if event.component_id == "fast":
+                    f_times.append(event.t)
+                    f_values.append(event.state_component)
+                elif event.component_id == "slow":
+                    s_times.append(event.t)
+                    s_values.append(event.state_component)
+                else:
+                    assert False, event.component_id
+
+        f_times = np.array(f_times)
+        s_times = np.array(s_times)
+        f_values_true = true_f(f_times)
+        s_values_true = true_s(s_times)
+
+        f_err = f_values - f_values_true
+        s_err = s_values - s_values_true
+
+        error = (
+                la.norm(f_err) / la.norm(f_values_true)
+                +  # noqa: W504
+                la.norm(s_err) / la.norm(s_values_true))
+
+        eocrec.add_data_point(dt, error)
+
+    print(eocrec.pretty_print())
+
+    orderest = eocrec.estimate_order_of_convergence()[0, 1]
+    assert orderest > order * 0.7
+
+
 def test_dependent_state(order=3, step_ratio=3):
     # Solve
     # f' = f+s

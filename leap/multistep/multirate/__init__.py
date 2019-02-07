@@ -358,27 +358,14 @@ class MultiRateMultiStepMethod(Method):
 
         # {{{ process intervals
 
-        intervals = sorted(rhs.interval
+        intervals = tuple(rhs.interval
                 for component_rhss in self.rhss
                 for rhs in component_rhss)
 
-        substep_counts = []
-        for i in range(1, len(intervals)):
-            last_interval = intervals[i-1]
-            interval = intervals[i]
+        if gcd(intervals) != 1:
+            raise ValueError("intervals must be relatively prime")
 
-            if interval % last_interval != 0:
-                raise ValueError(
-                        "intervals are not integer multiples of each other: "
-                        + ", ".join(str(intv) for intv in intervals))
-
-            substep_counts.append(interval // last_interval)
-
-        if min(intervals) != 1:
-            raise ValueError("the smallest interval is not 1")
-
-        self.intervals = intervals
-        self.substep_counts = substep_counts
+        self.nsubsteps = lcm(intervals)
 
         # }}}
 
@@ -416,10 +403,6 @@ class MultiRateMultiStepMethod(Method):
                 var("<state>" + comp_name) for comp_name in self.component_names)
 
     # }}}
-
-    @property
-    def nsubsteps(self):
-        return max(self.intervals)
 
     def emit_initialization(self, cb):
         """Initialize method variables."""
@@ -1395,6 +1378,32 @@ class TextualSchemeExplainer(SchemeExplainerBase):
 
     def roll_back_history(self, rhs_name):
         self.lines.append("ROLL BACK %s" % rhs_name)
+
+# }}}
+
+
+# {{{ utils
+
+def _gcd(a, b):
+    while a:
+        b, a = a, b % a
+    return b
+
+
+def gcd(args):
+    args = iter(args)
+    result = next(args)
+    for arg in args:
+        result = _gcd(result, arg)
+    return result
+
+
+def lcm(args):
+    args = iter(args)
+    result = next(args)
+    for arg in args:
+        result = (result * arg) // _gcd(result, arg)
+    return result
 
 # }}}
 
