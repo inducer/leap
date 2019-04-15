@@ -716,8 +716,8 @@ class MultiRateMultiStepMethod(Method):
 
             if isubstep == 0:
                 with cb.if_(self.bootstrap_step, "==", bootstrap_steps):
-                    cb.phase_transition("primary")
-                    cb.exit_step()
+                    cb.switch_phase("primary")
+                    cb.restart_step()
 
             cb.fence()
 

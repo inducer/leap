@@ -39,7 +39,7 @@ def _elide_yield_state(statements):
 
 
 def _update_t_by_dt_factor(factor, statements):
-    from dagrt.language import AssignExpression, Nop
+    from dagrt.language import Assign, Nop
     from pymbolic import var
     from pymbolic.mapper.substitutor import make_subst_func, SubstitutionMapper
 
@@ -52,7 +52,7 @@ def _update_t_by_dt_factor(factor, statements):
         return stmt.map_expressions(mapper)
 
     return [stmt
-            if (not isinstance(stmt, AssignExpression)
+            if (not isinstance(stmt, Assign)
                 or stmt.lhs != var("<t>"))
             else updater(stmt)
             for stmt in statements]

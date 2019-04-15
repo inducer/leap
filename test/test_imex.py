@@ -60,8 +60,8 @@ def test_convergence(python_method_impl, problem, method, expected_order):
 
     code = method.generate()
 
-    from leap.implicit import replace_AssignSolved
-    code = replace_AssignSolved(code, {"solve": solver_hook})
+    from leap.implicit import replace_AssignImplicit
+    code = replace_AssignImplicit(code, {"solve": solver_hook})
 
     from pytools.convergence import EOCRecorder
     eocrec = EOCRecorder()
@@ -130,8 +130,8 @@ def test_adaptive(python_method_impl, problem, method):
         code = generator.generate()
 
         #sgen = ScipySolverGenerator(*generator.implicit_expression())
-        from leap.implicit import replace_AssignSolved
-        code = replace_AssignSolved(code, {"solve": solver_hook})
+        from leap.implicit import replace_AssignImplicit
+        code = replace_AssignImplicit(code, {"solve": solver_hook})
 
         from functools import partial
         interp = python_method_impl(code, function_map={

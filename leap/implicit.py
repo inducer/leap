@@ -29,7 +29,7 @@ THE SOFTWARE.
 import six
 
 
-def replace_AssignSolved(dag, solver_hooks):
+def replace_AssignImplicit(dag, solver_hooks):
     """
     :arg dag: The :class:`DAGCode` instance
     :arg solver_hooks: Either a callable, or a map from solver names to
@@ -40,9 +40,9 @@ def replace_AssignSolved(dag, solver_hooks):
             def solver_hook(expr, var, id, **kwargs):
 
         where:
-         * *expr* is the expression passed to the AssignSolved instruction
+         * *expr* is the expression passed to the AssignImplicit instruction
          * *var* is the name of the unknown
-         * *id* is the *solver_id* field of the AssignSolved instruction
+         * *id* is the *solver_id* field of the AssignImplicit instruction
          * any other arguments are passed in *kwargs*.
     """
 
@@ -53,20 +53,20 @@ def replace_AssignSolved(dag, solver_hooks):
 
     new_statements = []
 
-    from dagrt.language import AssignExpression, AssignSolved
+    from dagrt.language import Assign, AssignImplicit
 
     new_phases = {}
 
     for phase_name, phase in dag.phases.items():
         for stmt in phase.statements:
 
-            if not isinstance(stmt, AssignSolved):
+            if not isinstance(stmt, AssignImplicit):
                 new_statements.append(stmt)
                 continue
 
             if len(stmt.assignees) != 1:
                 from dagrt.utils import TODO
-                raise TODO("Implement lowering for AssignSolved statements "
+                raise TODO("Implement lowering for AssignImplicit statements "
                            "returning multiple values.")
 
             expression = stmt.expressions[0]
@@ -79,7 +79,7 @@ def replace_AssignSolved(dag, solver_hooks):
                                             solver_id, **other_params)
 
             new_statements.append(
-                AssignExpression(
+                Assign(
                     assignee=stmt.assignees[0],
                     assignee_subscript=(),
                     expression=solver_expression,

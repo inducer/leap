@@ -67,7 +67,7 @@ class Method(object):
 
     def implicit_expression(self, expression_tag=None):
         """
-        Return a template that expressions in `class`:AssignSolved
+        Return a template that expressions in `class`:AssignImplicit
         instances will follow.
 
         :arg expression_tag: A name for the expression, if multiple
