@@ -269,7 +269,7 @@ class ButcherTableauMethod(Method):
                                 (rhs_var.name, rhs_var_to_unknown[rhs_var])
                                 for rhs_var in unknowns)
 
-                        cb.assign_solved(
+                        cb.assign_implicit(
                                 assignees=assignees,
                                 solve_components=[
                                     rhs_var_to_unknown[unk].name

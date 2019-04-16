@@ -57,9 +57,9 @@ class ImplicitEulerMethod(Method):
             dep_on=cb.phase_dependencies,
             statements=cb.statements)
 
-        from leap.implicit import replace_AssignSolved
+        from leap.implicit import replace_AssignImplicit
 
-        return replace_AssignSolved(code, {self.SOLVER_EXPRESSION_ID: solver_hook})
+        return replace_AssignImplicit(code, {self.SOLVER_EXPRESSION_ID: solver_hook})
 
     def _make_primary(self, builder):
         """Add code to drive the primary stage."""
@@ -74,7 +74,7 @@ class ImplicitEulerMethod(Method):
                                    self.component_id: solve_component
                                })
 
-        builder.assign_solved_1(self.state, solve_component,
+        builder.assign_implicit_1(self.state, solve_component,
                                 solve_expression, self.state,
                                 self.SOLVER_EXPRESSION_ID)
 

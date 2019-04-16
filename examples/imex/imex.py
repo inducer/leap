@@ -92,8 +92,8 @@ def run():
     # Generate the code for the method.
     code = mgen.generate()
 
-    from leap.implicit import replace_AssignSolved
-    code = replace_AssignSolved(code, {"solve": solver_hook})
+    from leap.implicit import replace_AssignImplicit
+    code = replace_AssignImplicit(code, {"solve": solver_hook})
     IMEXIntegrator = PythonCodeGenerator("IMEXIntegrator").get_class(code)
 
     # Set up the problem and run the method.

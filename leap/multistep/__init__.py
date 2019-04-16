@@ -343,7 +343,7 @@ class AdamsBashforthMethod(Method):
                                      time_id='', time=self.t)
             cb_bootstrap(self.step, self.step + 1)
             with cb_bootstrap.if_(self.step, "==", self.hist_length):
-                cb_bootstrap.phase_transition("primary")
+                cb_bootstrap.switch_phase("primary")
 
         return DAGCode(
                 phases={

@@ -244,7 +244,7 @@ class StepMatrixFinder(object):
 
     # {{{ exec methods
 
-    def exec_AssignExpression(self, stmt):
+    def exec_Assign(self, stmt):
         self.context[stmt.assignee] = self.eval_mapper(stmt.expression)
 
     def exec_AssignFunctionCall(self, stmt):
@@ -270,7 +270,7 @@ class StepMatrixFinder(object):
     def exec_FailStep(self, stmt):
         raise FailStepException()
 
-    def exec_PhaseTransition(self, stmt):
+    def exec_SwitchPhase(self, stmt):
         pass
 
     # }}}
