@@ -80,5 +80,5 @@ class ImplicitEulerMethod(Method):
 
         builder.yield_state(self.state, self.component_id,
                             self.t + self.dt, 'final')
-        builder.fence()
+        builder.reset_dep_tracking()
         builder.assign(self.t, self.t + self.dt)
