@@ -47,7 +47,7 @@ class LinearODESystemsBase():
 
     def soln_0(self, t):
         raise NotImplementedError
-    
+
     def soln_1(self, t):
         raise NotImplementedError
 

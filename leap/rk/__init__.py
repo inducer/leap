@@ -541,7 +541,8 @@ ORDER_TO_RK_METHOD = {
 
 # {{{ Embedded Runge-Kutta schemes base class
 
-class EmbeddedButcherTableauMethod(ButcherTableauMethod, TwoOrderAdaptiveMethodMixin):
+class EmbeddedButcherTableauMethod(
+        ButcherTableauMethod, TwoOrderAdaptiveMethodMixin):
     """
     User-supplied context:
         <state> + component_id: The value that is integrated
