@@ -3,7 +3,7 @@ from __future__ import division
 
 
 from pymbolic import var
-from leap import TwoOrderAdaptiveMethod
+from leap import TwoOrderAdaptiveMethodMixin
 from leap.rk import ButcherTableauMethod
 
 
@@ -43,7 +43,7 @@ IMEX Methods
 
 
 class KennedyCarpenterIMEXRungeKuttaMethodBase(
-        TwoOrderAdaptiveMethod, ButcherTableauMethod):
+        TwoOrderAdaptiveMethodMixin, ButcherTableauMethod):
     """
     Christopher A. Kennedy, Mark H. Carpenter. Additive Runge-Kutta
     schemes for convection-diffusion-reaction equations.
@@ -61,6 +61,18 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
 
     """
 
+    @property
+    def a_implicit(self):
+        raise NotImplementedError
+
+    @property
+    def high_order_coeffs(self):
+        raise NotImplementedError
+
+    @property
+    def low_order_coeffs(self):
+        raise NotImplementedError
+
     def __init__(self, component_id, use_high_order=True, state_filter_name=None,
             use_explicit=True, use_implicit=True,
             atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None,
@@ -70,7 +82,7 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
-        TwoOrderAdaptiveMethod.__init__(
+        TwoOrderAdaptiveMethodMixin.__init__(
                 self,
                 atol=atol,
                 rtol=rtol,

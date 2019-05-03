@@ -150,7 +150,9 @@ class MultirateTimestepperAccuracyChecker(object):
 
     def show_dag(self):
         from dagrt.language import show_dependency_graph
-        show_dependency_graph(self.get_code())
+        # The value of dt doesn't matter here.
+        dt = 2 ** -6
+        show_dependency_graph(self.get_code(dt))
 
     def plot_solution(self, times, values, soln, label=None):
         import matplotlib.pyplot as pt

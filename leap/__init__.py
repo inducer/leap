@@ -83,7 +83,10 @@ class Method(object):
 
 # {{{ two-order adaptivity
 
-class TwoOrderAdaptiveMethod(Method):
+class TwoOrderAdaptiveMethodMixin(Method):
+    """
+    This class expected the following members to be defined: state, t, dt.
+    """
 
     def __init__(self, atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None):
         self.adaptive = bool(atol or rtol)

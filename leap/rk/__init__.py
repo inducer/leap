@@ -29,7 +29,7 @@ THE SOFTWARE.
 
 import six
 import numpy as np
-from leap import Method, TwoOrderAdaptiveMethod
+from leap import Method, TwoOrderAdaptiveMethodMixin
 from dagrt.language import CodeBuilder, DAGCode
 
 from pymbolic import var
@@ -105,6 +105,22 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 
 class ButcherTableauMethod(Method):
     """Infrastructure to generate code from butcher tableaux."""
+
+    @property
+    def c(self):
+        raise NotImplementedError
+
+    @property
+    def a_explicit(self):
+        raise NotImplementedError
+
+    @property
+    def output_coeffs(self):
+        raise NotImplementedError
+
+    @property
+    def recycle_last_stage_coeff_set_names(self):
+        raise NotImplementedError
 
     def __init__(self, component_id, state_filter_name=None):
 
@@ -525,12 +541,20 @@ ORDER_TO_RK_METHOD = {
 
 # {{{ Embedded Runge-Kutta schemes base class
 
-class EmbeddedButcherTableauMethod(ButcherTableauMethod, TwoOrderAdaptiveMethod):
+class EmbeddedButcherTableauMethod(ButcherTableauMethod, TwoOrderAdaptiveMethodMixin):
     """
     User-supplied context:
         <state> + component_id: The value that is integrated
         <func> + component_id: The right hand side function
     """
+
+    @property
+    def high_order_coeffs(self):
+        raise NotImplementedError
+
+    @property
+    def low_order_coeffs(self):
+        raise NotImplementedError
 
     def __init__(self, component_id, use_high_order=True, state_filter_name=None,
             atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None):
@@ -539,7 +563,7 @@ class EmbeddedButcherTableauMethod(ButcherTableauMethod, TwoOrderAdaptiveMethod)
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
-        TwoOrderAdaptiveMethod.__init__(
+        TwoOrderAdaptiveMethodMixin.__init__(
                 self,
                 atol=atol,
                 rtol=rtol,
