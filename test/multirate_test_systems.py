@@ -45,6 +45,12 @@ class LinearODESystemsBase():
         self.initial_values = np.array([self.soln_0(self.t_start),
             self.soln_1(self.t_start)])
 
+    def soln_0(self, t):
+        raise NotImplementedError
+
+    def soln_1(self, t):
+        raise NotImplementedError
+
 
 class Basic(LinearODESystemsBase):
     """

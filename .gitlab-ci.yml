@@ -57,6 +57,17 @@ Python 3 Examples:
     reports:
       junit: test/pytest.xml
 
+Pylint:
+  script:
+  - export PY_EXE=python3
+  - EXTRA_INSTALL="numpy scipy matplotlib"
+  - curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
+  - ". ./prepare-and-run-pylint.sh leap test/*.py"
+  tags:
+  - python3
+  except:
+  - tags
+
 Documentation:
   script:
   - EXTRA_INSTALL="numpy"

@@ -148,9 +148,9 @@ class MultirateTimestepperAccuracyChecker(object):
             return abs(sqrt(y[0]**2 + y[1]**2)
                     - sqrt(self.ode.soln_0(t)**2 + self.ode.soln_1(t)**2))
 
-    def show_dag(self):
+    def show_dag(self, dt=2**(-6)):
         from dagrt.language import show_dependency_graph
-        show_dependency_graph(self.get_code())
+        show_dependency_graph(self.get_code(dt))
 
     def plot_solution(self, times, values, soln, label=None):
         import matplotlib.pyplot as pt

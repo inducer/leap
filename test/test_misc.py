@@ -55,7 +55,7 @@ def test_strang_splitting(plot_solution=False):
     from pytools.convergence import EOCRecorder
     eocrec = EOCRecorder()
 
-    for dt in 2 ** -np.array(range(4, 7), dtype=np.float64):
+    for dt in 2 ** -np.array(range(4, 7), dtype=np.float64):  # noqa pylint:disable=invalid-unary-operand-type
         interp = python_method_impl_codegen(code, function_map={
             "<func>y1": lambda t, y: 1j*y,
             "<func>y2": lambda t, y: 2j*y,

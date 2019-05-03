@@ -292,7 +292,7 @@ class AdamsBashforthMethod(Method):
                 dt_factor = 1
 
             else:
-                time_hist = list(range(-self.hist_length+1, 0+1))
+                time_hist = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
                 dt_factor = self.dt
                 t_end = 1
 
