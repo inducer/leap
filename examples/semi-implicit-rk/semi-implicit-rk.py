@@ -110,6 +110,7 @@ def demo_rk_implicit():
 
     from leap.implicit import replace_AssignImplicit
     code = replace_AssignImplicit(code, solver_hook)
+    print(code)
 
     from dagrt.codegen import PythonCodeGenerator
     IRKMethod = PythonCodeGenerator("IRKMethod").get_class(code)
