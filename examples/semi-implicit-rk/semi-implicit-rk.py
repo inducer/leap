@@ -3,9 +3,9 @@
 
 Source:
 
-    Kennedy, Christopher A., and Mark H. Carpenter.
-    "Diagonally implicit runge-kutta
-    methods for ordinary differential equations. a review." (2016).
+    Diagonally Implicit Runge–Kutta Methods for Stiff O.D.E.’s
+    Roger Alexander
+    SIAM Journal on Numerical Analysis 1977 14:6, 1006-1021
 
 """
 
