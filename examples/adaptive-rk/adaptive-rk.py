@@ -4,10 +4,10 @@ an order 2/3 method pair.
 
 Source:
 
-    Bogacki, Przemyslaw; Shampine, Lawrence F. (1989),
-    "A 3(2) pair of Runge–Kutta formulas",
-    Applied Mathematics Letters, 2 (4): 321–325,
-    doi:10.1016/0893-9659(89)90079-7.
+    P. Bogacki and L. F. Shampine.
+    A 3(2) pair of Runge-Kutta formulas.
+    Appl. Math. Lett., 2(4):321–325, 1989.
+    doi: 10.1016/0893-9659(89)90079-7.
 
 The same functionality is supported using leap.rk.ODE23Method.
 
@@ -22,7 +22,13 @@ logging.basicConfig(level=logging.INFO)
 
 class KapsProblem(object):
     """
-    From Kennedy and Carpenter, Section 7.1
+    Source: Section 7.1 of
+
+        Christopher A. Kennedy and Mark H. Carpenter.
+        Additive Runge-Kutta schemes for convection-diffusion-reaction
+            equations.
+        Appl. Numer. Math., 44 (1-2):139–181, 2003.
+        doi: 10.1016/S0168-9274(02)00138-1.
 
     y_1' = - (epsilon^{-1} + 2) y_1 + epsilon^{-1} y_2^2
     y_2' = y_1 - y_2 - y_2^2

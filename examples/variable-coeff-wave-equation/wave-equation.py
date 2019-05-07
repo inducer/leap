@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Solves the 1D wave equation
 
-  u_tt = c(x) u_xx
+  u_tt - c(x)^2 u_xx = 0
   u_t(0) = init'
   u(0) = init
 
 with piecewise constant coefficients c(x) using a multirate multistep method.
+
 """
 
 
@@ -64,14 +65,26 @@ class VariableCoeffWaveEquationProblem(object):
     This turns the problem instance into the 1D system
 
          u_t = v
-         v_t = c(x) * u_xx.
-
-    The discretization uses a centered difference stencil. Interface conditions
-    are imposed using a second-order biased stencil.
+         v_t = c(x)^2 * u_xx.
 
     The system state is separated into components, i.e. regions in which c(x)
     is constant. Components are equispaced in the interval (0, 1) and
     correspond to the number of coefficients passed to the constructor.
+
+    The discretization uses a centered difference stencil.
+
+    The interface conditions to the continuous problem require continuity of u
+    and c(x)^2 * u_x at the interfaces.  These conditions are imposed on the
+    discretization using a second-order biased stencil by ensuring that the
+    values at the interface implied by the stencil, when applied from both the
+    left and the right sides, are the same. For more on interface conditions,
+    see
+
+        David L. Brown.
+        A note on the numerical solution of the wave equation with piecewise
+            smooth coefficients.
+        Math. Comp., 42(166):369–391, 1984.
+        doi: 10.2307/2007591.
 
     """
 
