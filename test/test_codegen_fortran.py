@@ -335,7 +335,7 @@ def test_multirate_codegen(min_order, method_name):
             .replace("NUM_TRIPS_ONE", str(num_trips_one))
             .replace("NUM_TRIPS_TWO", str(num_trips_two)))),
         ],
-        fortran_options=["-llapack", "-lblas"])
+        fortran_libraries=["lapack", "blas"])
 
 
 def test_adaptive_rk_codegen():
@@ -457,7 +457,8 @@ def test_singlerate_squarewave(min_order, hist_length):
         ("test_ab_squarewave.f90", read_file("test_ab_squarewave.f90").replace(
             "MIN_ORDER", str(min_order - 0.3)+"d0")),
         ],
-        fortran_options=["-llapack", "-lblas"])
+        fortran_libraries=["lapack", "blas"],
+        )
 
 
 @pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
@@ -558,7 +559,7 @@ def test_multirate_squarewave(min_order, hist_length, method_name):
             .replace("NUM_TRIPS_ONE", str(num_trips_one))
             .replace("NUM_TRIPS_TWO", str(num_trips_two)))),
         ],
-        fortran_options=["-llapack", "-lblas"])
+        fortran_libraries=["lapack", "blas"])
 
 
 if __name__ == "__main__":
