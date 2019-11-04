@@ -6,4 +6,6 @@ import subprocess
 
 
 if __name__ == "__main__":
-    subprocess.check_output(["./wave-equation.py", "-x", "accuracy"], cwd=os.path.dirname(__file__))
+    subprocess.check_output(
+            ["./wave-equation.py", "-x", "accuracy"],
+            cwd=os.path.dirname(__file__))

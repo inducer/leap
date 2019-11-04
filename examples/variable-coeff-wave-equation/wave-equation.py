@@ -697,7 +697,7 @@ def parse_args():
             "   - PAPER_OUTPUT: if set to true, generate paperable outputs"])
 
     parser = argparse.ArgumentParser(
-            description= "Runs one or more experiments.",
+            description="Runs one or more experiments.",
             epilog=epilog,
             formatter_class=argparse.RawDescriptionHelpFormatter)
 
