@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Solves the 1D wave equation
 
   u_tt - c(x)^2 u_xx = 0
@@ -6,15 +6,17 @@
   u(0) = init
 
 with piecewise constant coefficients c(x) using a multirate multistep method.
-
 """
 
 
+import argparse
+import fnmatch
 import logging
+import matplotlib
 import numpy as np
 import numpy.linalg as la
+import os
 
-import matplotlib
 
 from contextlib import contextmanager
 
@@ -22,7 +24,8 @@ from contextlib import contextmanager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-PAPER_OUTPUT = False
+PAPER_OUTPUT = bool(os.environ.get("PAPER_OUTPUT"))
+OUT_DIR = os.environ.get("OUT_DIR", ".")
 
 
 # {{{ matplotlib setup
@@ -392,7 +395,7 @@ def plot_example(ngridpoints):
     axis.set_title("Solution to 1D Wave Equation with Variable Coefficients")
 
     suffix = "pgf" if PAPER_OUTPUT else "pdf"
-    filename = f"wave-problem.{suffix}"
+    filename = os.path.join(OUT_DIR, f"wave-problem.{suffix}")
 
     plt.savefig(filename, bbox_inches="tight")
     logger.info("wrote to '%s'" % filename)
@@ -413,7 +416,7 @@ def timer(name):
         name=name, time=end - start))
 
 
-def generate_mrab_step_matrix(ngridpoints, coeffs, substep_ratio):
+def generate_mrab_step_matrix(ngridpoints, coeffs, substep_ratio, filename):
     problem = VariableCoeffWaveEquationProblem(ngridpoints, coeffs)
 
     code, rhs_map = make_3_component_multirate_method(
@@ -443,17 +446,11 @@ def generate_mrab_step_matrix(ngridpoints, coeffs, substep_ratio):
                 shapes=component_sizes,
                 sparse=True)
 
-        substep_ratio_suffix = "-".join(str(r) for r in substep_ratio)
-
-        filename = f"mat{ngridpoints}-{substep_ratio_suffix}.pkl"
-
         with open(filename, "wb") as outf:
             import pickle
             pickle.dump(mat, outf)
 
-    logging.info(f"{len(mat.data)} nnz, size {mat.shape}")
-
-    return filename
+    logging.info(f"{filename}: {len(mat.data)} nnz, size {mat.shape}")
 
 
 def compute_all_stable_timesteps(filenames, stable_dts_outf):
@@ -493,6 +490,9 @@ def compute_all_stable_timesteps(filenames, stable_dts_outf):
         rows.append(row)
 
     print(tabulate(rows, col_fmt="cSc"), file=stable_dts_outf)
+
+    if hasattr(stable_dts_outf, "name"):
+        logger.info("Wrote '%s'", stable_dts_outf.name)
 
 
 def compute_stable_timestep(step_matrix, tol=0, prec=1e-15):
@@ -593,6 +593,9 @@ def multirate_accuracy_experiment(errors_outf):
             tabulate(rows, col_fmt="S" * (1 + len(substep_ratios))),
             file=errors_outf)
 
+    if hasattr(errors_outf, "name"):
+        logger.info("Wrote '%s'", errors_outf.name)
+
 # }}}
 
 
@@ -629,59 +632,137 @@ else:
     tabulate = tabulate_ascii
 
 
-@contextmanager
 def open_or_stdout(filename):
     if not PAPER_OUTPUT:
         import sys
-        yield sys.stdout
+        return sys.stdout
     else:
-        with open(filename, "w") as outf:
-            logger.info("opened '%s' for writing", filename)
-            yield outf
+        return open(filename, "w")
+
+
+# {{{ experimental drivers
+
+def run_plot_experiment():
+    # Plot an example solution.
+    plot_example(1000)
+
+
+def run_accuracy_experiment():
+    errors_outf = open_or_stdout("mrab-errors.tex")
+    multirate_accuracy_experiment(errors_outf)
+
+
+def run_stability_experiment():
+    # Generate stability results.
+    # Generating the step matrices takes a long time.
+    step_ratios = (
+            (1, 1, 1),
+            (1, 2, 2),
+            (1, 2, 4),
+            (1, 2, 6),
+    )
+
+    filenames = []
+
+    ngridpoints = 100
+
+    for step_ratio in step_ratios:
+        filename = os.path.join(
+                OUT_DIR,
+                "mat%d-%d-%d-%d.pkl" % ((ngridpoints,) + step_ratio))
+
+        if not os.path.exists(filename):
+            generate_mrab_step_matrix(
+                    ngridpoints, (16, 4, 1), step_ratio, filename)
+        else:
+            logger.info("using saved step matrix '%s'" % filename)
+
+        filenames.append(filename)
+
+    stable_dts_outf = open_or_stdout("mrab-stable-dts.tex")
+    compute_all_stable_timesteps(filenames, stable_dts_outf)
+
+# }}}
+
+
+EXPERIMENTS = ("plot", "accuracy", "stability")
+
+
+def parse_args():
+    names = ["  - '%s'" % name for name in EXPERIMENTS]
+    epilog = "\n".join(["experiment names:"] + names)
+    epilog += "\n".join([
+            "\n\nenvironment variables:",
+            "   - OUT_DIR: output path (default '.')",
+            "   - PAPER_OUTPUT: if set to true, generate paperable outputs"])
+
+    parser = argparse.ArgumentParser(
+            description= "Runs one or more experiments.",
+            epilog=epilog,
+            formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    parser.add_argument(
+            "-x",
+            metavar="experiment-name",
+            action="append",
+            dest="experiments",
+            default=[],
+            help="Adds an experiment to the list to be run "
+                 "(accepts wildcards) (may be given multiple times)")
+
+    parser.add_argument(
+            "--all",
+            action="store_true",
+            dest="run_all",
+            help="Runs all experiments")
+
+    parser.add_argument(
+            "--except",
+            action="append",
+            metavar="experiment-name",
+            dest="run_except",
+            default=[],
+            help="Removes an experiment from the list to be run "
+                 "(accepts wildcards) (may be given multiple times)")
+
+    parse_result = parser.parse_args()
+
+    result = set()
+
+    if parse_result.run_all:
+        result = set(EXPERIMENTS)
+
+    for experiment in EXPERIMENTS:
+        for pat in parse_result.experiments:
+            if fnmatch.fnmatch(experiment, pat):
+                result.add(experiment)
+                continue
+
+    to_discard = set()
+    for experiment in EXPERIMENTS:
+        for pat in parse_result.run_except:
+            if fnmatch.fnmatch(experiment, pat):
+                to_discard.add(experiment)
+                continue
+    result -= to_discard
+
+    return result
 
 
 def main():
-    if 0:
-        # Plot an example solution.
-        plot_example(1000)
+    experiments = parse_args()
 
-    elif 0:
-        # Generate stability results.
-        # Generating the step matrices takes a long time.
+    if "plot" in experiments:
+        run_plot_experiment()
 
-        step_ratios = (
-                (1, 1, 1),
-                (1, 2, 2),
-                (1, 2, 4),
-                (1, 2, 6),
-        )
+    if "accuracy" in experiments:
+        run_accuracy_experiment()
 
-        filenames = []
-
-        ngridpoints = 100
-
-        for step_ratio in step_ratios:
-            filename = "mat%d-%d-%d-%d.pkl" % ((ngridpoints,) + step_ratio)
-
-            import os
-            if not os.path.exists(filename):
-                filename = generate_mrab_step_matrix(
-                        ngridpoints, (16, 4, 1), step_ratio)
-            else:
-                logger.info("using saved step matrix '%s'" % filename)
-
-            filenames.append(filename)
-
-        with open_or_stdout("mrab-stable-dts.tex") as stable_dts_outf:
-            compute_all_stable_timesteps(filenames, stable_dts_outf)
-
-    elif 1:
-        # Accuracy results
-        with open_or_stdout("mrab-errors.tex") as errors_outf:
-            multirate_accuracy_experiment(errors_outf)
+    if "stability" in experiments:
+        run_stability_experiment()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
 
 # vim: foldmethod=marker
