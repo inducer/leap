@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Solves the 1D wave equation
 
   u_tt - c(x)^2 u_xx = 0
