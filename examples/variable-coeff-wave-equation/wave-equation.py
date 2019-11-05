@@ -24,7 +24,7 @@ from contextlib import contextmanager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-PAPER_OUTPUT = bool(os.environ.get("PAPER_OUTPUT"))
+PAPER_OUTPUT = int(os.environ.get("PAPER_OUTPUT", 0))
 OUT_DIR = os.environ.get("OUT_DIR", ".")
 
 
