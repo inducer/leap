@@ -580,7 +580,7 @@ def multirate_accuracy_experiment(errors_outf):
         rows.append(row)
 
     if PAPER_OUTPUT:
-        rows.append([r"\midrow"])
+        rows.append([r"\midrule"])
         row = [r"\multicolumn{1}{l}{Order}"]
         for s in substep_ratios:
             row.append(f"{eocs[s].order_estimate():.2f}")
