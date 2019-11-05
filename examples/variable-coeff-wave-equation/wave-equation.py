@@ -42,7 +42,6 @@ LINEWIDTH = 0.5
 
 
 def initialize_matplotlib():
-    plt.rc("pgf", texsystem="pdflatex")
     plt.rc("font", family="serif")
     plt.rc("text", usetex=False)
     plt.rc("xtick", labelsize=FONTSIZE)
