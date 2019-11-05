@@ -476,7 +476,9 @@ def compute_all_stable_timesteps(filenames, stable_dts_outf):
 
         intervals = tuple(
                 int(i) for i in
-                re.match(r"mat\d+-(\d+)-(\d+)-(\d+)\.pkl", fname).groups())
+                re.match(
+                    r"mat\d+-(\d+)-(\d+)-(\d+)\.pkl",
+                    os.path.basename(fname)).groups())
 
         row = [str(intervals), f"{dt:.2e}"]
 
