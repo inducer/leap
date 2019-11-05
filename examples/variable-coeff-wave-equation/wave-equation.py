@@ -639,7 +639,7 @@ def open_or_stdout(filename):
         import sys
         return sys.stdout
     else:
-        return open(filename, "w")
+        return open(os.path.join(OUT_DIR, filename), "w")
 
 
 # {{{ experimental drivers
