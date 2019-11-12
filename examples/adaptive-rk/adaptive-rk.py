@@ -140,7 +140,6 @@ def demo_rk_adaptive():
         # Update dt based on the error estimate
         err_est = norm(y_lo - y_hi)
         order = 3
-        cb.reset_dep_tracking()
         cb(dt, 0.9 * dt * (tol / err_est) ** (1 / order))
         # Adapt the step size
         with cb.if_(err_est, "<=", tol):

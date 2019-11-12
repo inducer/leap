@@ -51,13 +51,13 @@ def replace_AssignImplicit(dag, solver_hooks):
         from collections import defaultdict
         solver_hooks = defaultdict(lambda: hook)
 
-    new_statements = []
-
     from dagrt.language import Assign, AssignImplicit
 
     new_phases = {}
 
     for phase_name, phase in dag.phases.items():
+        new_statements = []
+
         for stmt in phase.statements:
 
             if not isinstance(stmt, AssignImplicit):

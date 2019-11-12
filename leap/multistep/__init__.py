@@ -135,8 +135,6 @@ def _emit_func_family_operation(cb, name_gen,
             for j in range(len(function_family)*len(function_family)):
                 cb(sig_array[j], 0)
 
-            cb.reset_dep_tracking()
-
             for i in range(len(function_family)):
                 cb(sig_array[i*(nfunctions+1)], sigma[i]**-1)
 
@@ -297,7 +295,6 @@ class AdamsBashforthMethod(Method):
                 t_end = 1
 
             cb_primary(rhs_var, self.eval_rhs(self.t, self.state))
-            cb_primary.reset_dep_tracking()
             history = self.history + [rhs_var]
 
             ab_sum = emit_ab_integration(
@@ -313,13 +310,11 @@ class AdamsBashforthMethod(Method):
 
             # Rotate history and time history.
             for i in range(self.hist_length - 1):
-                cb_primary.reset_dep_tracking()
                 cb_primary(self.history[i], history[i + 1])
 
                 if not self.static_dt:
                     cb_primary(self.time_history[i], time_history_data[i + 1])
 
-                cb_primary.reset_dep_tracking()
             cb_primary(self.t, self.t + self.dt)
             cb_primary.yield_state(expression=self.state,
                                    component_id=self.component_id,
@@ -400,7 +395,6 @@ class AdamsBashforthMethod(Method):
 
         # Merge the values of the RHSs.
         rk_comb = sum(coeff * rhss[j] for j, coeff in enumerate(rk_coeffs))
-        cb.reset_dep_tracking()
 
         state_est = self.state + self.dt * rk_comb
         if self.state_filter is not None:

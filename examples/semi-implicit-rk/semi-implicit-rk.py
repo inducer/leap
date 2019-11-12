@@ -90,7 +90,6 @@ def demo_rk_implicit():
             solve_component=k2,
             expression=k2 - f(t + dt, y + dt * ((1 - gamma) * k1 + gamma * k2)),  # noqa
             guess=k1)
-        cb.reset_dep_tracking()
         cb(y, y + dt * ((1 - gamma) * k1 + gamma * k2))
         cb(t, t + dt)
         cb.yield_state(y, "y", t, None)

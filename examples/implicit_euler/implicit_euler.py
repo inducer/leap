@@ -53,9 +53,7 @@ class ImplicitEulerMethod(Method):
         with CodeBuilder(label="primary") as cb:
             self._make_primary(cb)
 
-        code = DAGCode.create_with_steady_phase(
-            dep_on=cb.phase_dependencies,
-            statements=cb.statements)
+        code = DAGCode.create_with_steady_phase(statements=cb.statements)
 
         from leap.implicit import replace_AssignImplicit
 
@@ -80,5 +78,4 @@ class ImplicitEulerMethod(Method):
 
         builder.yield_state(self.state, self.component_id,
                             self.t + self.dt, 'final')
-        builder.reset_dep_tracking()
         builder.assign(self.t, self.t + self.dt)

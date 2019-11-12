@@ -152,7 +152,6 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
 
         cb(self.state, est)
         cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
-        cb.reset_dep_tracking()
         cb(self.t, self.t + self.dt)
 
 
