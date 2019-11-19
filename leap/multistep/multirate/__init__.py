@@ -539,8 +539,6 @@ class MultiRateMultiStepMethod(Method):
 
                 # }}}
 
-        cb.reset_dep_tracking()
-
         component_state_ests = {}
 
         for icomp, (comp_name, component_rhss) in enumerate(
@@ -576,8 +574,6 @@ class MultiRateMultiStepMethod(Method):
 
             component_state_ests[comp_name] = state_var
 
-        cb.reset_dep_tracking()
-
         for component_name in self.component_names:
             state = component_state_ests[component_name]
             if self.is_ode_component[component_name]:
@@ -587,8 +583,6 @@ class MultiRateMultiStepMethod(Method):
                         "bootstrap")
 
             cb(var("<state>"+component_name), state)
-
-        cb.reset_dep_tracking()
 
         cb(self.t, self.t + self.dt/self.nsubsteps)
 
@@ -712,18 +706,13 @@ class MultiRateMultiStepMethod(Method):
 
             # }}}
 
-            cb.reset_dep_tracking()
-
             if isubstep == 0:
                 with cb.if_(self.bootstrap_step, "==", bootstrap_steps):
                     cb.switch_phase("primary")
                     cb.restart_step()
 
-            cb.reset_dep_tracking()
-
             self.emit_small_rk_step(cb, name_prefix, name_gen, current_rhss)
 
-        cb.reset_dep_tracking()
         cb(self.bootstrap_step, self.bootstrap_step + 1)
 
         return cb
@@ -1081,15 +1070,11 @@ class MultiRateMultiStepMethod(Method):
 
         # }}}
 
-        cb.reset_dep_tracking()
-
         log_hist_state()
 
         end_states = [
             get_state(component_name, self.nsubsteps)
             for component_name in self.component_names]
-
-        cb.reset_dep_tracking()
 
         # {{{ commit temp history to permanent history
 
@@ -1104,13 +1089,11 @@ class MultiRateMultiStepMethod(Method):
                                 temp_time_vars[comp_name,
                                     irhs][-rhs.history_length:]):
                             cb(time_var, time_expr)
-                            cb.reset_dep_tracking()
 
                     for hist_var, hist_expr in zip(
                             self.history_vars[key],
                             temp_hist_vars[comp_name, irhs][-rhs.history_length:]):
                         cb(hist_var, hist_expr)
-                        cb.reset_dep_tracking()
 
         commit_temp_hist_vars()
 
@@ -1124,8 +1107,6 @@ class MultiRateMultiStepMethod(Method):
                         component_name, self.t + self.dt, "final")
 
             cb(var("<state>"+component_name), state)
-
-        cb.reset_dep_tracking()
 
         cb(self.t, self.t + self.dt)
 

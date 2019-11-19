@@ -135,21 +135,18 @@ def strang_splitting(dag1, dag2, stepping_phase):
             """
             new_phases[phase_name] = ExecutionPhase(
                     next_phase=s2_name,
-                    depends_on=phase1.depends_on,
                     statements=(
                         _update_t_by_dt_factor(0,
                             _elide_yield_state(
                                 phase1_half_dt))))
             new_phases[s2_name] = ExecutionPhase(
                     next_phase=s3_name,
-                    depends_on=phase2.depends_on,
                     statements=(
                         _update_t_by_dt_factor(1/2,
                             _elide_yield_state(
                                 substed_s2_stmts))))
             new_phases[s3_name] = ExecutionPhase(
                     next_phase=phase1.next_phase,
-                    depends_on=phase1.depends_on,
                     statements=phase1_half_dt)
         else:
             from dagrt.transform import fuse_two_phases

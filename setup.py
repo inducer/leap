@@ -45,7 +45,7 @@ def main():
               "pytools>=2014.1",
               "pymbolic>=2014.1",
               "pytest>=2.3",
-              "dagrt>=2019.2",
+              "dagrt>=2019.3",
               "mako",
               "six",
               ],

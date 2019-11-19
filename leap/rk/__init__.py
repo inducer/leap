@@ -336,8 +336,6 @@ class ButcherTableauMethod(Method):
                         estimate_vars[iest],
                         state_est)
 
-            cb.reset_dep_tracking()
-
             # This updates <t>.
             self.finish(cb, estimate_coeff_set_names, estimate_vars)
 
@@ -349,8 +347,6 @@ class ButcherTableauMethod(Method):
                         and _is_first_stage_same_as_last_stage(
                             self.c, stage_coeff_sets[name])):
                     cb(last_rhss[name], stage_rhs_vars[name][-1])
-
-            cb.reset_dep_tracking()
 
         cb_primary = cb
 
@@ -366,7 +362,6 @@ class ButcherTableauMethod(Method):
     def finish(self, cb, estimate_names, estimate_vars):
         cb(self.state, estimate_vars[0])
         cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
-        cb.reset_dep_tracking()
         cb(self.t, self.t + self.dt)
 
 # }}}
@@ -612,7 +607,6 @@ class EmbeddedButcherTableauMethod(
 
         cb(self.state, est)
         cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
-        cb.reset_dep_tracking()
         cb(self.t, self.t + self.dt)
 
 # }}}
@@ -776,7 +770,6 @@ class LSRK4Method(Method):
 
         with CodeBuilder("primary") as cb:
             for a, b, c in self.coeffs:
-                cb.reset_dep_tracking()
                 cb(rhs_val, rhs_func(t=t + c*dt, **{comp_id: state}))
                 cb(residual, a*residual + dt*rhs_val)
                 new_state_expr = state + b * residual
@@ -784,11 +777,9 @@ class LSRK4Method(Method):
                 if self.state_filter is not None:
                     new_state_expr = self.state_filter(**{comp_id: new_state_expr})
 
-                cb.reset_dep_tracking()
                 cb(state, new_state_expr)
 
             cb.yield_state(state, comp_id, t + dt, 'final')
-            cb.reset_dep_tracking()
             cb(t, t + dt)
 
         cb_primary = cb

@@ -144,13 +144,11 @@ class TwoOrderAdaptiveMethodMixin(Method):
                 cb.raise_(TimeStepUnderflow)
             with cb.else_():
                 cb.fail_step()
-                cb.reset_dep_tracking()
 
         with cb.else_():
             # This updates <t>: <dt> should not be set before this is called.
             self.finish_nonadaptive(cb, high_order_estimate, low_order_estimate)
 
-            cb.reset_dep_tracking()
             cb(self.dt,
                Min((0.9 * self.dt * rel_error ** (-1 / self.high_order),
                     self.max_dt_growth * self.dt)))
