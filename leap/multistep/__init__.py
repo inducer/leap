@@ -272,11 +272,11 @@ class AdamsBashforthMethod(Method):
         rhs_var = var("rhs_var")
 
         # Initialization
-        with CodeBuilder(label="initialization") as cb_init:
+        with CodeBuilder(name="initialization") as cb_init:
             cb_init(self.step, 1)
 
         # Primary
-        with CodeBuilder(label="primary") as cb_primary:
+        with CodeBuilder(name="primary") as cb_primary:
 
             if not self.static_dt:
                 time_history_data = self.time_history + [self.t]
@@ -330,7 +330,7 @@ class AdamsBashforthMethod(Method):
                 initial_phase="initial")
 
         # Bootstrap
-        with CodeBuilder(label="bootstrap") as cb_bootstrap:
+        with CodeBuilder(name="bootstrap") as cb_bootstrap:
             self.rk_bootstrap(cb_bootstrap)
             cb_bootstrap(self.t, self.t + self.dt)
             cb_bootstrap.yield_state(expression=self.state,

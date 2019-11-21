@@ -79,7 +79,7 @@ def demo_rk_implicit():
 
     gamma = (2 - 2**0.5) / 2
 
-    with CodeBuilder() as cb:
+    with CodeBuilder("primary") as cb:
         cb.assign_implicit_1(
             k1,
             solve_component=k1,

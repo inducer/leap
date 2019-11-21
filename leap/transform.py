@@ -134,18 +134,21 @@ def strang_splitting(dag1, dag2, stepping_phase):
             4. Return u3
             """
             new_phases[phase_name] = ExecutionPhase(
+                    name=phase_name,
                     next_phase=s2_name,
                     statements=(
                         _update_t_by_dt_factor(0,
                             _elide_yield_state(
                                 phase1_half_dt))))
             new_phases[s2_name] = ExecutionPhase(
+                    name=s2_name,
                     next_phase=s3_name,
                     statements=(
                         _update_t_by_dt_factor(1/2,
                             _elide_yield_state(
                                 substed_s2_stmts))))
             new_phases[s3_name] = ExecutionPhase(
+                    name=s3_name,
                     next_phase=phase1.next_phase,
                     statements=phase1_half_dt)
         else:

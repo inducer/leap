@@ -50,10 +50,12 @@ class ImplicitEulerMethod(Method):
         """Return code that implements the implicit Euler method for the single
         state component supported."""
 
-        with CodeBuilder(label="primary") as cb:
+        with CodeBuilder(name="primary") as cb:
             self._make_primary(cb)
 
-        code = DAGCode.create_with_steady_phase(statements=cb.statements)
+        code = DAGCode.from_phases_list(
+                [cb.as_execution_phase(next_phase="primary")],
+                initial_phase="primary")
 
         from leap.implicit import replace_AssignImplicit
 

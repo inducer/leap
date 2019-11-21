@@ -126,7 +126,7 @@ def demo_rk_adaptive():
         var(name) for name in
         "k1 k2 k3 k4 <t> <dt> dt_old <state>y y_hi y_lo <func>f <builtin>norm_inf".split())  # noqa
 
-    with CodeBuilder() as cb:
+    with CodeBuilder("primary") as cb:
         # Calculate the RK stage values
         cb(k1, f(t, y))
         cb(k2, f(t + 1/2 * dt, y + dt * (1/2 * k1)))
