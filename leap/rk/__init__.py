@@ -172,7 +172,7 @@ class ButcherTableauMethod(Method):
 
         last_rhss = {}
 
-        with CodeBuilder(label="initialization") as cb:
+        with CodeBuilder(name="initialization") as cb:
             for name in stage_coeff_set_names:
                 if (
                         name in self.recycle_last_stage_coeff_set_names
@@ -203,7 +203,7 @@ class ButcherTableauMethod(Method):
         last_state_est_var = cb.fresh_var("last_state_est")
         last_state_est_var_valid = False
 
-        with CodeBuilder(label="primary") as cb:
+        with CodeBuilder(name="primary") as cb:
             equations = []
             unknowns = set()
 

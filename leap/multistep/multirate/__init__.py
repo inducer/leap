@@ -1125,13 +1125,13 @@ class MultiRateMultiStepMethod(Method):
 
         from dagrt.language import DAGCode, CodeBuilder
 
-        with CodeBuilder(label="initialization") as cb_init:
+        with CodeBuilder(name="initialization") as cb_init:
             self.emit_initialization(cb_init)
 
-        with CodeBuilder(label="primary") as cb_primary:
+        with CodeBuilder(name="primary") as cb_primary:
             self.emit_ab_method(cb_primary, explainer)
 
-        with CodeBuilder(label="bootstrap") as cb_bootstrap:
+        with CodeBuilder(name="bootstrap") as cb_bootstrap:
             self.emit_rk_bootstrap(cb_bootstrap)
 
         return DAGCode(
