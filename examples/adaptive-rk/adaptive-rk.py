@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """This example demonstrates direct construction of an adaptive RK method using
 an order 2/3 method pair.
 
