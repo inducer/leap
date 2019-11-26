@@ -9,4 +9,4 @@ import subprocess
 
 
 if __name__ == "__main__":
-    subprocess.run(["./wave-equation.py", "-x", "accuracy"])
+    subprocess.call(["./wave-equation.py", "-x", "accuracy"])
