@@ -65,7 +65,7 @@ jobs:
             set -e
             EXTRA_INSTALL="numpy matplotlib scipy"
             sudo apt update
-            sudo apt install gfortran-7 liblapack-dev libblas-dev python-tk
+            sudo apt install gfortran-7 liblapack-dev libblas-dev
             sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
             curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-py-project-and-run-examples.sh
             . ./build-py-project-and-run-examples.sh

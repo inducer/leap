@@ -34,7 +34,8 @@ OUT_DIR = os.environ.get("OUT_DIR", ".")
 
 if PAPER_OUTPUT:
     matplotlib.use("pgf")
-
+else:
+    matplotlib.use("agg")
 
 import matplotlib.pyplot as plt  # noqa
 
