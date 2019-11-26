@@ -9,9 +9,7 @@
 with piecewise constant coefficients c(x) using a multirate multistep method.
 """
 
-
-from __future__ import print_function
-
+from __future__ import division, print_function
 
 import argparse
 import fnmatch

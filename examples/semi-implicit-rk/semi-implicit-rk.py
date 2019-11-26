@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """This example demonstrates direct construction of a semi-implicit RK method.
 
 Source:
@@ -11,6 +10,8 @@ Source:
     doi: 10.1137/0714068.
 
 """
+
+from __future__ import division, print_function
 
 import numpy as np
 import logging
