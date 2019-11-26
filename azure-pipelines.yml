@@ -25,8 +25,9 @@ jobs:
         script: |
             set -e
             EXTRA_INSTALL="numpy"
+            sudo apt update
             sudo apt install gfortran-7 liblapack-dev libblas-dev
-            sudo ln -s /usr/bin/gfortran-7 /usr/bin/gfortran
+            sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
             curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-and-test-py-project.sh
             . ./build-and-test-py-project.sh
 
@@ -63,25 +64,21 @@ jobs:
         script: |
             set -e
             EXTRA_INSTALL="numpy"
+            sudo apt update
             sudo apt install gfortran-7 liblapack-dev libblas-dev
-            sudo ln -s /usr/bin/gfortran-7 /usr/bin/gfortran
+            sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
             curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/build-py-project-and-run-examples.sh
             . ./build-py-project-and-run-examples.sh
 
-        displayName: 'Pytest'
+        displayName: 'RunExamples'
 
-    -
-        task: PublishTestResults@2
-        inputs:
-            testResultsFormat: 'JUnit'
-            testResultsFiles: 'test/pytest.xml'
 -
     job: 'Flake8'
     pool:
         vmImage: 'ubuntu-latest'
     strategy:
         matrix:
-            Python37:
+            Python38:
                 python.version: '3.8'
 
     steps:
