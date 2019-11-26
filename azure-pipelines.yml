@@ -63,7 +63,7 @@ jobs:
     -
         script: |
             set -e
-            EXTRA_INSTALL="numpy matplotlib"
+            EXTRA_INSTALL="numpy matplotlib scipy"
             sudo apt update
             sudo apt install gfortran-7 liblapack-dev libblas-dev
             sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
