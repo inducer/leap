@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# coding: utf-8
+# -*- coding: utf-8 -*-
 """Solves the 1D wave equation
 
   u_tt - c(x)^2 u_xx = 0
