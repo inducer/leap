@@ -5,7 +5,7 @@ Source:
 
     Roger Alexander.
     Diagonally implicit Runge–Kutta methods for stiff O.D.E.'s.
-    SIAM Journal on Numerical Analysis, 14(6):1006–1021, 1977.
+    SIAM Journal on Numerical Analysis, 14(6):1006--1021, 1977.
     doi: 10.1137/0714068.
 
 """
