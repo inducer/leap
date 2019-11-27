@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """Solves the 1D wave equation
 
   u_tt - c(x)^2 u_xx = 0
@@ -8,6 +9,7 @@
 with piecewise constant coefficients c(x) using a multirate multistep method.
 """
 
+from __future__ import division, print_function
 
 import argparse
 import fnmatch
@@ -32,7 +34,8 @@ OUT_DIR = os.environ.get("OUT_DIR", ".")
 
 if PAPER_OUTPUT:
     matplotlib.use("pgf")
-
+else:
+    matplotlib.use("agg")
 
 import matplotlib.pyplot as plt  # noqa
 
@@ -395,7 +398,7 @@ def plot_example(ngridpoints):
     axis.set_title("Solution to 1D Wave Equation with Variable Coefficients")
 
     suffix = "pgf" if PAPER_OUTPUT else "pdf"
-    filename = os.path.join(OUT_DIR, f"wave-problem.{suffix}")
+    filename = os.path.join(OUT_DIR, "wave-problem.%s" % suffix)
 
     plt.savefig(filename, bbox_inches="tight")
     logger.info("wrote to '%s'" % filename)
@@ -432,11 +435,11 @@ def generate_mrab_step_matrix(ngridpoints, coeffs, substep_ratio, filename):
         component_sizes = {}
         for var in finder.variables:
             for i in range(problem.ncomponents):
-                if f"comp{i}" in var:
+                if "comp%d" % i in var:
                     component_sizes[var] = problem.component_sizes[i]
                     break
             else:
-                raise ValueError(f"cannot infer size of variable: {var}")
+                raise ValueError("cannot infer size of variable: %s" % var)
 
         import pprint
         pprint.pprint(component_sizes)
@@ -450,7 +453,7 @@ def generate_mrab_step_matrix(ngridpoints, coeffs, substep_ratio, filename):
             import pickle
             pickle.dump(mat, outf)
 
-    logging.info(f"{filename}: {len(mat.data)} nnz, size {mat.shape}")
+    logging.info("%s: %d nnz, size %s", filename, len(mat.data), mat.shape)
 
 
 def compute_all_stable_timesteps(filenames, stable_dts_outf):
@@ -480,13 +483,13 @@ def compute_all_stable_timesteps(filenames, stable_dts_outf):
                     r"mat\d+-(\d+)-(\d+)-(\d+)\.pkl",
                     os.path.basename(fname)).groups())
 
-        row = [str(intervals), f"{dt:.2e}"]
+        row = [str(intervals), "%.2e" % dt]
 
         if first:
             row.append("---")
         else:
             ratio = dt / dt_1
-            row.append(f"{ratio:.1f}")
+            row.append("%.1f" % ratio)
 
         first = False
         rows.append(row)
@@ -512,7 +515,7 @@ def compute_stable_timestep(step_matrix, tol=0, prec=1e-15):
         mat = as_dense(evaluate_mat({"<dt>": dt}))
         eigvals = la.eigvals(mat)
         radius = np.max(np.abs(eigvals))
-        logging.info(f"{dt} -> spectral radius {radius}")
+        logging.info("%s -> spectral radius %s", dt, radius)
         return radius
 
     def is_stable(dt):
@@ -564,32 +567,30 @@ def multirate_accuracy_experiment(errors_outf):
     rows = []
     rows.append(
             [r"$\Delta t_\text{fast}$"]
-            + [f"{substep}" for substep in substep_ratios])
+            + [str(substep) for substep in substep_ratios])
 
     from pytools.convergence import EOCRecorder
     eocs = {s: EOCRecorder() for s in substep_ratios}
 
     for i_dt, dt in enumerate(dts_orig[:-1]):
-        row = [f"{dt:.2e}"]
+        row = ["%.2e" % dt]
         for substep_ratio in substep_ratios:
             ref_result = results_by_substep_ratio[substep_ratio][-1]
             result = results_by_substep_ratio[substep_ratio][i_dt]
             error = la.norm(result - ref_result, ord=np.inf)
-            row.append(f"{error:.2e}")
+            row.append("%.2e" % error)
             eocs[substep_ratio].add_data_point(dt, error)
         rows.append(row)
 
     if PAPER_OUTPUT:
         rows.append([r"\midrule"])
         row = [r"\multicolumn{1}{l}{Order}"]
-        for s in substep_ratios:
-            row.append(f"{eocs[s].order_estimate():.2f}")
-        rows.append(row)
     else:
         row = ["Order"]
-        for s in substep_ratios:
-            row.append(f"{eocs[s].order_estimate():.2f}")
-        rows.append(row)
+
+    for s in substep_ratios:
+        row.append("%.2f" % eocs[s].order_estimate())
+    rows.append(row)
 
     print(
             tabulate(rows, col_fmt="S" * (1 + len(substep_ratios))),
@@ -605,7 +606,7 @@ def multirate_accuracy_experiment(errors_outf):
 
 def tabulate_latex(rows, col_fmt):
     result = []
-    result.append(f"\\begin{{tabular}}{{{col_fmt}}}")
+    result.append(r"\begin{tabular}{%s}" % col_fmt)
     result.append(r"\toprule")
     result.append(
         " & ".join((r"\multicolumn{1}{c}{%s}" % t) for t in rows[0]) + r"\\")

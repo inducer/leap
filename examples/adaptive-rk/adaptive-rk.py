@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """This example demonstrates direct construction of an adaptive RK method using
 an order 2/3 method pair.
@@ -13,6 +13,8 @@ Source:
 The same functionality is supported using leap.rk.ODE23Method.
 
 """
+
+from __future__ import division, print_function
 
 import logging
 import numpy as np

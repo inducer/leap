@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Runs a multirate accuracy experiment for the 1D wave equation
 
 (This file is here to run the code as a CI job. See the file wave-equation.py
@@ -9,4 +9,4 @@ import subprocess
 
 
 if __name__ == "__main__":
-    subprocess.run(["./wave-equation.py", "-x", "accuracy"])
+    subprocess.check_call(["./wave-equation.py", "-x", "accuracy"])
