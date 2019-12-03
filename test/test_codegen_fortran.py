@@ -76,7 +76,7 @@ def test_rk_codegen(min_order, stepper, print_code=False):
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'RKMethodBuilder',
+            "RKMethod",
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
@@ -174,7 +174,7 @@ def test_rk_codegen_fancy():
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'RKMethodBuilder',
+            "RKMethod",
             user_type_map={
                 component_id: f.ArrayType(
                     "region%n_grids",
@@ -363,7 +363,7 @@ def test_adaptive_rk_codegen():
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'RKMethodBuilder',
+            "RKMethod",
             user_type_map={
                 "y": f.ArrayType(
                     (2,),
@@ -400,7 +400,7 @@ def test_adaptive_rk_codegen_error():
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'RKMethodBuilder',
+            "RKMethod",
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
@@ -437,7 +437,7 @@ def test_singlerate_squarewave(min_order, hist_length):
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'ABMethodBuilder',
+            "ABMethod",
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
@@ -522,7 +522,7 @@ def test_multirate_squarewave(min_order, hist_length, method_name):
           """))
 
     codegen = f.CodeGenerator(
-            'MRAB',
+            "MRAB",
             user_type_map={
                 "slow": f.ArrayType(
                     (1,),
