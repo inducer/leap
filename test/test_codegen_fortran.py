@@ -299,7 +299,7 @@ def test_multirate_codegen(min_order, method_name):
                 """))
 
     codegen = f.CodeGenerator(
-            'MRAB',
+            "MRAB",
             user_type_map={
                 "slow": f.ArrayType(
                     (1,),
