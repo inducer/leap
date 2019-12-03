@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 import sys
 import pytest
-from leap.multistep import AdamsBashforthMethod
+from leap.multistep import AdamsBashforthMethodBuilder
 
 from utils import (  # noqa
         python_method_impl_interpreter as pmi_int,
@@ -34,11 +34,11 @@ from utils import (  # noqa
 
 
 @pytest.mark.parametrize(("method", "expected_order"), [
-    (AdamsBashforthMethod("y", order, static_dt=static_dt), order)
+    (AdamsBashforthMethodBuilder("y", order, static_dt=static_dt), order)
     for order in [1, 3, 5]
     for static_dt in [True, False]
     ] + [
-    (AdamsBashforthMethod("y", order, hist_length=order+1,
+    (AdamsBashforthMethodBuilder("y", order, hist_length=order+1,
         static_dt=static_dt), order)
     for order in [1, 3, 5]
     for static_dt in [True, False]

@@ -3,8 +3,8 @@ from __future__ import division
 
 
 from pymbolic import var
-from leap import TwoOrderAdaptiveMethodMixin
-from leap.rk import ButcherTableauMethod
+from leap import TwoOrderAdaptiveMethodBuilderMixin
+from leap.rk import ButcherTableauMethodBuilder
 
 
 __copyright__ = """
@@ -35,15 +35,15 @@ THE SOFTWARE.
 
 __doc__ = """
 
-IMEX Methods
+IMEX MethodBuilders
 ------------
 
-.. autoclass :: KennedyCarpenterIMEXRungeKuttaMethodBase
+.. autoclass :: KennedyCarpenterIMEXRungeKuttaMethodBuilderBase
 """
 
 
-class KennedyCarpenterIMEXRungeKuttaMethodBase(
-        TwoOrderAdaptiveMethodMixin, ButcherTableauMethod):
+class KennedyCarpenterIMEXRungeKuttaMethodBuilderBase(
+        TwoOrderAdaptiveMethodBuilderMixin, ButcherTableauMethodBuilder):
     """
     Christopher A. Kennedy, Mark H. Carpenter. Additive Runge-Kutta
     schemes for convection-diffusion-reaction equations.
@@ -77,12 +77,12 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
             use_explicit=True, use_implicit=True,
             atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None,
             implicit_rhs_name=None, explicit_rhs_name=None):
-        ButcherTableauMethod.__init__(
+        ButcherTableauMethodBuilder.__init__(
                 self,
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
-        TwoOrderAdaptiveMethodMixin.__init__(
+        TwoOrderAdaptiveMethodBuilderMixin.__init__(
                 self,
                 atol=atol,
                 rtol=rtol,
@@ -135,7 +135,7 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
 
     def finish(self, cb, estimate_coeff_set_names, estimate_vars):
         if not self.adaptive:
-            super(KennedyCarpenterIMEXRungeKuttaMethodBase, self).finish(
+            super(KennedyCarpenterIMEXRungeKuttaMethodBuilderBase, self).finish(
                     cb, estimate_coeff_set_names, estimate_vars)
         else:
             high_est = estimate_vars[
@@ -155,7 +155,8 @@ class KennedyCarpenterIMEXRungeKuttaMethodBase(
         cb(self.t, self.t + self.dt)
 
 
-class KennedyCarpenterIMEXARK4Method(KennedyCarpenterIMEXRungeKuttaMethodBase):
+class KennedyCarpenterIMEXARK4MethodBuilder(
+        KennedyCarpenterIMEXRungeKuttaMethodBuilderBase):
     gamma = 1./4.
 
     c = [0, 1/2, 83/250, 31/50, 17/20, 1]

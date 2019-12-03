@@ -27,9 +27,11 @@ import sys
 import pytest
 
 import dagrt.codegen.fortran as f
-from leap.rk import ODE23Method, ODE45Method, RK4Method, LSRK4Method
+from leap.rk import (
+        ODE23MethodBuilder, ODE45MethodBuilder, RK4MethodBuilder,
+        LSRK4MethodBuilder)
 
-from leap.multistep.multirate import TwoRateAdamsBashforthMethod
+from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder
 
 from dagrt.utils import run_fortran
 
@@ -47,12 +49,12 @@ def read_file(rel_path):
 # {{{ test rk methods
 
 @pytest.mark.parametrize(("min_order", "stepper"), [
-    (2, ODE23Method("y", use_high_order=False)),
-    (3, ODE23Method("y", use_high_order=True)),
-    (4, ODE45Method("y", use_high_order=False)),
-    (5, ODE45Method("y", use_high_order=True)),
-    (4, RK4Method("y")),
-    (4, LSRK4Method("y")),
+    (2, ODE23MethodBuilder("y", use_high_order=False)),
+    (3, ODE23MethodBuilder("y", use_high_order=True)),
+    (4, ODE45MethodBuilder("y", use_high_order=False)),
+    (5, ODE45MethodBuilder("y", use_high_order=True)),
+    (4, RK4MethodBuilder("y")),
+    (4, LSRK4MethodBuilder("y")),
     ])
 def test_rk_codegen(min_order, stepper, print_code=False):
     """Test whether Fortran code generation for the Runge-Kutta
@@ -74,7 +76,7 @@ def test_rk_codegen(min_order, stepper, print_code=False):
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'RKMethod',
+            'RKMethodBuilder',
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
@@ -111,7 +113,7 @@ def test_rk_codegen_fancy():
     rhs_function = '<func>y'
     state_filter_name = 'state_filter_y'
 
-    stepper = ODE23Method(component_id, use_high_order=True,
+    stepper = ODE23MethodBuilder(component_id, use_high_order=True,
             state_filter_name=state_filter_name)
 
     from dagrt.function_registry import (
@@ -172,7 +174,7 @@ def test_rk_codegen_fancy():
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'RKMethod',
+            'RKMethodBuilder',
             user_type_map={
                 component_id: f.ArrayType(
                     "region%n_grids",
@@ -216,11 +218,11 @@ def test_rk_codegen_fancy():
 
 
 @pytest.mark.parametrize("min_order", [2, 3, 4, 5])
-@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
+@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethodBuilder.methods)
 def test_multirate_codegen(min_order, method_name):
-    from leap.multistep.multirate import TwoRateAdamsBashforthMethod
+    from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder
 
-    stepper = TwoRateAdamsBashforthMethod(
+    stepper = TwoRateAdamsBashforthMethodBuilder(
             method_name, min_order, 4,
             slow_state_filter_name="slow_filt",
             fast_state_filter_name="fast_filt",
@@ -346,7 +348,7 @@ def test_adaptive_rk_codegen():
     component_id = 'y'
     rhs_function = '<func>y'
 
-    stepper = ODE45Method(component_id, use_high_order=False, rtol=1e-6)
+    stepper = ODE45MethodBuilder(component_id, use_high_order=False, rtol=1e-6)
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs)
@@ -361,7 +363,7 @@ def test_adaptive_rk_codegen():
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'RKMethod',
+            'RKMethodBuilder',
             user_type_map={
                 "y": f.ArrayType(
                     (2,),
@@ -384,7 +386,7 @@ def test_adaptive_rk_codegen_error():
     component_id = 'y'
     rhs_function = '<func>y'
 
-    stepper = ODE45Method(component_id, use_high_order=False, atol=1e-6)
+    stepper = ODE45MethodBuilder(component_id, use_high_order=False, atol=1e-6)
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs)
@@ -398,7 +400,7 @@ def test_adaptive_rk_codegen_error():
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'RKMethod',
+            'RKMethodBuilder',
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
@@ -416,12 +418,12 @@ def test_adaptive_rk_codegen_error():
 @pytest.mark.parametrize(("min_order", "hist_length"), [(5, 5), (4, 4), (4, 5),
     (3, 3), (3, 4), (2, 2), ])
 def test_singlerate_squarewave(min_order, hist_length):
-    from leap.multistep import AdamsBashforthMethod
+    from leap.multistep import AdamsBashforthMethodBuilder
 
     component_id = 'y'
     rhs_function = '<func>y'
 
-    stepper = AdamsBashforthMethod("y", min_order, hist_length=hist_length)
+    stepper = AdamsBashforthMethodBuilder("y", min_order, hist_length=hist_length)
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs)
@@ -435,7 +437,7 @@ def test_singlerate_squarewave(min_order, hist_length):
     code = stepper.generate()
 
     codegen = f.CodeGenerator(
-            'ABMethod',
+            'ABMethodBuilder',
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
@@ -461,11 +463,11 @@ def test_singlerate_squarewave(min_order, hist_length):
         )
 
 
-@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
+@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethodBuilder.methods)
 @pytest.mark.parametrize(("min_order", "hist_length"), [(4, 4), (4, 5),
     (3, 3), (3, 4), (2, 2), ])
 def test_multirate_squarewave(min_order, hist_length, method_name):
-    stepper = TwoRateAdamsBashforthMethod(method_name, min_order, 4,
+    stepper = TwoRateAdamsBashforthMethodBuilder(method_name, min_order, 4,
                 hist_consistency_threshold=1e-8,
                 early_hist_consistency_threshold="3.5e3 * <dt>**%d" % min_order,
                 hist_length_slow=hist_length, hist_length_fast=hist_length)

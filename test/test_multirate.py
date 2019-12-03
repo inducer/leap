@@ -33,8 +33,8 @@ from pytools import memoize_method
 from leap.multistep.multirate import (
         rhs_policy,
         MultiRateHistory as MRHistory,
-        MultiRateMultiStepMethod,
-        TwoRateAdamsBashforthMethod,
+        MultiRateMultiStepMethodBuilder,
+        TwoRateAdamsBashforthMethodBuilder,
         TextualSchemeExplainer)
 
 
@@ -60,7 +60,7 @@ class MultirateTimestepperAccuracyChecker(object):
 
     @memoize_method
     def get_code(self, dt):
-        method = TwoRateAdamsBashforthMethod(
+        method = TwoRateAdamsBashforthMethodBuilder(
                 self.method, self.order, self.step_ratio,
                 static_dt=self.static_dt,
                 hist_consistency_threshold=1e-8,
@@ -191,7 +191,7 @@ class MultirateTimestepperAccuracyChecker(object):
         #"Comp",
         #"Tria"
         ])
-@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethod.methods)
+@pytest.mark.parametrize("method_name", TwoRateAdamsBashforthMethodBuilder.methods)
 @pytest.mark.parametrize("static_dt", [True, False])
 def test_multirate_accuracy(method_name, order, hist_length,
         system, static_dt, step_ratio=2):
@@ -212,7 +212,7 @@ def test_multirate_accuracy(method_name, order, hist_length,
 
 
 def test_single_rate_identical(order=3, hist_length=3):
-    from leap.multistep import AdamsBashforthMethod
+    from leap.multistep import AdamsBashforthMethodBuilder
     from dagrt.exec_numpy import NumpyInterpreter
 
     from multirate_test_systems import Full
@@ -223,7 +223,7 @@ def test_single_rate_identical(order=3, hist_length=3):
 
     # {{{ single rate
 
-    single_rate_method = AdamsBashforthMethod("y", order=order,
+    single_rate_method = AdamsBashforthMethodBuilder("y", order=order,
             hist_length=hist_length)
     single_rate_code = single_rate_method.generate()
 
@@ -259,7 +259,7 @@ def test_single_rate_identical(order=3, hist_length=3):
 
     # {{{ two rate
 
-    multi_rate_method = MultiRateMultiStepMethod(
+    multi_rate_method = MultiRateMultiStepMethodBuilder(
                 order,
                 (
                     (
@@ -322,7 +322,7 @@ def test_single_rate_identical(order=3, hist_length=3):
 @pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
 def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
-    method = TwoRateAdamsBashforthMethod(
+    method = TwoRateAdamsBashforthMethodBuilder(
             method_name, order=order, step_ratio=step_ratio)
 
     method.generate(explainer=explainer)
@@ -331,7 +331,7 @@ def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
 
 def test_mrab_scheme_explainers(order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
-    method = MultiRateMultiStepMethod(
+    method = MultiRateMultiStepMethodBuilder(
                 order,
                 (
                     (
@@ -351,7 +351,7 @@ def test_mrab_scheme_explainers(order=3, step_ratio=3,
 
 def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):
-    method = MultiRateMultiStepMethod(
+    method = MultiRateMultiStepMethodBuilder(
                 order,
                 (
                     (
@@ -378,7 +378,7 @@ def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
 
 
 def test_dot(order=3, step_ratio=3, method_name="F", show=False):
-    method = TwoRateAdamsBashforthMethod(
+    method = TwoRateAdamsBashforthMethodBuilder(
             method_name, order=order, step_ratio=step_ratio,
             hist_consistency_threshold=1e-8)
     code = method.generate()
@@ -407,7 +407,7 @@ def test_two_rate_intervals(fast_interval, slow_interval, order=3):
     def true_s(t):
         return np.exp(t)*np.cos(t)
 
-    method = MultiRateMultiStepMethod(
+    method = MultiRateMultiStepMethodBuilder(
                 order,
                 (
                     (
@@ -428,7 +428,7 @@ def test_two_rate_intervals(fast_interval, slow_interval, order=3):
     eocrec = EOCRecorder()
 
     from dagrt.codegen import PythonCodeGenerator
-    codegen = PythonCodeGenerator(class_name='Method')
+    codegen = PythonCodeGenerator(class_name="Method")
 
     stepper_cls = codegen.get_class(code)
 
@@ -497,7 +497,7 @@ def test_dependent_state(order=3, step_ratio=3):
     def true_s(t):
         return np.exp(t)*np.cos(t)
 
-    method = MultiRateMultiStepMethod(
+    method = MultiRateMultiStepMethodBuilder(
                 order,
                 (
                     (
@@ -522,7 +522,7 @@ def test_dependent_state(order=3, step_ratio=3):
     eocrec = EOCRecorder()
 
     from dagrt.codegen import PythonCodeGenerator
-    codegen = PythonCodeGenerator(class_name='Method')
+    codegen = PythonCodeGenerator(class_name="Method")
 
     stepper_cls = codegen.get_class(code)
 

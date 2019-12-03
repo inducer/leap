@@ -83,11 +83,11 @@ def solver_hook(solve_expr, solve_var, solver_id, guess):
 
 
 def run():
-    from leap.rk.imex import KennedyCarpenterIMEXARK4Method
+    from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
     from dagrt.codegen import PythonCodeGenerator
 
     # Construct the method generator.
-    mgen = KennedyCarpenterIMEXARK4Method("y", atol=_atol)
+    mgen = KennedyCarpenterIMEXARK4MethodBuilder("y", atol=_atol)
 
     # Generate the code for the method.
     code = mgen.generate()

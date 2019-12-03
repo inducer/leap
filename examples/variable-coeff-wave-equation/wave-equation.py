@@ -261,12 +261,12 @@ def make_3_component_multirate_method(
 
     """
     from leap.multistep.multirate import (
-            MultiRateMultiStepMethod, MultiRateHistory)
+            MultiRateMultiStepMethodBuilder, MultiRateHistory)
 
     ncomponents = 3
     assert problem.ncomponents == ncomponents
 
-    code = MultiRateMultiStepMethod(
+    code = MultiRateMultiStepMethodBuilder(
             default_order=3,
             system_description=(
                 ("dt", "comp0",
@@ -306,7 +306,7 @@ def make_3_component_multirate_method(
             return code
 
     from dagrt.codegen import PythonCodeGenerator
-    MRABMethod = PythonCodeGenerator(class_name='MRABMethod').get_class(code)  # noqa
+    MRABMethod = PythonCodeGenerator(class_name="MRABMethod").get_class(code)  # noqa
 
     if return_rhs_map:
         return MRABMethod(rhs_map), rhs_map

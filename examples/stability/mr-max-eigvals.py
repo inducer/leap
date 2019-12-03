@@ -5,7 +5,7 @@ matplotlib.use("Agg")  # noqa
 
 import numpy as np
 import numpy.linalg as la
-from leap.multistep.multirate import TwoRateAdamsBashforthMethod
+from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder
 import matplotlib.pyplot as pt
 from functools import partial
 
@@ -36,7 +36,7 @@ def main():
     step_ratio = 3
     prec = 1e-5
 
-    method = TwoRateAdamsBashforthMethod(
+    method = TwoRateAdamsBashforthMethodBuilder(
             method=method_name, order=order, step_ratio=step_ratio,
             static_dt=True)
 
