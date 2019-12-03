@@ -11,7 +11,7 @@ partitioned than [0, 1] by a given ratio.
 from __future__ import division
 
 from dagrt.codegen import PythonCodeGenerator
-from leap.multistep.multirate import TwoRateAdamsBashforthMethod
+from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder
 
 import numpy as np
 import scipy.linalg as sla
@@ -107,7 +107,7 @@ def make_multirate_method(f2f, s2f, f2s, s2s, ratio=2, order=3):
     """Return the object that drives the multirate method for the given
     parameters."""
     FastestFirst = "Fq"
-    code = TwoRateAdamsBashforthMethod(FastestFirst, order, ratio).generate()
+    code = TwoRateAdamsBashforthMethodBuilder(FastestFirst, order, ratio).generate()
     MRABMethod = PythonCodeGenerator(class_name='MRABMethod').get_class(code)
 
     rhs_map = {'<func>f2f': f2f, '<func>s2f': s2f, '<func>f2s': f2s,

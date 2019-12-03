@@ -29,35 +29,36 @@ THE SOFTWARE.
 
 import six
 import numpy as np
-from leap import Method, TwoOrderAdaptiveMethodMixin
+from leap import MethodBuilder, TwoOrderAdaptiveMethodBuilderMixin
 from dagrt.language import CodeBuilder, DAGCode
 
 from pymbolic import var
 
 
 __doc__ = """
-.. data:: ORDER_TO_RK_METHOD
+.. data:: ORDER_TO_RK_METHOD_BUILDER
 
-    A dictionary mapping desired order of accuracy to a corresponding RK method.
+    A dictionary mapping desired order of accuracy to a corresponding RK method
+    builder.
 
-.. autoclass:: ForwardEulerMethod
-.. autoclass:: BackwardEulerMethod
-.. autoclass:: MidpointMethod
-.. autoclass:: HeunsMethod
-.. autoclass:: RK3Method
-.. autoclass:: RK4Method
-.. autoclass:: RK5Method
+.. autoclass:: ForwardEulerMethodBuilder
+.. autoclass:: BackwardEulerMethodBuilder
+.. autoclass:: MidpointMethodBuilder
+.. autoclass:: HeunsMethodBuilder
+.. autoclass:: RK3MethodBuilder
+.. autoclass:: RK4MethodBuilder
+.. autoclass:: RK5MethodBuilder
 
 Low-Storage Methods
 -------------------
 
-.. autoclass:: LSRK4Method
+.. autoclass:: LSRK4MethodBuilder
 
 Adaptive/Embedded Methods
 -------------------------
 
-.. autoclass:: ODE23Method
-.. autoclass:: ODE45Method
+.. autoclass:: ODE23MethodBuilder
+.. autoclass:: ODE45MethodBuilder
 
 """
 
@@ -103,7 +104,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 
 # {{{ fully general butcher tableau to code
 
-class ButcherTableauMethod(Method):
+class ButcherTableauMethodBuilder(MethodBuilder):
     """Infrastructure to generate code from butcher tableaux."""
 
     @property
@@ -369,10 +370,10 @@ class ButcherTableauMethod(Method):
 
 # {{{ simple butcher tableau methods
 
-class SimpleButcherTableauMethod(ButcherTableauMethod):
+class SimpleButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
     def __init__(self, component_id, state_filter_name=None,
             rhs_func_name=None):
-        super(SimpleButcherTableauMethod, self).__init__(
+        super(SimpleButcherTableauMethodBuilder, self).__init__(
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
@@ -395,7 +396,7 @@ class SimpleButcherTableauMethod(ButcherTableauMethod):
                     })
 
 
-class ForwardEulerMethod(SimpleButcherTableauMethod):
+class ForwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
     """
     .. automethod:: __init__
     .. automethod:: generate
@@ -411,7 +412,7 @@ class ForwardEulerMethod(SimpleButcherTableauMethod):
     recycle_last_stage_coeff_set_names = ()
 
 
-class BackwardEulerMethod(SimpleButcherTableauMethod):
+class BackwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
     """
     .. automethod:: __init__
     .. automethod:: generate
@@ -427,7 +428,7 @@ class BackwardEulerMethod(SimpleButcherTableauMethod):
     recycle_last_stage_coeff_set_names = ()
 
 
-class MidpointMethod(SimpleButcherTableauMethod):
+class MidpointMethodBuilder(SimpleButcherTableauMethodBuilder):
     """
     .. automethod:: __init__
     .. automethod:: generate
@@ -444,7 +445,7 @@ class MidpointMethod(SimpleButcherTableauMethod):
     recycle_last_stage_coeff_set_names = ()
 
 
-class HeunsMethod(SimpleButcherTableauMethod):
+class HeunsMethodBuilder(SimpleButcherTableauMethodBuilder):
     """
     .. automethod:: __init__
     .. automethod:: generate
@@ -461,9 +462,9 @@ class HeunsMethod(SimpleButcherTableauMethod):
     recycle_last_stage_coeff_set_names = ()
 
 
-class RK3Method(SimpleButcherTableauMethod):
+class RK3MethodBuilder(SimpleButcherTableauMethodBuilder):
     """
-    Source: J. C. Butcher, Numerical Methods for Ordinary Differential
+    Source: J. C. Butcher, Numerical MethodBuilders for Ordinary Differential
     Equations, 2nd ed., pages 94 - 99
 
     .. automethod:: __init__
@@ -482,7 +483,7 @@ class RK3Method(SimpleButcherTableauMethod):
     recycle_last_stage_coeff_set_names = ()
 
 
-class RK4Method(SimpleButcherTableauMethod):
+class RK4MethodBuilder(SimpleButcherTableauMethodBuilder):
     """
     .. automethod:: __init__
     .. automethod:: generate
@@ -501,9 +502,9 @@ class RK4Method(SimpleButcherTableauMethod):
     recycle_last_stage_coeff_set_names = ()
 
 
-class RK5Method(SimpleButcherTableauMethod):
+class RK5MethodBuilder(SimpleButcherTableauMethodBuilder):
     """
-    Source: J. C. Butcher, Numerical Methods for Ordinary Differential
+    Source: J. C. Butcher, Numerical MethodBuilders for Ordinary Differential
     Equations, 2nd ed., pages 94 - 99
     """
 
@@ -523,12 +524,12 @@ class RK5Method(SimpleButcherTableauMethod):
     recycle_last_stage_coeff_set_names = ()
 
 
-ORDER_TO_RK_METHOD = {
-        1: ForwardEulerMethod,
-        2: MidpointMethod,
-        3: RK3Method,
-        4: RK4Method,
-        5: RK5Method,
+ORDER_TO_RK_METHOD_BUILDER = {
+        1: ForwardEulerMethodBuilder,
+        2: MidpointMethodBuilder,
+        3: RK3MethodBuilder,
+        4: RK4MethodBuilder,
+        5: RK5MethodBuilder,
         }
 
 # }}}
@@ -536,8 +537,8 @@ ORDER_TO_RK_METHOD = {
 
 # {{{ Embedded Runge-Kutta schemes base class
 
-class EmbeddedButcherTableauMethod(
-        ButcherTableauMethod, TwoOrderAdaptiveMethodMixin):
+class EmbeddedButcherTableauMethodBuilder(
+        ButcherTableauMethodBuilder, TwoOrderAdaptiveMethodBuilderMixin):
     """
     User-supplied context:
         <state> + component_id: The value that is integrated
@@ -554,12 +555,12 @@ class EmbeddedButcherTableauMethod(
 
     def __init__(self, component_id, use_high_order=True, state_filter_name=None,
             atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None):
-        ButcherTableauMethod.__init__(
+        ButcherTableauMethodBuilder.__init__(
                 self,
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
-        TwoOrderAdaptiveMethodMixin.__init__(
+        TwoOrderAdaptiveMethodBuilderMixin.__init__(
                 self,
                 atol=atol,
                 rtol=rtol,
@@ -590,7 +591,7 @@ class EmbeddedButcherTableauMethod(
 
     def finish(self, cb, estimate_coeff_set_names, estimate_vars):
         if not self.adaptive:
-            super(EmbeddedButcherTableauMethod, self).finish(
+            super(EmbeddedButcherTableauMethodBuilder, self).finish(
                     cb, estimate_coeff_set_names, estimate_vars)
         else:
             high_est = estimate_vars[
@@ -614,7 +615,7 @@ class EmbeddedButcherTableauMethod(
 
 # {{{ Bogacki-Shampine second/third-order Runge-Kutta
 
-class ODE23Method(EmbeddedButcherTableauMethod):
+class ODE23MethodBuilder(EmbeddedButcherTableauMethodBuilder):
     """Bogacki-Shampine second/third-order Runge-Kutta.
 
     (same as Matlab's ode23)
@@ -648,7 +649,7 @@ class ODE23Method(EmbeddedButcherTableauMethod):
 
 # {{{ Dormand-Prince fourth/fifth-order Runge-Kutta
 
-class ODE45Method(EmbeddedButcherTableauMethod):
+class ODE45MethodBuilder(EmbeddedButcherTableauMethodBuilder):
     """Dormand-Prince fourth/fifth-order Runge-Kutta.
 
     (same as Matlab's ode45)
@@ -685,10 +686,10 @@ class ODE45Method(EmbeddedButcherTableauMethod):
 
 # {{{ Carpenter/Kennedy low-storage fourth-order Runge-Kutta
 
-class LSRK4Method(Method):
+class LSRK4MethodBuilder(MethodBuilder):
     """A low storage fourth-order Runge-Kutta method
 
-    See JSH, TW: Nodal Discontinuous Galerkin Methods p.64
+    See JSH, TW: Nodal Discontinuous Galerkin MethodBuilders p.64
     or
     Carpenter, M.H., and Kennedy, C.A., Fourth-order-2N-storage
     Runge-Kutta schemes, NASA Langley Tech Report TM 109112, 1994

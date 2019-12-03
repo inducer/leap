@@ -31,12 +31,12 @@ THE SOFTWARE.
 import six.moves
 import numpy as np
 import numpy.linalg as la
-from leap import Method
+from leap import MethodBuilder
 from pymbolic import var
 
 
 __doc__ = """
-.. autoclass:: AdamsBashforthMethod
+.. autoclass:: AdamsBashforthMethodBuilder
 """
 
 
@@ -197,7 +197,7 @@ def emit_ab_extrapolation(cb, name_gen,
 
 # {{{ ab method
 
-class AdamsBashforthMethod(Method):
+class AdamsBashforthMethodBuilder(MethodBuilder):
     """
     User-supplied context:
         <state> + component_id: The value that is integrated
@@ -228,7 +228,7 @@ class AdamsBashforthMethod(Method):
         if isinstance(function_family, int):
             function_family = ABMonomialIntegrationFunctionFamily(function_family)
 
-        super(AdamsBashforthMethod, self).__init__()
+        super(AdamsBashforthMethodBuilder, self).__init__()
         self.function_family = function_family
 
         if hist_length is None:
@@ -372,12 +372,12 @@ class AdamsBashforthMethod(Method):
                 if not self.static_dt:
                     cb(self.time_history[i], self.t)
 
-        from leap.rk import ORDER_TO_RK_METHOD
-        rk_method = ORDER_TO_RK_METHOD[self.function_family.order]
+        from leap.rk import ORDER_TO_RK_METHOD_BUILDER
+        rk_method = ORDER_TO_RK_METHOD_BUILDER[self.function_family.order]
         rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
         rk_coeffs = rk_method.output_coeffs
 
-        # Stage loop (taken from EmbeddedButcherTableauMethod)
+        # Stage loop (taken from EmbeddedButcherTableauMethodBuilder)
         rhss = [var("rk_rhs_" + str(i)) for i in range(len(rk_tableau))]
         for stage_num, (c, coeffs) in enumerate(rk_tableau):
             if len(coeffs) == 0:

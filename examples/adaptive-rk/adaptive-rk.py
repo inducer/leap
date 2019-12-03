@@ -10,7 +10,7 @@ Source:
     Appl. Math. Lett., 2(4):321–325, 1989.
     doi: 10.1016/0893-9659(89)90079-7.
 
-The same functionality is supported using leap.rk.ODE23Method.
+The same functionality is supported using leap.rk.ODE23MethodBuilder.
 
 """
 

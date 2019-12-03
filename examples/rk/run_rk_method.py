@@ -25,13 +25,13 @@ THE SOFTWARE.
 """
 
 
-from leap.rk import ODE23Method
+from leap.rk import ODE23MethodBuilder
 import numpy as np
 
 
 def main(show_dag=False, plot_solution=False):
     component_id = "y"
-    method = ODE23Method(component_id, use_high_order=True)
+    method = ODE23MethodBuilder(component_id, use_high_order=True)
     expected_order = 3
 
     # Use "DEBUG" to trace execution

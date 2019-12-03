@@ -1,7 +1,7 @@
 """Implicit Euler timestepper"""
 from __future__ import division
 
-from leap import Method
+from leap import MethodBuilder
 from dagrt.language import DAGCode, CodeBuilder
 from pymbolic import var
 from pymbolic.primitives import CallWithKwargs
@@ -30,7 +30,7 @@ THE SOFTWARE.
 """
 
 
-class ImplicitEulerMethod(Method):
+class ImplicitEulerMethodBuilder(MethodBuilder):
     """
     Context:
        state: The value that is integrated

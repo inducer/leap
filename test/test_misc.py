@@ -34,10 +34,10 @@ logger = logging.getLogger(__name__)
 
 
 def test_strang_splitting(plot_solution=False):
-    from leap.rk import LSRK4Method
+    from leap.rk import LSRK4MethodBuilder
 
-    method1 = LSRK4Method("y", rhs_func_name="<func>y1")
-    method2 = LSRK4Method("y", rhs_func_name="<func>y2")
+    method1 = LSRK4MethodBuilder("y", rhs_func_name="<func>y1")
+    method2 = LSRK4MethodBuilder("y", rhs_func_name="<func>y2")
 
     code1 = method1.generate()
     code2 = method2.generate()

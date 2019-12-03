@@ -34,7 +34,7 @@ def python_method_impl_interpreter(code, **kwargs):
 
 def python_method_impl_codegen(code, **kwargs):
     from dagrt.codegen import PythonCodeGenerator
-    codegen = PythonCodeGenerator(class_name='Method')
+    codegen = PythonCodeGenerator(class_name="Method")
     return codegen.get_class(code)(**kwargs)
 
 # }}}

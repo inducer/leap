@@ -38,7 +38,7 @@ def python_method_impl_interpreter(code, **kwargs):
 # Taken from test.utils
 def python_method_impl_codegen(code, **kwargs):
     from dagrt.codegen import PythonCodeGenerator
-    codegen = PythonCodeGenerator(class_name='Method')
+    codegen = PythonCodeGenerator(class_name="Method")
     return codegen.get_class(code)(**kwargs)
 
 
@@ -60,9 +60,9 @@ def test_im_euler_accuracy(python_method_impl, show_dag=False,
                            plot_solution=False):
     component_id = "y"
 
-    from implicit_euler import ImplicitEulerMethod
+    from implicit_euler import ImplicitEulerMethodBuilder
 
-    method = ImplicitEulerMethod(component_id)
+    method = ImplicitEulerMethodBuilder(component_id)
     code = method.generate(solver_hook)
 
     expected_order = 1

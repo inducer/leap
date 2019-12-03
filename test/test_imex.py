@@ -28,7 +28,7 @@ import numpy as np
 import pytest
 import sys
 
-from leap.rk.imex import KennedyCarpenterIMEXARK4Method
+from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
 from stiff_test_systems import KapsProblem
 
 from utils import (  # noqa
@@ -51,9 +51,9 @@ def solver_hook(solve_expr, solve_var, solver_id, guess):
 
 
 @pytest.mark.parametrize("problem, method, expected_order", [
-    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4Method(
+    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4MethodBuilder(
         "y", use_high_order=False), 3],
-    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4Method("y"), 4],
+    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4MethodBuilder("y"), 4],
     ])
 def test_convergence(python_method_impl, problem, method, expected_order):
     pytest.importorskip("scipy")
@@ -110,7 +110,7 @@ def test_convergence(python_method_impl, problem, method, expected_order):
 
 
 @pytest.mark.parametrize("problem, method", [
-    [KapsProblem(epsilon=0.001), KennedyCarpenterIMEXARK4Method],
+    [KapsProblem(epsilon=0.001), KennedyCarpenterIMEXARK4MethodBuilder],
     ])
 def test_adaptive(python_method_impl, problem, method):
     pytest.importorskip("scipy")
