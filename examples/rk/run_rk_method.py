@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Turn timestepper descriptions into source code"""
 import logging
 

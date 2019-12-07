@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """This example illustrates the use of a custom solver."""
 import numpy as np
 
