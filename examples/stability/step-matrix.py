@@ -2,8 +2,8 @@
 from __future__ import division, print_function
 import numpy as np
 import numpy.linalg as la
-from leap.rk import RK4Method  # noqa
-from leap.multistep import AdamsBashforthMethod  # noqa
+from leap.rk import RK4MethodBuilder  # noqa
+from leap.multistep import AdamsBashforthMethodBuilder  # noqa
 
 
 def main():
@@ -11,8 +11,8 @@ def main():
 
     from pymbolic import var
 
-    #method = RK4Method("y")
-    method = AdamsBashforthMethod("y", order=3, static_dt=True)
+    #method = RK4MethodBuilder("y")
+    method = AdamsBashforthMethodBuilder("y", order=3, static_dt=True)
 
     code = method.generate()
 

@@ -2,7 +2,7 @@
 from __future__ import division, print_function
 import numpy as np
 import numpy.linalg as la
-from leap.multistep.multirate import TwoRateAdamsBashforthMethod
+from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
             "- order: %d"
             % (speed_factor, step_ratio, method_name, order))
 
-    method = TwoRateAdamsBashforthMethod(
+    method = TwoRateAdamsBashforthMethodBuilder(
             method=method_name, order=order, step_ratio=step_ratio,
             static_dt=True)
 

@@ -266,13 +266,13 @@ def make_method_matrix(stepper, rhss, f_size, s_size):
 
 
 
-class MethodFactory(FactoryWithParameters):
+class MethodBuilderFactory(FactoryWithParameters):
     __slots__ = ["method", "substep_count", "meth_order"]
 
     def __call__(self, dt):
         from hedge.timestep.multirate_ab import \
-                TwoRateAdamsBashforthMethod
-        return TwoRateAdamsBashforthMethod(
+                TwoRateAdamsBashforthMethodBuilder
+        return TwoRateAdamsBashforthMethodBuilder(
                 method=self.method,
                 large_dt=dt,
                 substep_count=self.substep_count,
@@ -285,13 +285,13 @@ def generate_method_factories():
         for method in methods.keys():
             for order in [3]:
                 for substep_count in [2, 3, 4]:
-                    yield MethodFactory(method=method, meth_order=order, 
+                    yield MethodBuilderFactory(method=method, meth_order=order, 
                             substep_count=substep_count)
     else:
         for method in ["Fqsr"]:
             for order in [3]:
                 for substep_count in [2, 3]:
-                    yield MethodFactory(method=method, meth_order=order, 
+                    yield MethodBuilderFactory(method=method, meth_order=order, 
                             substep_count=substep_count)
 
 
@@ -301,7 +301,7 @@ def generate_method_factories_hires():
     for method in ["Fq", "Ssf", "Sr"]:
         for order in [3]:
             for substep_count in [2, 5, 10]:
-                yield MethodFactory(method=method, meth_order=order, 
+                yield MethodBuilderFactory(method=method, meth_order=order, 
                         substep_count=substep_count)
 
 
@@ -416,12 +416,12 @@ def generate_mrab_jobs_step_verify():
 
 
 # {{{ single-rate reference ---------------------------------------------------
-class SRABMethodFactory(FactoryWithParameters):
+class SRABMethodBuilderFactory(FactoryWithParameters):
     __slots__ = ["method", "substep_count", "meth_order"]
 
     def __call__(self):
-        from hedge.timestep.ab import AdamsBashforthMethod
-        return AdamsBashforthMethod(order=self.meth_order,
+        from hedge.timestep.ab import AdamsBashforthMethodBuilder
+        return AdamsBashforthMethodBuilder(order=self.meth_order,
                 dtype=numpy.complex128)
 
 
@@ -450,7 +450,7 @@ class SRABJob(IterativeStabilityTester):
 
 
 def generate_srab_jobs():
-    for method_fac in [SRABMethodFactory(method="SRAB", substep_count=1, meth_order=3)]:
+    for method_fac in [SRABMethodBuilderFactory(method="SRAB", substep_count=1, meth_order=3)]:
         for matrix_fac in generate_matrix_factories():
             yield SRABJob(method_fac, matrix_fac, 120)
 
@@ -461,9 +461,9 @@ def generate_srab_jobs():
 
 def test():
     from hedge.timestep.multirate_ab import \
-            TwoRateAdamsBashforthMethod
+            TwoRateAdamsBashforthMethodBuilder
     from pymbolic import var
-    stepper = TwoRateAdamsBashforthMethod(
+    stepper = TwoRateAdamsBashforthMethodBuilder(
             method="Fqsr",
             large_dt=var("dt"),
             substep_count=2,

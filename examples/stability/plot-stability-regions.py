@@ -30,12 +30,12 @@ def main(save_pdfs=True):
     import leap.multistep as multistep
 
     for label, method, factor in [
-            #("ode23", rk.ODE23Method("y", use_high_order=True), 1),
-            #("ab2", multistep.AdamsBashforthMethod("y", 2), 1),
-            ("ab3", multistep.AdamsBashforthMethod("y", 3), 1),
-            #("ab4", multistep.AdamsBashforthMethod("y", 4), 1),
-            ("lserk", rk.LSRK4Method("y"), 1/5),
-            ("rk4", rk.RK4Method("y"), 1/4),
+            #("ode23", rk.ODE23MethodBuilder("y", use_high_order=True), 1),
+            #("ab2", multistep.AdamsBashforthMethodBuilder("y", 2), 1),
+            ("ab3", multistep.AdamsBashforthMethodBuilder("y", 3), 1),
+            #("ab4", multistep.AdamsBashforthMethodBuilder("y", 4), 1),
+            ("lserk", rk.LSRK4MethodBuilder("y"), 1/5),
+            ("rk4", rk.RK4MethodBuilder("y"), 1/4),
             ]:
 
         code = method.generate()

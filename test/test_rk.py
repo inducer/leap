@@ -27,12 +27,12 @@ import sys
 import pytest
 
 from leap.rk import (
-        ODE23Method, ODE45Method,
-        ForwardEulerMethod,
-        MidpointMethod, HeunsMethod,
-        RK3Method, RK4Method, RK5Method,
-        LSRK4Method,)
-from leap.rk.imex import KennedyCarpenterIMEXARK4Method
+        ODE23MethodBuilder, ODE45MethodBuilder,
+        ForwardEulerMethodBuilder,
+        MidpointMethodBuilder, HeunsMethodBuilder,
+        RK3MethodBuilder, RK4MethodBuilder, RK5MethodBuilder,
+        LSRK4MethodBuilder,)
+from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
 import numpy as np
 
 import logging
@@ -47,21 +47,21 @@ logger = logging.getLogger(__name__)
 # {{{ non-adaptive test
 
 # test using
-# python test_rk.py 'test_rk_accuracy(pmi_int, ODE23Method("y", use_high_order=False), 2)'  # noqa
+# python test_rk.py 'test_rk_accuracy(pmi_int, ODE23MethodBuilder("y", use_high_order=False), 2)'  # noqa
 
 @pytest.mark.parametrize(("method", "expected_order"), [
-    (ODE23Method("y", use_high_order=False), 2),
-    (ODE23Method("y", use_high_order=True), 3),
-    (ODE45Method("y", use_high_order=False), 4),
-    (ODE45Method("y", use_high_order=True), 5),
-    (ForwardEulerMethod("y"), 1),
-    (MidpointMethod("y"), 2),
-    (HeunsMethod("y"), 2),
-    (RK3Method("y"), 3),
-    (RK4Method("y"), 4),
-    (RK5Method("y"), 5),
-    (LSRK4Method("y"), 4),
-    (KennedyCarpenterIMEXARK4Method("y", use_implicit=False,
+    (ODE23MethodBuilder("y", use_high_order=False), 2),
+    (ODE23MethodBuilder("y", use_high_order=True), 3),
+    (ODE45MethodBuilder("y", use_high_order=False), 4),
+    (ODE45MethodBuilder("y", use_high_order=True), 5),
+    (ForwardEulerMethodBuilder("y"), 1),
+    (MidpointMethodBuilder("y"), 2),
+    (HeunsMethodBuilder("y"), 2),
+    (RK3MethodBuilder("y"), 3),
+    (RK4MethodBuilder("y"), 4),
+    (RK5MethodBuilder("y"), 5),
+    (LSRK4MethodBuilder("y"), 4),
+    (KennedyCarpenterIMEXARK4MethodBuilder("y", use_implicit=False,
         explicit_rhs_name="y"), 4),
     ])
 def test_rk_accuracy(python_method_impl, method, expected_order,
@@ -77,9 +77,9 @@ def test_rk_accuracy(python_method_impl, method, expected_order,
 # {{{ adaptive test
 
 @pytest.mark.parametrize("method", [
-    ODE23Method("y", rtol=1e-6),
-    ODE45Method("y", rtol=1e-6),
-    KennedyCarpenterIMEXARK4Method("y", rtol=1e-6, use_implicit=False,
+    ODE23MethodBuilder("y", rtol=1e-6),
+    ODE45MethodBuilder("y", rtol=1e-6),
+    KennedyCarpenterIMEXARK4MethodBuilder("y", rtol=1e-6, use_implicit=False,
         explicit_rhs_name="y"),
     ])
 def test_adaptive_timestep(python_method_impl, method, show_dag=False,

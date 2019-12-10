@@ -50,9 +50,9 @@ def run_script_from_commandline():
 # }}}
 
 
-# {{{ method base class
+# {{{ method builder base class
 
-class Method(object):
+class MethodBuilder(object):
 
     def generate(self, *solver_hooks):
         """
@@ -83,7 +83,7 @@ class Method(object):
 
 # {{{ two-order adaptivity
 
-class TwoOrderAdaptiveMethodMixin(Method):
+class TwoOrderAdaptiveMethodBuilderMixin(MethodBuilder):
     """
     This class expected the following members to be defined: state, t, dt.
     """

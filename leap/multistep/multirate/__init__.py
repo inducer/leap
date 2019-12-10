@@ -31,7 +31,7 @@ THE SOFTWARE.
 import six
 
 from pytools import Record
-from leap import Method
+from leap import MethodBuilder
 from pymbolic import var
 
 from leap.multistep import _linear_comb
@@ -41,7 +41,7 @@ __doc__ = """
 
 .. autoclass:: rhs_policy
 .. autoclass:: MultiRateHistory
-.. autoclass:: MultiRateMultiStepMethod
+.. autoclass:: MultiRateMultiStepMethodBuilder
 
 .. autoclass:: SchemeExplainerBase
 .. autoclass:: TextualSchemeExplainer
@@ -74,7 +74,7 @@ class MultiRateHistory(Record):
             updated.
             (where each update will typically involve a call to *func_name*)
         :arg arguments: A tuple of component names
-            (see :class:`MultiRateMultiStepMethod`)
+            (see :class:`MultiRateMultiStepMethodBuilder`)
             which are passed to this right-hand side function.
         :arg order: The AB approximation order to be used for this
             history, or None if the method default is to be used.
@@ -157,7 +157,7 @@ class InconsistentHistoryError:
 
 # {{{ method
 
-class MultiRateMultiStepMethod(Method):
+class MultiRateMultiStepMethodBuilder(MethodBuilder):
     """Simultaneously timesteps multiple parts of an ODE system,
     each with adjustable orders, rates, and dependencies.
 
@@ -223,7 +223,7 @@ class MultiRateMultiStepMethod(Method):
         :arg static_dt: If *True*, changing the timestep in between steps
             during time integration is not allowed.
         """
-        super(MultiRateMultiStepMethod, self).__init__()
+        super(MultiRateMultiStepMethodBuilder, self).__init__()
 
         # Variables
         from pymbolic import var
@@ -418,8 +418,8 @@ class MultiRateMultiStepMethod(Method):
     def emit_small_rk_step(self, cb, name_prefix, name_gen, rhss_on_entry):
         """Emit a single step of an RK method."""
 
-        from leap.rk import ORDER_TO_RK_METHOD
-        rk_method = ORDER_TO_RK_METHOD[self.max_order]
+        from leap.rk import ORDER_TO_RK_METHOD_BUILDER
+        rk_method = ORDER_TO_RK_METHOD_BUILDER[self.max_order]
         rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
         rk_coeffs = rk_method.output_coeffs
 
@@ -1149,7 +1149,7 @@ class MultiRateMultiStepMethod(Method):
 
 # {{{ two-rate compatibility shim
 
-class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
+class TwoRateAdamsBashforthMethodBuilder(MultiRateMultiStepMethodBuilder):
     methods = [
             "Sqrs",
             "Sqr",
@@ -1188,9 +1188,10 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
             hist_length_slow=None,
             hist_length_fast=None):
         from warnings import warn
-        warn("TwoRateAdamsBashforthMethod is a compatibility shim that should no "
+        warn("TwoRateAdamsBashforthMethodBuilder "
+                "is a compatibility shim that should no "
                 "longer be used. Use the fully general "
-                "MultiRateMultiStepMethod interface instead.",
+                "MultiRateMultiStepMethodBuilder interface instead.",
                 DeprecationWarning, stacklevel=2)
 
         if "S" in method:
@@ -1224,7 +1225,7 @@ class TwoRateAdamsBashforthMethod(MultiRateMultiStepMethod):
         if hist_length_fast is None:
             hist_length_slow = order
 
-        super(TwoRateAdamsBashforthMethod, self).__init__(
+        super(TwoRateAdamsBashforthMethodBuilder, self).__init__(
                 order,
                 (
                     (
