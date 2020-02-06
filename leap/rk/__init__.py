@@ -770,7 +770,8 @@ class LSRK4MethodBuilder(MethodBuilder):
         rhs_val = var("rhs_val")
 
         with CodeBuilder("primary") as cb:
-            for a, b, c in self.coeffs:
+            # https://github.com/PyCQA/pylint/issues/3387
+            for a, b, c in self.coeffs:  # pylint: disable=not-an-iterable
                 cb(rhs_val, rhs_func(t=t + c*dt, **{comp_id: state}))
                 cb(residual, a*residual + dt*rhs_val)
                 new_state_expr = state + b * residual
