@@ -197,7 +197,7 @@ def test_step_matrix_sparse():
         sparse=True)
 
     assert mat.shape == (3, 3)
-    assert mat.indices == [(0, 0), (1, 1), (2, 2)]
+    assert mat.indices == [(0, 0), (1, 1), (2, 2)]  # pylint: disable=no-member
     true_mat = np.eye(3, dtype=np.object) + dt * J
     assert (mat.data == np.diag(true_mat)).all()
 
