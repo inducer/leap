@@ -1355,7 +1355,6 @@ class TextualSchemeExplainer(SchemeExplainerBase):
                 "EVAL {rhs_var} <- {rhs_name}(t={isubstep}, {kwargs})"
                 .format(
                     rhs_var=rhs_var,
-                    comp_name=comp_name,
                     rhs_name=rhs_name.replace("<func>", ""),
                     isubstep=isubstep,
                     kwargs=", ".join(
