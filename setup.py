@@ -27,8 +27,6 @@ def main():
               'Natural Language :: English',
               'Programming Language :: Python',
               'Programming Language :: Python :: 3',
-              'Programming Language :: Python :: 3.3',
-              'Programming Language :: Python :: 3.4',
               'Topic :: Scientific/Engineering',
               'Topic :: Scientific/Engineering :: Information Analysis',
               'Topic :: Scientific/Engineering :: Mathematics',
