@@ -405,4 +405,281 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
 
 # }}}
 
+# {{{ am method
+
+
+class AdamsMoultonMethodBuilder(MethodBuilder):
+    """
+    User-supplied context:
+        <state> + component_id: The value that is integrated
+        <func> + component_id: The right hand side
+
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
+
+    def __init__(self, component_id, function_family=None, state_filter_name=None,
+            hist_length=None, static_dt=False, order=None):
+        """
+        :arg function_family: Accepts an instance of
+            :class:`ABIntegrationFunctionFamily`
+            or an integer, in which case the classical monomial function family
+            with the order given by the integer is used.
+        :arg static_dt: If *True*, changing the timestep during time integration
+            is not allowed.
+        """
+
+        if function_family is not None and order is not None:
+            raise ValueError("may not specify both function_family and order")
+
+        if function_family is None:
+            function_family = order
+            del order
+
+        if isinstance(function_family, int):
+            function_family = ABMonomialIntegrationFunctionFamily(function_family)
+
+        super(AdamsMoultonMethodBuilder, self).__init__()
+        self.function_family = function_family
+
+        if hist_length is None:
+            hist_length = len(function_family)
+
+        self.hist_length = hist_length
+        self.static_dt = static_dt
+
+        self.component_id = component_id
+
+        # Declare variables
+        self.step = var('<p>step')
+        self.function = var('<func>' + component_id)
+        # One shorter for implicit.
+        self.history = \
+            [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 2, 0, -1)]
+
+        if not self.static_dt:
+            # One shorter for implicit.
+            self.time_history = [
+                    var('<p>t_n_minus_' + str(i))
+                    for i in range(hist_length - 2, 0, -1)]
+
+        self.state = var('<state>' + component_id)
+        self.t = var('<t>')
+        self.dt = var('<dt>')
+
+        if state_filter_name is not None:
+            self.state_filter = var("<func>" + state_filter_name)
+        else:
+            self.state_filter = None
+
+    def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
+        from pytools import UniqueNameGenerator
+        name_gen = UniqueNameGenerator()
+
+        from dagrt.language import DAGCode, CodeBuilder
+
+        array = var("<builtin>array")
+        rhs_var = var("rhs_var")
+        rhs_next_var = var("rhs_next_var")
+
+        # Initialization
+        with CodeBuilder(name="initialization") as cb_init:
+            cb_init(self.step, 1)
+
+        # Primary
+        with CodeBuilder(name="primary") as cb_primary:
+
+            rhs_var_to_unknown = {}
+            unkvar = cb_primary.fresh_var('unk')
+            rhs_var_to_unknown[rhs_next_var] = unkvar
+
+            # In implicit mode, the time history must also
+            # include the next point in time.
+            if not self.static_dt:
+                time_history_data = self.time_history + [self.t] + [self.t + self.dt]
+                time_hist_var = var(name_gen("time_history"))
+                cb_primary(time_hist_var, array(self.hist_length))
+                for i in range(self.hist_length):
+                    cb_primary(time_hist_var[i], time_history_data[i] - self.t)
+
+                time_hist = time_hist_var
+                t_end = self.dt
+                dt_factor = 1
+
+            else:
+                time_hist = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
+                dt_factor = self.dt
+                t_end = 1
+
+            # Implicit setup - rhs_next_var is an unknown, needs implicit solve.
+            equations = []
+            unknowns = set()
+            knowns = set()
+
+            def make_known(v):
+                unknowns.discard(v)
+                knowns.add(v)
+
+            unknowns.add(rhs_next_var)
+
+            cb_primary(rhs_var, self.eval_rhs(self.t, self.state))
+
+            # Update history
+            history = self.history + [rhs_var] + [rhs_next_var]
+
+            # Set up the actual Adams-Moulton step.
+            ab_sum = emit_ab_integration(
+                            cb_primary, name_gen,
+                            self.function_family,
+                            time_hist, history,
+                            0, t_end)
+
+            state_est = self.state + dt_factor * ab_sum
+            if self.state_filter is not None:
+                state_est = self.state_filter(state_est)
+
+            # Build the implicit solve expression.
+            from dagrt.expression import collapse_constants
+            solve_expression = collapse_constants(
+                    rhs_next_var - self.eval_rhs(self.t + self.dt, state_est),
+                    list(unknowns) + [self.state],
+                    cb_primary.assign, cb_primary.fresh_var)
+            equations.append(solve_expression)
+
+            # {{{ emit solve if possible
+
+            if unknowns and len(unknowns) == len(equations):
+                # got a square system, let's solve
+                assignees = [unk.name for unk in unknowns]
+
+                from pymbolic import substitute
+                subst_dict = dict(
+                        (rhs_var.name, rhs_var_to_unknown[rhs_var])
+                        for rhs_var in unknowns)
+
+                cb_primary.assign_implicit(
+                        assignees=assignees,
+                        solve_components=[
+                            rhs_var_to_unknown[unk].name
+                            for unk in unknowns],
+                        expressions=[
+                            substitute(eq, subst_dict)
+                            for eq in equations],
+
+                        # TODO: Could supply a starting guess
+                        other_params={
+                            "guess": self.state},
+                        solver_id="solve")
+
+                del equations[:]
+                knowns.update(unknowns)
+                unknowns.clear()
+
+            # }}}
+
+            # Update the state now that we've solved.
+            cb_primary(self.state, state_est)
+
+            # Rotate history and time history.
+            # In the case of implicit, history length is one less.
+            for i in range(self.hist_length - 2):
+                cb_primary(self.history[i], history[i + 1])
+
+                if not self.static_dt:
+                    cb_primary(self.time_history[i], time_history_data[i + 1])
+
+            cb_primary(self.t, self.t + self.dt)
+            cb_primary.yield_state(expression=self.state,
+                                   component_id=self.component_id,
+                                   time_id='', time=self.t)
+
+        if self.hist_length == 1:
+            # The first order method requires no bootstrapping.
+            return DAGCode(
+                phases={
+                    "initial": cb_init.as_execution_phase(next_phase="primary"),
+                    "primary": cb_primary.as_execution_phase(next_phase="primary")
+                    },
+                initial_phase="initial")
+
+        # Bootstrap
+        with CodeBuilder(name="bootstrap") as cb_bootstrap:
+            self.rk_bootstrap(cb_bootstrap)
+            cb_bootstrap(self.t, self.t + self.dt)
+            cb_bootstrap.yield_state(expression=self.state,
+                                     component_id=self.component_id,
+                                     time_id='', time=self.t)
+            cb_bootstrap(self.step, self.step + 1)
+            # Bootstrap length is one less because of implicit.
+            with cb_bootstrap.if_(self.step, "==", self.hist_length - 1):
+                cb_bootstrap.switch_phase("primary")
+
+        return DAGCode(
+                phases={
+                    "initialization": cb_init.as_execution_phase("bootstrap"),
+                    "bootstrap": cb_bootstrap.as_execution_phase("bootstrap"),
+                    "primary": cb_primary.as_execution_phase("primary"),
+                    },
+                initial_phase="initialization")
+
+    def eval_rhs(self, t, y):
+        """Return a node that evaluates the RHS at the given time and
+        component value."""
+        from pymbolic.primitives import CallWithKwargs
+        return CallWithKwargs(function=self.function,
+                              parameters=(),
+                              kw_parameters={"t": t, self.component_id: y})
+
+    def rk_bootstrap(self, cb):
+        """Initialize the timestepper with an RK method."""
+
+        rhs_var = var("rhs_var")
+
+        cb(rhs_var, self.eval_rhs(self.t, self.state))
+
+        # Save the current RHS to the AB history
+
+        for i in range(len(self.history)):
+            with cb.if_(self.step, "==", i + 1):
+                cb(self.history[i], rhs_var)
+
+                if not self.static_dt:
+                    cb(self.time_history[i], self.t)
+
+        from leap.rk import ORDER_TO_RK_METHOD_BUILDER
+        rk_method = ORDER_TO_RK_METHOD_BUILDER[self.function_family.order]
+        rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
+        rk_coeffs = rk_method.output_coeffs
+
+        # Stage loop (taken from EmbeddedButcherTableauMethodBuilder)
+        rhss = [var("rk_rhs_" + str(i)) for i in range(len(rk_tableau))]
+        for stage_num, (c, coeffs) in enumerate(rk_tableau):
+            if len(coeffs) == 0:
+                assert c == 0
+                cb(rhss[stage_num], rhs_var)
+            else:
+                stage = self.state + sum(self.dt * coeff * rhss[j]
+                                         for (j, coeff)
+                                         in enumerate(coeffs))
+
+                if self.state_filter is not None:
+                    stage = self.state_filter(stage)
+
+                cb(rhss[stage_num], self.eval_rhs(self.t + c * self.dt, stage))
+
+        # Merge the values of the RHSs.
+        rk_comb = sum(coeff * rhss[j] for j, coeff in enumerate(rk_coeffs))
+
+        state_est = self.state + self.dt * rk_comb
+        if self.state_filter is not None:
+            state_est = self.state_filter(state_est)
+
+        # Assign the value of the new state.
+        cb(self.state, state_est)
+
+# }}}
+
 # vim: fdm=marker
