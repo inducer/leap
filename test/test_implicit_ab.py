@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 from __future__ import division, with_statement
 
-__copyright__ = "Copyright (C) 2014 Matt Wala"
+__copyright__ = "Copyright (C) 2020 Cory Mikida"
 
 __license__ = """
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -66,12 +66,12 @@ def am_solver_hook_static(solve_expr, solve_var, solver_id, guess):
 
 @pytest.mark.parametrize(("method", "expected_order", "static_dt"), [
     (AdamsMoultonMethodBuilder("y", order, static_dt=static_dt), order, static_dt)
-    for order in [2, 3, 4, 5]
+    for order in [1, 2, 3, 4, 5]
     for static_dt in [True, False]
     ] + [
     (AdamsMoultonMethodBuilder("y", order, hist_length=order+1,
         static_dt=static_dt), order, static_dt)
-    for order in [2, 3, 4, 5]
+    for order in [1, 2, 3, 4, 5]
     for static_dt in [True, False]
     ])
 def test_am_convergence(python_method_impl, method, expected_order, static_dt):
