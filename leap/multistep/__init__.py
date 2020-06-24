@@ -453,15 +453,13 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
         # Declare variables
         self.step = var('<p>step')
         self.function = var('<func>' + component_id)
-        # One shorter for implicit.
         self.history = \
-            [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 2, 0, -1)]
+            [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
 
         if not self.static_dt:
-            # One shorter for implicit.
             self.time_history = [
                     var('<p>t_n_minus_' + str(i))
-                    for i in range(hist_length - 2, 0, -1)]
+                    for i in range(hist_length - 1, 0, -1)]
 
         self.state = var('<state>' + component_id)
         self.t = var('<t>')
@@ -482,7 +480,6 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
         from dagrt.language import DAGCode, CodeBuilder
 
         array = var("<builtin>array")
-        rhs_var = var("rhs_var")
         rhs_next_var = var("rhs_next_var")
 
         # Initialization
@@ -496,10 +493,10 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             unkvar = cb_primary.fresh_var('unk')
             rhs_var_to_unknown[rhs_next_var] = unkvar
 
-            # In implicit mode, the time history must also
-            # include the next point in time.
+            # In implicit mode, the time history must
+            # include the *next* point in time.
             if not self.static_dt:
-                time_history_data = self.time_history + [self.t] + [self.t + self.dt]
+                time_history_data = self.time_history + [self.t + self.dt]
                 time_hist_var = var(name_gen("time_history"))
                 cb_primary(time_hist_var, array(self.hist_length))
                 for i in range(self.hist_length):
@@ -525,10 +522,8 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
 
             unknowns.add(rhs_next_var)
 
-            cb_primary(rhs_var, self.eval_rhs(self.t, self.state))
-
             # Update history
-            history = self.history + [rhs_var] + [rhs_next_var]
+            history = self.history + [rhs_next_var]
 
             # Set up the actual Adams-Moulton step.
             ab_sum = emit_ab_integration(
@@ -584,8 +579,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             cb_primary(self.state, state_est)
 
             # Rotate history and time history.
-            # In the case of implicit, history length is one less.
-            for i in range(self.hist_length - 2):
+            for i in range(self.hist_length - 1):
                 cb_primary(self.history[i], history[i + 1])
 
                 if not self.static_dt:
@@ -634,41 +628,84 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
                               kw_parameters={"t": t, self.component_id: y})
 
     def rk_bootstrap(self, cb):
-        """Initialize the timestepper with an RK method."""
+        """Initialize the timestepper with an IMPLICIT RK method."""
 
-        rhs_var = var("rhs_var")
+        equations = []
+        unknowns = set()
+        knowns = set()
+        rhs_var_to_unknown = {}
 
-        cb(rhs_var, self.eval_rhs(self.t, self.state))
+        def make_known(v):
+            unknowns.discard(v)
+            knowns.add(v)
 
-        # Save the current RHS to the AB history
-
-        for i in range(len(self.history)):
-            with cb.if_(self.step, "==", i + 1):
-                cb(self.history[i], rhs_var)
-
-                if not self.static_dt:
-                    cb(self.time_history[i], self.t)
-
-        from leap.rk import ORDER_TO_RK_METHOD_BUILDER
-        rk_method = ORDER_TO_RK_METHOD_BUILDER[self.function_family.order]
-        rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit))
+        from leap.rk import IMPLICIT_ORDER_TO_RK_METHOD_BUILDER
+        rk_method = IMPLICIT_ORDER_TO_RK_METHOD_BUILDER[self.function_family.order]
+        rk_tableau = tuple(zip(rk_method.c, rk_method.a_implicit))
         rk_coeffs = rk_method.output_coeffs
 
-        # Stage loop (taken from EmbeddedButcherTableauMethodBuilder)
+        with cb.if_(self.step, "==", 1):
+            # Save the first RHS to the AM history
+            rhs_var = var("rhs_var")
+
+            cb(rhs_var, self.eval_rhs(self.t, self.state))
+            cb(self.history[0], rhs_var)
+
+            if not self.static_dt:
+                cb(self.time_history[0], self.t)
+
+        # Stage loop
         rhss = [var("rk_rhs_" + str(i)) for i in range(len(rk_tableau))]
         for stage_num, (c, coeffs) in enumerate(rk_tableau):
-            if len(coeffs) == 0:
-                assert c == 0
-                cb(rhss[stage_num], rhs_var)
-            else:
-                stage = self.state + sum(self.dt * coeff * rhss[j]
-                                         for (j, coeff)
-                                         in enumerate(coeffs))
+            stage = self.state + sum(self.dt * coeff * rhss[j]
+                                     for (j, coeff)
+                                     in enumerate(coeffs))
 
-                if self.state_filter is not None:
-                    stage = self.state_filter(stage)
+            if self.state_filter is not None:
+                stage = self.state_filter(stage)
 
-                cb(rhss[stage_num], self.eval_rhs(self.t + c * self.dt, stage))
+            # In a DIRK setting, the unknown is always the same RHS
+            # as the stage number.
+            unknowns.add(rhss[stage_num])
+            unkvar = cb.fresh_var('unk_s%d' % (stage_num))
+            rhs_var_to_unknown[rhss[stage_num]] = unkvar
+            from dagrt.expression import collapse_constants
+            solve_expression = collapse_constants(
+                    rhss[stage_num] - self.eval_rhs(self.t + c*self.dt, stage),
+                    list(unknowns) + [self.state],
+                    cb.assign, cb.fresh_var)
+            equations.append(solve_expression)
+
+            # {{{ emit solve if possible
+
+            if unknowns and len(unknowns) == len(equations):
+                # got a square system, let's solve
+                assignees = [unk.name for unk in unknowns]
+
+                from pymbolic import substitute
+                subst_dict = dict(
+                        (rhs_var.name, rhs_var_to_unknown[rhs_var])
+                        for rhs_var in unknowns)
+
+                cb.assign_implicit(
+                        assignees=assignees,
+                        solve_components=[
+                            rhs_var_to_unknown[unk].name
+                            for unk in unknowns],
+                        expressions=[
+                            substitute(eq, subst_dict)
+                            for eq in equations],
+
+                        # TODO: Could supply a starting guess
+                        other_params={
+                            "guess": self.state},
+                        solver_id="solve")
+
+                del equations[:]
+                knowns.update(unknowns)
+                unknowns.clear()
+
+        # }}}
 
         # Merge the values of the RHSs.
         rk_comb = sum(coeff * rhss[j] for j, coeff in enumerate(rk_coeffs))
@@ -679,6 +716,19 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
 
         # Assign the value of the new state.
         cb(self.state, state_est)
+
+        # Save the "next" RHS to the AM history
+        rhs_next_var = var("rhs_next_var")
+
+        cb(rhs_next_var, self.eval_rhs(self.t + self.dt, self.state))
+
+        for i in range(1, len(self.history)):
+            with cb.if_(self.step, "==", i):
+                cb(self.history[i], rhs_next_var)
+
+                if not self.static_dt:
+                    cb(self.time_history[i], self.t + self.dt)
+
 
 # }}}
 
