@@ -24,6 +24,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+# avoid spurious: pytest.mark.parametrize is not callable
+# pylint: disable=not-callable
+
 import sys
 import pytest
 from leap.multistep import AdamsBashforthMethodBuilder
