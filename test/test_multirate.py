@@ -319,6 +319,333 @@ def test_single_rate_identical(order=3, hist_length=3):
     assert diff < 1e-13
 
 
+def am_solver(f, t, dt, sub_fast, sub_slow, coeff1, coeff2, guess):
+    from scipy.optimize import root
+    return root(lambda unk: unk + (-1)*f(t=t + coeff1*dt,
+                                         fast=sub_fast + coeff2*unk,
+                                         slow=sub_slow), guess).x
+
+
+def am_solver_hook(solve_expr, solve_var, solver_id, guess):
+    from dagrt.expression import match, substitute
+
+    pieces = match(
+            "unk + (-1)*<func>f(t=t + coeff1*dt, fast=sub_fast + coeff2*unk, "
+            "slow=sub_slow)", solve_expr, pre_match={"unk": solve_var})
+    pieces["guess"] = guess
+    return substitute("<func>solver(t, dt, sub_fast, sub_slow, "
+                      "coeff1, coeff2, guess)", pieces)
+
+
+def am_solver_sr(f, t, sub_y, coeff, guess):
+    from scipy.optimize import root
+    return root(lambda unk: unk - f(t=t, y=sub_y + coeff*unk), guess).x
+
+
+def am_solver_sr_hook(solve_expr, solve_var, solver_id, guess):
+    from dagrt.expression import match, substitute
+
+    pieces = match("unk - <func>rhs(t=t, y=sub_y + coeff*unk)", solve_expr,
+                   pre_match={"unk": solve_var})
+    pieces["guess"] = guess
+    return substitute("<func>solver(t, sub_y, coeff, guess)", pieces)
+
+
+def test_implicit_single_rate_identical(order=3, hist_length=3):
+    from dagrt.exec_numpy import NumpyInterpreter
+    from leap.multistep import (AdamsMoultonMethodBuilder,
+                                AdamsBashforthMethodBuilder)
+    from leap.implicit import replace_AssignImplicit
+    from functools import partial
+
+    from multirate_test_systems import StiffUncoupled
+    # We need to use the uncoupled system to test
+    # IMEX.
+    ode = StiffUncoupled()
+
+    t_start = 0
+    dt = 0.1
+    nsteps = 20
+    static_dt = False
+
+    # Compare with single-rate implicit.
+
+    # {{{ single rate
+
+    single_rate_method = AdamsMoultonMethodBuilder("y", order=order,
+            hist_length=hist_length)
+    single_rate_code = single_rate_method.generate()
+
+    single_rate_code = replace_AssignImplicit(single_rate_code,
+                                              {"solve": am_solver_sr_hook})
+
+    def single_rate_rhs(t, y):
+        f, s = y
+        return np.array([
+            ode.f2f_rhs(t, f, s)+ode.s2f_rhs(t, f, s),
+            ode.f2s_rhs(t, f, s)+ode.s2s_rhs(t, f, s),
+            ])
+
+    single_rate_interp = NumpyInterpreter(
+            single_rate_code,
+            function_map={"<func>y": single_rate_rhs,
+                          "<func>solver": partial(am_solver_sr, single_rate_rhs)})
+
+    single_rate_interp.set_up(t_start=t_start, dt_start=dt,
+            context={"y": np.array([
+                ode.soln_0(t_start),
+                ode.soln_1(t_start),
+                ])})
+
+    single_rate_values = {}
+
+    for event in single_rate_interp.run():
+        if isinstance(event, single_rate_interp.StateComputed):
+            single_rate_values[event.t] = event.state_component
+
+            if len(single_rate_values) == nsteps:
+                break
+
+    # }}}
+
+    # {{{ single rate explicit
+
+    single_rate_exp_method = AdamsBashforthMethodBuilder("y", order=order,
+            hist_length=hist_length, static_dt=static_dt)
+    single_rate_exp_code = single_rate_exp_method.generate()
+
+    single_rate_exp_interp = NumpyInterpreter(
+            single_rate_exp_code,
+            function_map={"<func>y": single_rate_rhs})
+
+    single_rate_exp_interp.set_up(t_start=t_start, dt_start=dt,
+            context={"y": np.array([
+                ode.soln_0(t_start),
+                ode.soln_1(t_start),
+                ])})
+
+    single_rate_exp_values = {}
+
+    for event in single_rate_exp_interp.run():
+        if isinstance(event, single_rate_interp.StateComputed):
+            single_rate_exp_values[event.t] = event.state_component
+
+            if len(single_rate_exp_values) == nsteps:
+                break
+
+    # }}}
+
+    # {{{ two rate
+
+    multi_rate_method = MultiRateMultiStepMethodBuilder(
+                order,
+                (
+                    (
+                        'dt', 'fast', '=',
+                        MRHistory(1, "<func>f", ("fast", "slow",),
+                            hist_length=hist_length,
+                            is_rhs_implicit=True),
+                        ),
+                    (
+                        'dt', 'slow', '=',
+                        MRHistory(1, "<func>s", ("fast", "slow",),
+                            rhs_policy=rhs_policy.late, hist_length=hist_length,
+                            is_rhs_implicit=False),
+                        ),),
+                static_dt=static_dt,
+                hist_consistency_threshold=1e-8,
+                early_hist_consistency_threshold=dt**order)
+
+    multi_rate_code = multi_rate_method.generate()
+
+    multi_rate_code = replace_AssignImplicit(multi_rate_code,
+                                             {"solve": am_solver_hook})
+
+    def rhs_fast(t, fast, slow):
+        return ode.f2f_rhs(t, fast, slow)+ode.s2f_rhs(t, fast, slow)
+
+    def rhs_slow(t, fast, slow):
+        return ode.f2s_rhs(t, fast, slow)+ode.s2s_rhs(t, fast, slow)
+
+    multi_rate_interp = NumpyInterpreter(
+            multi_rate_code,
+            function_map={"<func>f": rhs_fast, "<func>s": rhs_slow,
+                          "<func>solver": partial(am_solver, rhs_fast)})
+
+    multi_rate_interp.set_up(t_start=t_start, dt_start=dt,
+            context={
+                "fast": ode.soln_0(t_start),
+                "slow": ode.soln_1(t_start),
+                })
+
+    multi_rate_values = {}
+
+    for event in multi_rate_interp.run():
+        if isinstance(event, single_rate_interp.StateComputed):
+            idx = {"fast": 0, "slow": 1}[event.component_id]
+            if event.t not in multi_rate_values:
+                multi_rate_values[event.t] = [None, None]
+
+            multi_rate_values[event.t][idx] = event.state_component
+
+            if len(multi_rate_values) > nsteps:
+                break
+
+    # }}}
+
+    times = sorted(single_rate_values)
+    single_rate_values = np.array([single_rate_values[t] for t in times])
+    multi_rate_values = np.array([multi_rate_values[t] for t in times])
+    single_rate_exp_values = np.array([single_rate_exp_values[t] for t in times])
+    print(multi_rate_values)
+    print(single_rate_values)
+    print(single_rate_exp_values)
+
+    single_rate_test = np.zeros((len(times), 2))
+    for i in range(0, len(times)):
+        single_rate_test[i][0] = single_rate_values[i][0]
+        single_rate_test[i][1] = single_rate_exp_values[i][1]
+
+    diff = la.norm((single_rate_values-multi_rate_values).reshape(-1))
+
+    print(diff)
+    assert diff < 1e-13
+
+
+@pytest.mark.parametrize(("order", "hist_length"), [(3, 3),
+    (3, 4), (4, 4), (4, 5)])
+@pytest.mark.parametrize("step_ratio", [1, 2, 3, 4])
+@pytest.mark.parametrize("system", ["Full", "StiffUncoupled"])
+@pytest.mark.parametrize("static_dt", [True, False])
+def test_implicit_accuracy(order, hist_length, system, static_dt, step_ratio,
+                           plotting=False):
+    from dagrt.exec_numpy import NumpyInterpreter
+    from leap.implicit import replace_AssignImplicit
+    from functools import partial
+
+    import multirate_test_systems
+
+    test_system = getattr(multirate_test_systems, system)
+    ode = test_system()
+
+    """Check that the implicit multirate timestepper has the advertised accuracy"""
+
+    def true_f(t):
+        return ode.soln_0(t)
+
+    def true_s(t):
+        return ode.soln_1(t)
+
+    # {{{ construct multi-rate IMEX method
+
+    # FIXME: no history consistency thresholding for now.
+    multi_rate_method = MultiRateMultiStepMethodBuilder(
+                order,
+                (
+                    (
+                        'dt', 'fast', '=',
+                        MRHistory(1, "<func>f", ("fast", "slow",),
+                            hist_length=hist_length,
+                            is_rhs_implicit=True),
+                        ),
+                    (
+                        'dt', 'slow', '=',
+                        MRHistory(step_ratio, "<func>s", ("fast", "slow",),
+                            rhs_policy=rhs_policy.late, hist_length=hist_length,
+                            is_rhs_implicit=False),
+                        ),),
+                static_dt=static_dt)
+
+    multi_rate_code = multi_rate_method.generate()
+
+    multi_rate_code = replace_AssignImplicit(multi_rate_code,
+                                             {"solve": am_solver_hook})
+
+    def rhs_fast(t, fast, slow):
+        return ode.f2f_rhs(t, fast, slow)+ode.s2f_rhs(t, fast, slow)
+
+    def rhs_slow(t, fast, slow):
+        return ode.f2s_rhs(t, fast, slow)+ode.s2s_rhs(t, fast, slow)
+
+    # {{{ convergence run(s)
+    from pytools.convergence import EOCRecorder
+    eocrec = EOCRecorder()
+
+    for n in range(4, 7):
+        t_start = 0
+        dt = 2**(-n)
+        final_t = 2
+
+        multi_rate_interp = NumpyInterpreter(
+                multi_rate_code,
+                function_map={"<func>f": rhs_fast, "<func>s": rhs_slow,
+                              "<func>solver": partial(am_solver, rhs_fast)})
+
+        multi_rate_interp.set_up(t_start=t_start, dt_start=dt,
+                context={
+                    "fast": ode.soln_0(t_start),
+                    "slow": ode.soln_1(t_start),
+                    })
+
+        f_times = []
+        f_values = []
+        s_times = []
+        s_values = []
+        for event in multi_rate_interp.run(t_end=final_t):
+            if isinstance(event, multi_rate_interp.StateComputed):
+                if event.component_id == "fast":
+                    f_times.append(event.t)
+                    f_values.append(event.state_component[0])
+                elif event.component_id == "slow":
+                    s_times.append(event.t)
+                    # FIXME:
+                    if system == "Full":
+                        s_values.append(event.state_component[0])
+                    else:
+                        s_values.append(event.state_component)
+                else:
+                    assert False, event.component_id
+
+        f_times = np.array(f_times)
+        s_times = np.array(s_times)
+        f_values_true = true_f(f_times)
+        s_values_true = true_s(s_times)
+        f_err = f_values - f_values_true
+        s_err = s_values - s_values_true
+
+        if plotting:
+            import matplotlib.pyplot as plt
+            plt.plot(f_times, f_values, label='IMEX')
+            plt.plot(f_times, f_values_true, label='True')
+            plt.title('Stiff Uncoupled System - Fast Component Evolution')
+            plt.xlabel('t')
+            plt.ylabel('f')
+            plt.legend()
+            plt.savefig('imex_comparison_sr2.png')
+            plt.clf()
+
+            plt.plot(f_times, f_err, label='IMEX')
+            plt.title('Stiff Uncoupled System - Fast Component Error')
+            plt.xlabel('t')
+            plt.ylabel('f_err')
+            plt.savefig('imex_error_sr2.png')
+            plt.clf()
+
+        error = (
+                la.norm(f_err) / la.norm(f_values_true)
+                +  # noqa: W504
+                la.norm(s_err) / la.norm(s_values_true))
+
+        eocrec.add_data_point(dt, error)
+
+    print(eocrec.pretty_print())
+
+    orderest = eocrec.estimate_order_of_convergence()[0, 1]
+    assert orderest > order * 0.7
+
+    # }}}
+
+
 @pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
 def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
         explainer=TextualSchemeExplainer()):

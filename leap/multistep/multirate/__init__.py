@@ -67,7 +67,7 @@ class MultiRateHistory(Record):
     """
     def __init__(self, interval, func_name, arguments, order=None,
             rhs_policy=rhs_policy.late, invalidate_computed_state=False,
-            hist_length=None):
+            hist_length=None, is_rhs_implicit=False):
         """
         :arg interval: An integer indicating the interval (relative to the
             smallest available timestep) at which this history is to be
@@ -85,6 +85,8 @@ class MultiRateHistory(Record):
         :arg hist_length: history length.  If greater than order, we use a
             least-squares solve rather than a linear solve to obtain the AB
             coefficients for this history
+        :arg is_rhs_implicit: If True, we use Adams-Moulton for the state
+            contribution from this RHS.
         """
         super(MultiRateHistory, self).__init__(
                 interval=interval,
@@ -93,11 +95,16 @@ class MultiRateHistory(Record):
                 order=order,
                 rhs_policy=rhs_policy,
                 invalidate_computed_state=invalidate_computed_state,
-                hist_length=hist_length)
+                hist_length=hist_length,
+                is_rhs_implicit=is_rhs_implicit)
 
     @property
     def history_length(self):
         return self.hist_length
+
+    @property
+    def is_implicit(self):
+        return self.is_rhs_implicit
 
 
 class RHS(MultiRateHistory):
@@ -159,7 +166,8 @@ class InconsistentHistoryError:
 
 class MultiRateMultiStepMethodBuilder(MethodBuilder):
     """Simultaneously timesteps multiple parts of an ODE system,
-    each with adjustable orders, rates, and dependencies.
+    each with adjustable orders, rates, and dependencies. RHS
+    components can also be advanced implicitly.
 
     Considerably generalizes [GearWells]_.
 
@@ -413,7 +421,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
         cb(self.bootstrap_step, 0)
 
-    # {{{ rk bootstrap: step
+    # {{{ rk bootstrap: fully explicit step
 
     def emit_small_rk_step(self, cb, name_prefix, name_gen, rhss_on_entry):
         """Emit a single step of an RK method."""
@@ -588,6 +596,283 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
     # }}}
 
+    # {{{ rk bootstrap: IMEX step
+
+    def emit_small_imex_rk_step(self, cb, name_prefix, name_gen, rhss_on_entry):
+        """Emit a single step of an IMEX-RK method."""
+
+        from leap.rk import (IMEX_ORDER_TO_RK_METHOD_BUILDER,
+                             _is_first_stage_same_as_last_stage)
+        rk_method = IMEX_ORDER_TO_RK_METHOD_BUILDER[self.max_order]
+        rk_tableau = tuple(zip(rk_method.c, rk_method.a_explicit,
+                               rk_method.a_implicit))
+        rk_coeffs = rk_method.high_order_coeffs
+        stage_coeff_sets = {
+            "explicit": rk_method.a_explicit,
+            "implicit": rk_method.a_implicit}
+
+        def make_stage_history(prefix):
+            return [var(prefix + "_stage" + str(i)) for i in range(len(rk_tableau))]
+
+        def make_imp_stage_history(prefix):
+            return [var(prefix + "_stage" + str(i) + "_imp")
+                    for i in range(len(rk_tableau))]
+
+        stage_rhss = {}
+        imp_stage_rhss = {}
+        for comp_name, component_rhss in zip(self.component_names, self.rhss):
+            if not self.is_ode_component[comp_name]:
+                continue
+
+            for irhs, rhs in enumerate(component_rhss):
+                if rhs.is_implicit:
+                    imp_stage_rhss[comp_name, irhs] = make_imp_stage_history(
+                        "{name_prefix}_rk_{comp_name}_rhs{irhs}"
+                        .format(
+                            name_prefix=name_prefix,
+                            comp_name=comp_name,
+                            irhs=irhs))
+                else:
+                    stage_rhss[comp_name, irhs] = make_stage_history(
+                        "{name_prefix}_rk_{comp_name}_rhs{irhs}"
+                        .format(
+                            name_prefix=name_prefix,
+                            comp_name=comp_name,
+                            irhs=irhs))
+
+        for istage, (c, exp_coeffs, imp_coeffs) in enumerate(rk_tableau):
+
+            unknowns = set()
+            knowns = set()
+            component_state_ests = {}
+            for comp_name, component_rhss in zip(
+                    self.component_names, self.rhss):
+                if not self.is_ode_component[comp_name]:
+                    continue
+
+                contribs = []
+                for irhs, rhs in enumerate(component_rhss):
+                    # We still need to go through the whole solving deal here.
+                    if rhs.is_implicit:
+                        name = "implicit"
+                    else:
+                        name = "explicit"
+                    if (
+                            name in rk_method.recycle_last_stage_coeff_set_names
+                            and istage == 0
+                            and _is_first_stage_same_as_last_stage(
+                                rk_method.c, stage_coeff_sets[name])):
+                        if rhs.is_implicit:
+                            unknowns.add(imp_stage_rhss[comp_name, irhs][istage])
+                        else:
+                            cb(stage_rhss[comp_name, irhs][istage],
+                               rhss_on_entry[comp_name, irhs])
+                    else:
+                        state_contrib_var = var(
+                                name_gen(
+                                    "state_contrib_{comp_name}_rhs{irhs}"
+                                    .format(comp_name=comp_name, irhs=irhs)))
+
+                        if rhs.is_implicit:
+                            unknowns.add(imp_stage_rhss[comp_name, irhs][istage])
+                            contribs.append(_linear_comb(imp_coeffs,
+                                            imp_stage_rhss[comp_name, irhs]))
+                        else:
+                            # First stage.
+                            if exp_coeffs == []:
+                                cb(state_contrib_var, 0)
+                            else:
+                                contribs.append(_linear_comb(exp_coeffs,
+                                                stage_rhss[comp_name, irhs]))
+                                cb(state_contrib_var,
+                                        _linear_comb(exp_coeffs,
+                                                     stage_rhss[comp_name, irhs]))
+
+                state_var = var(
+                        name_gen(
+                            "state_{comp_name}_st{istage}"
+                            .format(comp_name=comp_name, istage=istage)))
+
+                state_expr = (
+                        var("<state>" + comp_name)
+                        + (self.dt/self.nsubsteps) * sum(contribs))
+
+                if comp_name in self.state_filters:
+                    state_expr = self.state_filters[comp_name](state_expr)
+
+                # Avoid need for multiple solver hooks.
+                from pymbolic.mapper.distributor import DistributeMapper as DistMap
+                component_state_ests[comp_name] = DistMap()(state_expr)
+
+            # At this point, we have all the ODE state estimates evaluated.
+
+            # {{{ evaluate the non-ODE RHSs
+
+            for comp_name, component_rhss in zip(
+                    self.component_names, self.rhss):
+                if self.is_ode_component[comp_name]:
+                    continue
+
+                contribs = []
+
+                for irhs, rhs in enumerate(component_rhss):
+                    kwargs = dict(
+                            (self.comp_name_to_kwarg_name[arg_comp_name],
+                                component_state_ests[arg_comp_name])
+                            for arg_comp_name in rhs.arguments)
+
+                    contribs.append(var(rhs.func_name)(
+                                t=self.t + (c/self.nsubsteps) * self.dt,
+                                **kwargs))
+
+                state_var = var(
+                        name_gen(
+                            "state_{comp_name}_st{istage}"
+                            .format(comp_name=comp_name, istage=istage)))
+
+                cb(state_var, sum(contribs))
+
+                component_state_ests[comp_name] = state_var
+
+            # }}}
+
+            # {{{ evaluate the ODE RHSs
+
+            for comp_name, component_rhss in zip(
+                    self.component_names, self.rhss):
+
+                if not self.is_ode_component[comp_name]:
+                    continue
+
+                equations = []
+                rhs_var_to_unknown = {}
+
+                for irhs, rhs in enumerate(component_rhss):
+                    kwargs = dict(
+                            (self.comp_name_to_kwarg_name[arg_comp_name],
+                                component_state_ests[arg_comp_name])
+                            for arg_comp_name in rhs.arguments)
+                    if rhs.is_implicit:
+                        # First stage: no solve required.
+                        if imp_coeffs == []:
+                            cb(imp_stage_rhss[comp_name, irhs][istage],
+                                    var(rhs.func_name)(
+                                        t=self.t + (c/self.nsubsteps) * self.dt,
+                                        **kwargs))
+                        else:
+                            # We require a solve here.
+                            # In a DIRK/ARK setting, the unknown is always the same
+                            # RHS as the stage number.
+                            unkvar = cb.fresh_var('unk_s%d' % (istage))
+                            rhs_var_to_unknown[
+                                    imp_stage_rhss[comp_name,
+                                                   irhs][istage]] = unkvar
+                            solve_expression = imp_stage_rhss[
+                                    comp_name, irhs][istage] - var(rhs.func_name)(
+                                            t=self.t + (c/self.nsubsteps) * self.dt,
+                                            **kwargs)
+                            equations.append(solve_expression)
+
+                            # Emit solve.
+
+                            if unknowns and len(unknowns) == len(equations):
+                                # got a square system, let's solve
+                                assignees = [unk.name for unk in unknowns]
+
+                                from pymbolic import substitute
+                                subst_dict = dict(
+                                        (rhs_var.name, rhs_var_to_unknown[rhs_var])
+                                        for rhs_var in unknowns)
+
+                                cb.assign_implicit(
+                                        assignees=assignees,
+                                        solve_components=[
+                                            rhs_var_to_unknown[unk].name
+                                            for unk in unknowns],
+                                        expressions=[
+                                            substitute(eq, subst_dict)
+                                            for eq in equations],
+
+                                        # TODO: Could supply a starting guess
+                                        other_params={
+                                            "guess": var('<state>'+comp_name)},
+                                        solver_id="solve")
+
+                                del equations[:]
+                                knowns.update(unknowns)
+                                unknowns.clear()
+
+                    else:
+                        cb(stage_rhss[comp_name, irhs][istage],
+                                var(rhs.func_name)(
+                                    t=self.t + (c/self.nsubsteps) * self.dt,
+                                    **kwargs))
+
+            # }}}
+
+        # Now that we've traversed both stage loops,
+        # we can actually sum the RHS's to get the state estimates.
+        component_state_ests = {}
+
+        for icomp, (comp_name, component_rhss) in enumerate(
+                zip(self.component_names, self.rhss)):
+
+            contribs = []
+            for irhs, rhs in enumerate(component_rhss):
+                if not self.is_ode_component[comp_name]:
+                    continue
+
+                # Implicit, if applicable:
+                if rhs.is_implicit:
+                    imp_state_contrib_var = var(
+                            name_gen(
+                                "state_contrib_{comp_name}_rhs{irhs}_imp"
+                                .format(comp_name=comp_name, irhs=irhs)))
+
+                    contribs.append(imp_state_contrib_var)
+
+                    cb(imp_state_contrib_var,
+                            _linear_comb(rk_coeffs, imp_stage_rhss[comp_name, irhs]))
+                else:
+                    state_contrib_var = var(
+                            name_gen(
+                                "state_contrib_{comp_name}_rhs{irhs}"
+                                .format(comp_name=comp_name, irhs=irhs)))
+
+                    contribs.append(state_contrib_var)
+
+                    cb(state_contrib_var,
+                            _linear_comb(rk_coeffs, stage_rhss[comp_name, irhs]))
+
+            state_var = var(
+                    name_gen(
+                        "state_{comp_name}_final"
+                        .format(comp_name=comp_name)))
+
+            state_expr = (
+                    var("<state>" + comp_name)
+                    + (self.dt/self.nsubsteps) * sum(contribs))
+            if comp_name in self.state_filters:
+                state_expr = self.state_filters[comp_name](state_expr)
+
+            cb(state_var, state_expr)
+
+            component_state_ests[comp_name] = state_var
+
+        for component_name in self.component_names:
+            state = component_state_ests[component_name]
+            if self.is_ode_component[component_name]:
+                cb.yield_state(
+                        state,
+                        component_name, self.t + self.dt/self.nsubsteps,
+                        "bootstrap")
+
+            cb(var("<state>"+component_name), state)
+
+        cb(self.t, self.t + self.dt/self.nsubsteps)
+
+    # }}}
+
     # {{{ rk bootstrap: overall control
 
     def emit_rk_bootstrap(self, cb):
@@ -711,7 +996,20 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                     cb.switch_phase("primary")
                     cb.restart_step()
 
-            self.emit_small_rk_step(cb, name_prefix, name_gen, current_rhss)
+            # Check if we have any implicit RHSs.
+            imp_exist = 0
+            for comp_name, component_rhss in zip(
+                    self.component_names, self.rhss):
+                for irhs, rhs in enumerate(component_rhss):
+                    if rhs.is_implicit:
+                        imp_exist += 1
+
+            if imp_exist == 0:
+                # If we have no implicit RHSs, run the full explicit bootstrapper.
+                self.emit_small_rk_step(cb, name_prefix, name_gen, current_rhss)
+            else:
+                # Otherwise, run the IMEX RK bootstrapper.
+                self.emit_small_imex_rk_step(cb, name_prefix, name_gen, current_rhss)
 
         cb(self.bootstrap_step, self.bootstrap_step + 1)
 
@@ -724,7 +1022,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
     # {{{ main method generation
 
-    def emit_ab_method(self, cb, explainer):
+    def emit_adams_method(self, cb, explainer):
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
@@ -782,7 +1080,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
         # {{{ get_state
 
-        def get_state(comp_name, isubstep):
+        def get_state(comp_name, isubstep, return_exp=False):
             states = computed_states[comp_name]
 
             # {{{ see if we've got that state ready to go
@@ -865,7 +1163,15 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
             if comp_name in self.state_filters:
                 state_expr = self.state_filters[comp_name](state_expr)
-            cb(state_var, state_expr)
+
+            # If we are returning this state as an implicit RHS
+            # argument, we need it to be an expression, not a variable.
+            if return_exp:
+                # To simplify solver hooks
+                from pymbolic.mapper.distributor import DistributeMapper as DistMap
+                return DistMap()(state_expr)
+            else:
+                cb(state_var, state_expr)
 
             # Only keep temporary state if integrates exactly
             # one interval ahead for the fastest right-hand side,
@@ -905,26 +1211,31 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
             rhs = self.rhss[comp_idx][irhs]
 
-            # {{{ get arguments together
-
-            progress_frac = isubstep / self.nsubsteps
-            t_expr = self.t + self.dt * progress_frac
-
-            kwargs = dict(
-                    (self.comp_name_to_kwarg_name[arg_comp_name],
-                        get_state(arg_comp_name, isubstep))
-                    for arg_comp_name in rhs.arguments)
-
-            # }}}
-
             rhs_var = var(
                     name_gen(
                         "rhs_{comp_name}_rhs{irhs}_sub{isubstep}"
                         .format(comp_name=comp_name, irhs=irhs, isubstep=isubstep)))
 
-            cb(rhs_var, var(rhs.func_name)(t=t_expr, **kwargs))
+            # Stuff for implicit.
+            equations = []
+            unknowns = set()
+            knowns = set()
+            rhs_var_to_unknown = {}
+            states = computed_states[comp_name]
+            latest_state = states[-1][-1]
 
-            temp_hist_substeps[comp_name, irhs].append(isubstep)
+            if rhs.is_implicit:
+                # Implicit setup - rhs_var is an unknown, needs implicit solve.
+                temp_hist_vars[comp_name, irhs].append(rhs_var)
+                implicit_rhs_var = temp_hist_vars[comp_name, irhs][-1]
+                unknowns.add(implicit_rhs_var)
+                unkvar = cb.fresh_var('unk')
+                rhs_var_to_unknown[implicit_rhs_var] = unkvar
+
+            # {{{ get arguments together
+
+            progress_frac = isubstep / self.nsubsteps
+            t_expr = self.t + self.dt * progress_frac
 
             if not self.static_dt:
                 t_var = var(
@@ -934,13 +1245,85 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                                 comp_name=comp_name,
                                 irhs=irhs,
                                 isubstep=isubstep)))
-                cb(t_var, t_expr)
-                temp_time_vars[comp_name, irhs].append(t_var)
-
+                if rhs.is_implicit:
+                    cb(t_var, t_expr)
+                    temp_time_vars[comp_name, irhs].append(t_var)
             else:
-                temp_time_vars[comp_name, irhs].append(progress_frac)
+                if rhs.is_implicit:
+                    temp_time_vars[comp_name, irhs].append(progress_frac)
 
-            temp_hist_vars[comp_name, irhs].append(rhs_var)
+            # }}}
+
+            if rhs.is_implicit:
+                # TODO multivariable implicit solves
+                # Call to get state for a given RHS.
+                kwargs = dict(
+                        (self.comp_name_to_kwarg_name[arg_comp_name],
+                            get_state(arg_comp_name, isubstep, return_exp=True))
+                        for arg_comp_name in rhs.arguments)
+                # Build the implicit solve expression.
+                solve_expression = implicit_rhs_var - var(rhs.func_name)(t=t_expr,
+                                                                         **kwargs)
+                equations.append(solve_expression)
+            else:
+                kwargs = dict(
+                        (self.comp_name_to_kwarg_name[arg_comp_name],
+                            get_state(arg_comp_name, isubstep))
+                        for arg_comp_name in rhs.arguments)
+                cb(rhs_var, var(rhs.func_name)(t=t_expr, **kwargs))
+
+            # Implicit solve(s), if needed.
+            if unknowns and len(unknowns) == len(equations):
+                # got a square system, let's solve
+                assignees = [unk.name for unk in unknowns]
+
+                from pymbolic import substitute
+                subst_dict = dict(
+                        (rhs_var.name, rhs_var_to_unknown[rhs_var])
+                        for rhs_var in unknowns)
+
+                cb.assign_implicit(
+                        assignees=assignees,
+                        solve_components=[
+                            rhs_var_to_unknown[unk].name
+                            for unk in unknowns],
+                        expressions=[
+                            substitute(eq, subst_dict)
+                            for eq in equations],
+
+                        other_params={
+                            "guess": latest_state},
+                        solver_id="solve")
+
+                del equations[:]
+                knowns.update(unknowns)
+                unknowns.clear()
+
+                # Now that we have the RHS value solved for,
+                # update useful temp states
+                for arg_comp_name in rhs.arguments:
+                    post_solve_state = get_state(arg_comp_name, isubstep)
+
+            temp_hist_substeps[comp_name, irhs].append(isubstep)
+
+            if not rhs.is_implicit:
+                # History shuffles.
+                if not self.static_dt:
+                    t_var = var(
+                            name_gen(
+                                "t_{comp_name}_rhs{irhs}_sub{isubstep}"
+                                .format(
+                                    comp_name=comp_name,
+                                    irhs=irhs,
+                                    isubstep=isubstep)))
+
+                    cb(t_var, t_expr)
+                    temp_time_vars[comp_name, irhs].append(t_var)
+
+                else:
+                    temp_time_vars[comp_name, irhs].append(progress_frac)
+
+                temp_hist_vars[comp_name, irhs].append(rhs_var)
 
             explainer.eval_rhs(
                     rhs_var.name, comp_name, rhs.func_name, isubstep, kwargs)
@@ -1129,7 +1512,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
             self.emit_initialization(cb_init)
 
         with CodeBuilder(name="primary") as cb_primary:
-            self.emit_ab_method(cb_primary, explainer)
+            self.emit_adams_method(cb_primary, explainer)
 
         with CodeBuilder(name="bootstrap") as cb_bootstrap:
             self.emit_rk_bootstrap(cb_bootstrap)
