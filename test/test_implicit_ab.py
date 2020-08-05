@@ -49,21 +49,6 @@ def am_solver_hook(solve_expr, solve_var, solver_id, guess):
     return substitute("<func>solver(t, sub_y, coeff, guess)", pieces)
 
 
-def am_solver_static(f, t, sub_y, coeff, dt, add, guess):
-    from scipy.optimize import root
-    return root(lambda unk: unk - f(t=t, y=sub_y + dt*(add + coeff*unk)), guess).x
-
-
-def am_solver_hook_static(solve_expr, solve_var, solver_id, guess):
-    from dagrt.expression import match, substitute
-
-    pieces = match("unk - <func>rhs(t=t, y=sub_y + dt*(add + coeff*unk))",
-                   solve_expr,
-                   pre_match={"unk": solve_var})
-    pieces["guess"] = guess
-    return substitute("<func>solver(t, sub_y, coeff, dt, add, guess)", pieces)
-
-
 @pytest.mark.parametrize(("method", "expected_order", "static_dt"), [
     (AdamsMoultonMethodBuilder("y", order, static_dt=static_dt), order, static_dt)
     for order in [1, 2, 3, 4, 5]
@@ -84,10 +69,7 @@ def test_am_convergence(python_method_impl, method, expected_order, static_dt):
     code = method.generate()
 
     from leap.implicit import replace_AssignImplicit
-    if static_dt:
-        code = replace_AssignImplicit(code, {"solve": am_solver_hook_static})
-    else:
-        code = replace_AssignImplicit(code, {"solve": am_solver_hook})
+    code = replace_AssignImplicit(code, {"solve": am_solver_hook})
 
     from pytools.convergence import EOCRecorder
     eocrec = EOCRecorder()
@@ -101,17 +83,10 @@ def test_am_convergence(python_method_impl, method, expected_order, static_dt):
         final_t = problem.t_end
 
         from functools import partial
-        # FIXME
-        if static_dt:
-            interp = python_method_impl(code, function_map={
-                "<func>" + component_id: problem,
-                "<func>solver": partial(am_solver_static, problem),
-                })
-        else:
-            interp = python_method_impl(code, function_map={
-                "<func>" + component_id: problem,
-                "<func>solver": partial(am_solver, problem),
-                })
+        interp = python_method_impl(code, function_map={
+            "<func>" + component_id: problem,
+            "<func>solver": partial(am_solver, problem),
+            })
         interp.set_up(t_start=t, dt_start=dt, context={component_id: y})
 
         times = []

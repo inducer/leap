@@ -516,10 +516,6 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             unknowns = set()
             knowns = set()
 
-            def make_known(v):
-                unknowns.discard(v)
-                knowns.add(v)
-
             unknowns.add(rhs_next_var)
 
             # Update history
@@ -538,8 +534,10 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
 
             # Build the implicit solve expression.
             from dagrt.expression import collapse_constants
+            from pymbolic.mapper.distributor import DistributeMapper as DistMap
             solve_expression = collapse_constants(
-                    rhs_next_var - self.eval_rhs(self.t + self.dt, state_est),
+                    rhs_next_var - self.eval_rhs(self.t + self.dt,
+                                                 DistMap()(state_est)),
                     list(unknowns) + [self.state],
                     cb_primary.assign, cb_primary.fresh_var)
             equations.append(solve_expression)
@@ -634,10 +632,6 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
         unknowns = set()
         knowns = set()
         rhs_var_to_unknown = {}
-
-        def make_known(v):
-            unknowns.discard(v)
-            knowns.add(v)
 
         from leap.rk import IMPLICIT_ORDER_TO_RK_METHOD_BUILDER
         rk_method = IMPLICIT_ORDER_TO_RK_METHOD_BUILDER[self.function_family.order]
