@@ -669,6 +669,14 @@ IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
         5: DIRK4MethodBuilder,
         }
 
+from leap.rk.imex import (KennedyCarpenterIMEXARK3MethodBuilder,
+                          KennedyCarpenterIMEXARK4MethodBuilder)
+
+IMEX_ORDER_TO_RK_METHOD_BUILDER = {
+        3: KennedyCarpenterIMEXARK3MethodBuilder,
+        4: KennedyCarpenterIMEXARK4MethodBuilder,
+        }
+
 # }}}
 
 
