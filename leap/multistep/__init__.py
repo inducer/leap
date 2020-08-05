@@ -1,11 +1,11 @@
-"""Adams-Bashforth ODE solvers."""
+"""Adams-Bashforth and Adams-Moulton ODE solvers."""
 
 from __future__ import division
 
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
 Copyright (C) 2014, 2015 Matt Wala
-Copyright (C) 2015 Cory Mikida
+Copyright (C) 2015, 2020 Cory Mikida
 """
 
 __license__ = """
@@ -37,6 +37,7 @@ from pymbolic import var
 
 __doc__ = """
 .. autoclass:: AdamsBashforthMethodBuilder
+.. autoclass:: AdamsMoultonMethodBuilder
 """
 
 
