@@ -1118,11 +1118,6 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                 knowns.update(unknowns)
                 unknowns.clear()
 
-                # Now that we have the RHS value solved for,
-                # update useful temp states
-                for arg_comp_name in rhs.arguments:
-                    post_solve_state = get_state(arg_comp_name, isubstep)
-
             temp_hist_substeps[comp_name, irhs].append(isubstep)
 
             if not rhs.is_implicit:
