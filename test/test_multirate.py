@@ -373,7 +373,7 @@ def test_implicit_single_rate_identical(order=3, hist_length=3):
     # {{{ single rate
 
     single_rate_method = AdamsMoultonMethodBuilder("y", order=order,
-            hist_length=hist_length)
+            hist_length=hist_length, _extra_bootstrap=True)
     single_rate_code = single_rate_method.generate()
 
     single_rate_code = replace_AssignImplicit(single_rate_code,
@@ -509,7 +509,7 @@ def test_implicit_single_rate_identical(order=3, hist_length=3):
     diff = la.norm((single_rate_values-multi_rate_values).reshape(-1))
 
     print(diff)
-    assert diff < 1e-13
+    assert diff < 1e-12
 
 
 @pytest.mark.parametrize(("order", "hist_length"), [(3, 3),
