@@ -420,7 +420,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
     """
 
     def __init__(self, component_id, function_family=None, state_filter_name=None,
-            hist_length=None, static_dt=False, order=None):
+            hist_length=None, static_dt=False, order=None, _extra_bootstrap=False):
         """
         :arg function_family: Accepts an instance of
             :class:`ABIntegrationFunctionFamily`
@@ -448,6 +448,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
 
         self.hist_length = hist_length
         self.static_dt = static_dt
+        self.extra_bootstrap = _extra_bootstrap
 
         self.component_id = component_id
 
@@ -606,9 +607,15 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
                                      component_id=self.component_id,
                                      time_id='', time=self.t)
             cb_bootstrap(self.step, self.step + 1)
-            # Bootstrap length is one less because of implicit.
-            with cb_bootstrap.if_(self.step, "==", self.hist_length - 1):
-                cb_bootstrap.switch_phase("primary")
+            # Bootstrap length is typically one less because of implicit,
+            # but if we are comparing with IMEX MRAM, we need one more
+            # bootstrap step.
+            if self.extra_bootstrap:
+                with cb_bootstrap.if_(self.step, "==", self.hist_length):
+                    cb_bootstrap.switch_phase("primary")
+            else:
+                with cb_bootstrap.if_(self.step, "==", self.hist_length - 1):
+                    cb_bootstrap.switch_phase("primary")
 
         return DAGCode(
                 phases={
@@ -639,7 +646,12 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
         rk_tableau = tuple(zip(rk_method.c, rk_method.a_implicit))
         rk_coeffs = rk_method.output_coeffs
 
-        with cb.if_(self.step, "==", 1):
+        if self.extra_bootstrap:
+            first_save_step = 2
+        else:
+            first_save_step = 1
+
+        with cb.if_(self.step, "==", first_save_step):
             # Save the first RHS to the AM history
             rhs_var = var("rhs_var")
 
@@ -718,12 +730,16 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
         cb(rhs_next_var, self.eval_rhs(self.t + self.dt, self.state))
 
         for i in range(1, len(self.history)):
-            with cb.if_(self.step, "==", i):
+            if self.extra_bootstrap:
+                save_crit = i+1
+            else:
+                save_crit = i
+
+            with cb.if_(self.step, "==", save_crit):
                 cb(self.history[i], rhs_next_var)
 
                 if not self.static_dt:
                     cb(self.time_history[i], self.t + self.dt)
-
 
 # }}}
 
