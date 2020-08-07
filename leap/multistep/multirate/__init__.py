@@ -1,4 +1,4 @@
-"""Multirate-AB ODE method."""
+"""Multirate Adams ODE method."""
 
 from __future__ import division
 
@@ -76,14 +76,14 @@ class MultiRateHistory(Record):
         :arg arguments: A tuple of component names
             (see :class:`MultiRateMultiStepMethodBuilder`)
             which are passed to this right-hand side function.
-        :arg order: The AB approximation order to be used for this
+        :arg order: The Adams approximation order to be used for this
             history, or None if the method default is to be used.
         :arg rhs_policy: One of the constants in :class:`rhs_policy`
         :arg invalidate_dependent_state: Whether evaluating this
             right-hand side should force a recomputation of any
             state that depended upon now-superseded state.
         :arg hist_length: history length.  If greater than order, we use a
-            least-squares solve rather than a linear solve to obtain the AB
+            least-squares solve rather than a linear solve to obtain the Adams
             coefficients for this history
         """
         super(MultiRateHistory, self).__init__(
@@ -724,7 +724,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
     # {{{ main method generation
 
-    def emit_ab_method(self, cb, explainer):
+    def emit_adams_method(self, cb, explainer):
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
@@ -828,21 +828,21 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                     dt_factor = self.dt
 
                 from leap.multistep import (
-                        ABMonomialIntegrationFunctionFamily,
-                        emit_ab_integration,
-                        emit_ab_extrapolation)
+                        AdamsMonomialIntegrationFunctionFamily,
+                        emit_adams_integration,
+                        emit_adams_extrapolation)
 
                 if self.is_ode_component[comp_name]:
-                    contrib = dt_factor*emit_ab_integration(
+                    contrib = dt_factor*emit_adams_integration(
                                 cb, name_gen,
-                                ABMonomialIntegrationFunctionFamily(rhs.order),
+                                AdamsMonomialIntegrationFunctionFamily(rhs.order),
                                 time_hist, relv_hist_vars,
                                 t_start, t_end)
 
                 else:
-                    contrib = emit_ab_extrapolation(
+                    contrib = emit_adams_extrapolation(
                                 cb, name_gen,
-                                ABMonomialIntegrationFunctionFamily(rhs.order),
+                                AdamsMonomialIntegrationFunctionFamily(rhs.order),
                                 time_hist, relv_hist_vars,
                                 t_end)
 
@@ -1011,12 +1011,12 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                                     self.early_hist_consistency_threshold):
                                 cb((), "<builtin>print(rel_rhs_error)")
                                 cb.raise_(InconsistentHistoryError,
-                                        "MRAB: top-of-history for RHS '%s' is not "
-                                        "consistent with current state"
+                                        "MRAdams: top-of-history for RHS '%s' is not"
+                                        " consistent with current state"
                                         % rhs.func_name)
                         else:
                             cb.raise_(InconsistentHistoryError,
-                                    "MRAB: RHS '%s' has early policy "
+                                    "MRAdams: RHS '%s' has early policy "
                                     "and requires relaxed threshold input"
                                     % rhs.func_name)
 
@@ -1025,7 +1025,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                         with cb.if_("rel_rhs_error", ">=",
                                 self.hist_consistency_threshold):
                             cb.raise_(InconsistentHistoryError,
-                                    "MRAB: top-of-history for RHS '%s' is not "
+                                    "MRAdams: top-of-history for RHS '%s' is not "
                                     "consistent with current state" % rhs.func_name)
 
         # {{{ run_substep_loop
@@ -1129,7 +1129,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
             self.emit_initialization(cb_init)
 
         with CodeBuilder(name="primary") as cb_primary:
-            self.emit_ab_method(cb_primary, explainer)
+            self.emit_adams_method(cb_primary, explainer)
 
         with CodeBuilder(name="bootstrap") as cb_bootstrap:
             self.emit_rk_bootstrap(cb_bootstrap)
