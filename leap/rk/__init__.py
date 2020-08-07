@@ -399,7 +399,7 @@ class SimpleButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
 class ImplicitButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
     def __init__(self, component_id, state_filter_name=None,
             rhs_func_name=None):
-        super(SimpleButcherTableauMethodBuilder, self).__init__(
+        super(ImplicitButcherTableauMethodBuilder, self).__init__(
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
