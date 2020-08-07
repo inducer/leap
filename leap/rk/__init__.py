@@ -116,6 +116,10 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         raise NotImplementedError
 
     @property
+    def a_implicit(self):
+        raise NotImplementedError
+
+    @property
     def output_coeffs(self):
         raise NotImplementedError
 
