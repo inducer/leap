@@ -36,6 +36,8 @@ from pymbolic import var
 
 
 __doc__ = """
+.. autoclass:: AdamsIntegrationFunctionFamily
+.. autoclass:: AdamsMonomialIntegrationFunctionFamily
 .. autoclass:: AdamsBashforthMethodBuilder
 """
 
@@ -50,6 +52,14 @@ def _linear_comb(coefficients, vectors):
 
 
 class AdamsIntegrationFunctionFamily(object):
+    """An abstract interface for function families used for
+    Adams-type time integration.
+
+    .. automethod:: __len__
+    .. automethod:: evaluate
+    .. automethod:: antiderivative
+    """
+
     def __len__(self):
         raise NotImplementedError()
 
@@ -61,6 +71,9 @@ class AdamsIntegrationFunctionFamily(object):
 
 
 class AdamsMonomialIntegrationFunctionFamily(AdamsIntegrationFunctionFamily):
+    """
+    Implements :class:`AdamsMonomialIntegrationFunctionFamily`.
+    """
     def __init__(self, order):
         self.order = order
 
