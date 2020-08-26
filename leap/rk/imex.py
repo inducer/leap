@@ -35,8 +35,8 @@ THE SOFTWARE.
 
 __doc__ = """
 
-IMEX MethodBuilders
-------------
+IMEX Method Builders
+--------------------
 
 .. autoclass :: KennedyCarpenterIMEXRungeKuttaMethodBuilderBase
 """
