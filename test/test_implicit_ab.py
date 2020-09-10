@@ -61,7 +61,6 @@ def am_solver_hook(solve_expr, solve_var, solver_id, guess):
     ])
 def test_am_convergence(python_method_impl, method, expected_order, static_dt):
     plot_solution = False
-    pytest.importorskip("scipy")
     from utils import DefaultProblem
     problem = DefaultProblem()
 
