@@ -423,7 +423,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             hist_length=None, static_dt=False, order=None, _extra_bootstrap=False):
         """
         :arg function_family: Accepts an instance of
-            :class:`ABIntegrationFunctionFamily`
+            :class:`AdamsIntegrationFunctionFamily`
             or an integer, in which case the classical monomial function family
             with the order given by the integer is used.
         :arg static_dt: If *True*, changing the timestep during time integration
