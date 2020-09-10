@@ -355,6 +355,7 @@ def am_solver_sr_hook(solve_expr, solve_var, solver_id, guess):
 
 
 def test_implicit_single_rate_identical(order=3, hist_length=3):
+    pytest.importorskip("scipy")
     from dagrt.exec_numpy import NumpyInterpreter
     from leap.multistep import (AdamsMoultonMethodBuilder,
                                 AdamsBashforthMethodBuilder)
@@ -522,6 +523,7 @@ def test_implicit_single_rate_identical(order=3, hist_length=3):
 @pytest.mark.parametrize("static_dt", [True, False])
 def test_implicit_accuracy(order, hist_length, system, static_dt, step_ratio,
                            plotting=False):
+    pytest.importorskip("scipy")
     from dagrt.exec_numpy import NumpyInterpreter
     from leap.implicit import replace_AssignImplicit
     from functools import partial
