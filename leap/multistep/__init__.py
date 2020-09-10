@@ -50,7 +50,7 @@ def _linear_comb(coefficients, vectors):
                 zip(coefficients, vectors)))
 
 
-class ABIntegrationFunctionFamily(object):
+class AdamsIntegrationFunctionFamily(object):
     def __len__(self):
         raise NotImplementedError()
 
@@ -61,7 +61,7 @@ class ABIntegrationFunctionFamily(object):
         raise NotImplementedError()
 
 
-class ABMonomialIntegrationFunctionFamily(ABIntegrationFunctionFamily):
+class AdamsMonomialIntegrationFunctionFamily(AdamsIntegrationFunctionFamily):
     def __init__(self, order):
         self.order = order
 
@@ -90,7 +90,7 @@ def _emit_func_family_operation(cb, name_gen,
         transpose = var("<builtin>transpose")
 
         # use:
-        # Vandermonde^T * ab_coeffs = integrate(t_start, t_end, monomials)
+        # Vandermonde^T * a_coeffs = integrate(t_start, t_end, monomials)
 
         vdmt = var(name_gen("vdm_transpose"))
         cb(vdmt, array(nfunctions*hist_len))
@@ -107,10 +107,10 @@ def _emit_func_family_operation(cb, name_gen,
         for i in range(len(function_family)):
             cb(coeff_rhs[i], rhs_func(i))
 
-        ab_coeffs = var(name_gen("ab_coeffs"))
+        a_coeffs = var(name_gen("a_coeffs"))
 
         if hist_len == nfunctions:
-            cb(ab_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
+            cb(a_coeffs, linear_solve(vdmt, coeff_rhs, nfunctions, 1))
         else:
             # Least squares with SVD builtin
             u = var(name_gen("u"))
@@ -141,10 +141,10 @@ def _emit_func_family_operation(cb, name_gen,
 
             cb(intermed, matmul(v, sig_array, nfunctions, nfunctions))
             cb(ainv, matmul(intermed, ut, nfunctions, nfunctions))
-            cb(ab_coeffs, matmul(ainv, coeff_rhs, nfunctions, 1))
+            cb(a_coeffs, matmul(ainv, coeff_rhs, nfunctions, 1))
 
         return _linear_comb(
-                    [ab_coeffs[ii] for ii in range(hist_len)],
+                    [a_coeffs[ii] for ii in range(hist_len)],
                     hist_vars)
 
         # }}}
@@ -165,20 +165,20 @@ def _emit_func_family_operation(cb, name_gen,
             coeff_rhs[i] = rhs_func(i)
 
         if hist_len == nfunctions:
-            ab_coeffs = la.solve(vdm_t, coeff_rhs)
+            a_coeffs = la.solve(vdm_t, coeff_rhs)
         else:
             # SVD-based least squares solve
             u, sigma, v = la.svd(vdm_t, full_matrices=False)
             ainv = np.dot(v.transpose(), np.dot(la.inv(np.diag(sigma)),
                 u.transpose()))
-            ab_coeffs = np.dot(ainv, coeff_rhs)
+            a_coeffs = np.dot(ainv, coeff_rhs)
 
-        return _linear_comb(ab_coeffs, hist_vars)
+        return _linear_comb(a_coeffs, hist_vars)
 
         # }}}
 
 
-def emit_ab_integration(cb, name_gen,
+def emit_adams_integration(cb, name_gen,
         function_family, time_values, hist_vars, t_start, t_end):
     return _emit_func_family_operation(
             cb, name_gen, function_family, time_values, hist_vars,
@@ -187,7 +187,7 @@ def emit_ab_integration(cb, name_gen,
                 - function_family.antiderivative(i, t_start)))
 
 
-def emit_ab_extrapolation(cb, name_gen,
+def emit_adams_extrapolation(cb, name_gen,
         function_family, time_values, hist_vars, t_eval):
     return _emit_func_family_operation(
             cb, name_gen, function_family, time_values, hist_vars,
@@ -212,7 +212,7 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
             hist_length=None, static_dt=False, order=None):
         """
         :arg function_family: Accepts an instance of
-            :class:`ABIntegrationFunctionFamily`
+            :class:`AdamsIntegrationFunctionFamily`
             or an integer, in which case the classical monomial function family
             with the order given by the integer is used.
         :arg static_dt: If *True*, changing the timestep during time integration
@@ -227,7 +227,7 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
             del order
 
         if isinstance(function_family, int):
-            function_family = ABMonomialIntegrationFunctionFamily(function_family)
+            function_family = AdamsMonomialIntegrationFunctionFamily(function_family)
 
         super(AdamsBashforthMethodBuilder, self).__init__()
         self.function_family = function_family
@@ -298,7 +298,7 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
             cb_primary(rhs_var, self.eval_rhs(self.t, self.state))
             history = self.history + [rhs_var]
 
-            ab_sum = emit_ab_integration(
+            ab_sum = emit_adams_integration(
                             cb_primary, name_gen,
                             self.function_family,
                             time_hist, history,
