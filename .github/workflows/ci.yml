@@ -53,7 +53,7 @@ jobs:
                 python-version: ${{ matrix.python-version }}
         -   name: "Main Script"
             run: |
-                EXTRA_INSTALL="numpy"
+                EXTRA_INSTALL="numpy scipy"
                 sudo apt update
                 sudo apt install gfortran-7 liblapack-dev libblas-dev
                 sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
