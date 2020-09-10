@@ -438,7 +438,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             del order
 
         if isinstance(function_family, int):
-            function_family = ABMonomialIntegrationFunctionFamily(function_family)
+            function_family = AdamsMonomialIntegrationFunctionFamily(function_family)
 
         super(AdamsMoultonMethodBuilder, self).__init__()
         self.function_family = function_family
@@ -524,7 +524,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             history = self.history + [rhs_next_var]
 
             # Set up the actual Adams-Moulton step.
-            ab_sum = emit_ab_integration(
+            ab_sum = emit_adams_integration(
                             cb_primary, name_gen,
                             self.function_family,
                             time_hist, history,
