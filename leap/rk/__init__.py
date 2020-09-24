@@ -826,18 +826,119 @@ class SSPRKMethodBuilder(MethodBuilder):
             state_filter = var(f"<func>{state_filter_name}")
 
         if rhs_func_name is None:
-            rhs_func_name = f"<func>{component_id}"
+            rhs_func_name = "component_id"
 
         self.component_id = component_id
         self.dt = var("<dt>")
         self.t = var("<t>")
         self.state = var(f"<state>{component_id}")
         self.state_filter = state_filter
+        self.rhs_func = var(f"<func>{rhs_func_name}")
+
+    @property
+    def c(self):
+        raise NotImplementedError
+
+    @property
+    def alpha(self):
+        raise NotImplementedError
+
+    @property
+    def beta(self):
+        pass
 
     def generate(self):
         """
         :returns: a :class:`~dagrt.language.DAGCode`.
         """
+
+        # {{{ check coefficients are explicit
+
+        nstages = len(self.alpha)
+        for n in range(1, nstages + 1):
+            if len(self.alpha) > n or len(self.beta) > n:
+                raise ValueError("only explicit SSP schemes are supported")
+
+        # }}}
+
+        # {{{ primary phase
+
+        comp = self.component_id
+
+        with CodeBuilder(name="primary") as cb:
+            stages = [self.state] + [
+                    cb.fresh_var(f"s{i}") for i in range(nstages)
+                    ]
+
+            for i in range(0, nstages):
+                states = sum(
+                        alpha * stages[j]
+                        for j, alpha in enumerate(self.alpha[i])
+                        )
+                rhss = sum(
+                        beta * self.rhs_func(
+                            t=self.t + self.c[i] * self.dt,
+                            **{comp: stages[j]})
+                        for j, beta in enumerate(self.beta[i])
+                        )
+
+                cb(stages[i + 1], states + self.dt * rhss)
+
+            # finish
+            cb(self.state, stages[-1])
+            cb.yield_state(self.state, comp, self.t + self.dt, "final")
+            cb(self.t, self.t + self.dt)
+
+        # }}}
+
+        return DAGCode(
+                phases={
+                    "primary": cb.as_execution_phase(next_phase="primary"),
+                    },
+                initial_phase="primary"
+                )
+
+
+class SSPRK22MethodBuilder(SSPRKMethodBuilder):
+    """Second-order SSP Runge-Kutta method from [gst-2001]_ Proposition 4.1.
+
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
+
+    c = (0, 1)
+
+    alpha = (
+            (1,),
+            (1/2, 1/2),
+            )
+
+    beta = (
+            (1,),
+            (0, 1/2),
+            )
+
+
+class SSPRK33MethodBuilder(SSPRKMethodBuilder):
+    """Third-order SSP Runge-Kutta method from [gst-2001]_ Proposition 4.1.
+
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
+
+    c = (0, 1, 1/2)
+
+    alpha = (
+            (1,),
+            (3/4, 1/4),
+            (1/3, 0, 2/3),
+            )
+
+    beta = (
+            (1,),
+            (0, 1/4),
+            (0, 0, 2/3),
+            )
 
 # }}}
 
