@@ -806,7 +806,7 @@ class LSRK4MethodBuilder(MethodBuilder):
 class SSPRKMethodBuilder(MethodBuilder):
     r"""Explicit Strong Stability Preserving (SSP) Runge-Kutta Methods.
 
-    The methods are given in the now-standard Shu-Oscher form
+    The methods are given in the now-standard Shu-Osher form
 
         .. math::
 
