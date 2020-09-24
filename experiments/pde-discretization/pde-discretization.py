@@ -66,19 +66,22 @@ def make_s2s(a, nx_slow, dx_fast, ratio):
 def make_multirate_initial_conditions(dx_fast, ratio):
     """Return a pair consisting of the initial x space and the initial values
     of the function on the x space."""
+    def init(x):
+        return -np.sin(x * np.pi) if x >= 1.0 else 0.0
+
     nx_slow = int(1 / (dx_fast * ratio))
     nx_fast = int(1 / dx_fast)
     slow_space = np.linspace(0, 1, nx_slow)
     fast_space = 1 + np.linspace(dx_fast, 1, nx_fast)
     space = np.concatenate((slow_space, fast_space),)
-    init = lambda x: -np.sin(x * np.pi) if x >= 1.0 else 0.0
+
     return (space, np.vectorize(init)(space))
 
 
 def run_multirate_method(method, y_fast, y_slow, dt, t_start, t_end):
     """Run the given method and return the history."""
     method.set_up(t_start=t_start, dt_start=dt,
-            context={'fast': y_fast, 'slow': y_slow})
+            context={"fast": y_fast, "slow": y_slow})
     history = [np.concatenate((y_slow, y_fast),)]
     slow = []
     slow_ts = []
@@ -107,10 +110,10 @@ def make_multirate_method(f2f, s2f, f2s, s2s, ratio=2, order=3):
     parameters."""
     FastestFirst = "Fq"
     code = TwoRateAdamsBashforthMethodBuilder(FastestFirst, order, ratio).generate()
-    MRABMethod = PythonCodeGenerator(class_name='MRABMethod').get_class(code)
+    MRABMethod = PythonCodeGenerator(class_name="MRABMethod").get_class(code)
 
-    rhs_map = {'<func>f2f': f2f, '<func>s2f': s2f, '<func>f2s': f2s,
-               '<func>s2s': s2s}
+    rhs_map = {"<func>f2f": f2f, "<func>s2f": s2f, "<func>f2s": f2s,
+               "<func>s2s": s2s}
 
     return MRABMethod(rhs_map)
 
@@ -140,12 +143,12 @@ def plot_multirate_history(a, dx_fast, ratio, dt, t_start, t_end):
     xs, ys = np.meshgrid(space, np.linspace(t_start, t_end, time_steps))
     zs = np.array(history[0:time_steps])
     figure = plt.figure()
-    axis = figure.add_subplot(111, projection='3d')
+    axis = figure.add_subplot(111, projection="3d")
     axis.plot_wireframe(xs, ys, zs, rstride=len(ys), cstride=1)
     plt.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # plot_multirate_initial_conditions(dx=0.02, ratio=5)
     plot_multirate_history(a=1.5, dx_fast=0.02, ratio=5, dt=0.001, t_start=0,
                            t_end=0.5)

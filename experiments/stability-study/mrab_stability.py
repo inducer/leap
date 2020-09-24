@@ -1,17 +1,20 @@
-from pytools import Record
+from sys import intern
+
 import numpy
 import scipy.linalg as la
+
+from pytools import Record
 from pymbolic import expand, differentiate
 from pymbolic.mapper.constant_folder import \
         CommutativeConstantFoldingMapper
+
 
 def fold_constants(expr):
     return CommutativeConstantFoldingMapper()(expr)
 
 
+# {{{ utilities
 
-
-# {{{ utilities ---------------------------------------------------------------
 class FactoryWithParameters(Record):
     __slots__ = []
 
@@ -23,6 +26,7 @@ class FactoryWithParameters(Record):
             except AttributeError:
                 pass
         return result
+
 
 class StabilityTester(object):
     def __init__(self, method_fac, matrix_fac):
@@ -76,9 +80,7 @@ class StabilityTester(object):
             return self.refine(dt, dt*2)
 
     def __call__(self):
-        return { "dt": self.find_stable_dt() }
-
-
+        return {"dt": self.find_stable_dt()}
 
 
 class IterativeStabilityTester(StabilityTester):
@@ -93,7 +95,9 @@ class IterativeStabilityTester(StabilityTester):
 
 # }}}
 
-# {{{ matrices ----------------------------------------------------------------
+
+# {{{ matrices
+
 class MatrixFactory(FactoryWithParameters):
     __slots__ = ["ratio", "angle", "offset"]
 
@@ -115,8 +119,6 @@ class MatrixFactory(FactoryWithParameters):
         return numpy.dot(la.solve(evmat, mat), evmat)
 
 
-
-
 class DecayMatrixFactory(MatrixFactory):
     __slots__ = []
 
@@ -125,6 +127,7 @@ class DecayMatrixFactory(MatrixFactory):
         mat = numpy.diag(vec)
         evmat = self.get_eigvec_mat()
         return numpy.dot(la.solve(evmat, mat), evmat)
+
 
 class DecayOscillationMatrixFactory(MatrixFactory):
     __slots__ = []
@@ -135,6 +138,7 @@ class DecayOscillationMatrixFactory(MatrixFactory):
         evmat = self.get_eigvec_mat()
         return numpy.dot(la.solve(evmat, mat), evmat)
 
+
 class OscillationDecayMatrixFactory(MatrixFactory):
     __slots__ = []
 
@@ -143,6 +147,7 @@ class OscillationDecayMatrixFactory(MatrixFactory):
         mat = numpy.diag(vec)
         evmat = self.get_eigvec_mat()
         return numpy.dot(la.solve(evmat, mat), evmat)
+
 
 class OscillationMatrixFactory(MatrixFactory):
     __slots__ = []
@@ -155,7 +160,6 @@ class OscillationMatrixFactory(MatrixFactory):
         return numpy.dot(evmat, leftsolve(evmat, mat))
 
 
-
 def generate_matrix_factories():
     from math import pi
 
@@ -163,16 +167,17 @@ def generate_matrix_factories():
     offset_steps = 20
     for angle in numpy.linspace(0, pi, angle_steps, endpoint=False):
         for offset in numpy.linspace(
-                pi/offset_steps, 
+                pi/offset_steps,
                 pi, offset_steps, endpoint=False):
             for ratio in numpy.linspace(0.1, 1, 10):
-                yield DecayMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                yield OscillationMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                yield OscillationDecayMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                yield DecayOscillationMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-
-
-
+                yield DecayMatrixFactory(
+                        ratio=ratio, angle=angle, offset=offset)
+                yield OscillationMatrixFactory(
+                        ratio=ratio, angle=angle, offset=offset)
+                yield OscillationDecayMatrixFactory(
+                        ratio=ratio, angle=angle, offset=offset)
+                yield DecayOscillationMatrixFactory(
+                        ratio=ratio, angle=angle, offset=offset)
 
 
 def generate_matrix_factories_hires():
@@ -181,17 +186,22 @@ def generate_matrix_factories_hires():
     offset_steps = 100
     for angle in [0, 0.05*pi, 0.1*pi]:
         for offset in numpy.linspace(
-                pi/offset_steps, 
+                pi/offset_steps,
                 pi, offset_steps, endpoint=False):
             for ratio in numpy.linspace(0.1, 1, 100):
-                yield DecayMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                yield OscillationMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                yield OscillationDecayMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                yield DecayOscillationMatrixFactory(ratio=ratio, angle=angle, offset=offset)
+                yield DecayMatrixFactory(
+                        ratio=ratio, angle=angle, offset=offset)
+                yield OscillationMatrixFactory(
+                        ratio=ratio, angle=angle, offset=offset)
+                yield OscillationDecayMatrixFactory(
+                        ratio=ratio, angle=angle, offset=offset)
+                yield DecayOscillationMatrixFactory(
+                        ratio=ratio, angle=angle, offset=offset)
 
 # }}}
 
-# {{{ MRAB --------------------------------------------------------------------
+
+# {{{ MRAB
 
 def make_method_matrix(stepper, rhss, f_size, s_size):
     from pymbolic import var
@@ -206,21 +216,20 @@ def make_method_matrix(stepper, rhss, f_size, s_size):
             HIST_F2F, HIST_S2F, HIST_F2S, HIST_S2S,
             HIST_NAMES)
 
-    hist_sizes = {
-                HIST_F2F: f_size,
-                HIST_S2F: f_size,
-                HIST_S2S: s_size,
-                HIST_F2S: s_size
-                }
+    hist_sizes = {      # noqa: F841
+            HIST_F2F: f_size,
+            HIST_S2F: f_size,
+            HIST_S2S: s_size,
+            HIST_F2S: s_size
+            }
 
     orig_histories = {}
     for hn in HIST_NAMES:
-        my_size = hist_sizes[hn]
         my_length = stepper.orders[hn]
         hist_name_str = hn.__name__[5:].lower()
         hist = [
                 make_obj_array([
-                    var("h_%s_%d_%d" % (hist_name_str, age, i) )
+                    var("h_%s_%d_%d" % (hist_name_str, age, i))
                     for i in range(s_size)])
                 for age in range(my_length)]
 
@@ -241,28 +250,25 @@ def make_method_matrix(stepper, rhss, f_size, s_size):
 
         for i, row_expr in enumerate(row_exprs):
             for j, col_expr in enumerate(column_exprs):
-                result[i,j] = differentiate(row_expr, col_expr)
+                result[i, j] = differentiate(row_expr, col_expr)
 
         return result
 
     from pytools import flatten
     row_exprs = list(flatten([
-        f_post_step, 
+        f_post_step,
         s_post_step,
         ] + list(flatten([stepper.histories[hn] for hn in HIST_NAMES]))
         ))
 
     column_exprs = list(flatten([
-        f, 
+        f,
         s
         ] + list(flatten([orig_histories[hn] for hn in HIST_NAMES]))
         ))
 
     return matrix_from_expressions(row_exprs, column_exprs), \
             column_exprs
-
-
-
 
 
 class MethodBuilderFactory(FactoryWithParameters):
@@ -277,6 +283,7 @@ class MethodBuilderFactory(FactoryWithParameters):
                 substep_count=self.substep_count,
                 order=self.meth_order)
 
+
 def generate_method_factories():
     from hedge.timestep.multirate_ab.methods import methods
 
@@ -284,28 +291,22 @@ def generate_method_factories():
         for method in methods.keys():
             for order in [3]:
                 for substep_count in [2, 3, 4]:
-                    yield MethodBuilderFactory(method=method, meth_order=order, 
+                    yield MethodBuilderFactory(method=method, meth_order=order,
                             substep_count=substep_count)
     else:
         for method in ["Fqsr"]:
             for order in [3]:
                 for substep_count in [2, 3]:
-                    yield MethodBuilderFactory(method=method, meth_order=order, 
+                    yield MethodBuilderFactory(method=method, meth_order=order,
                             substep_count=substep_count)
-
-
 
 
 def generate_method_factories_hires():
     for method in ["Fq", "Ssf", "Sr"]:
         for order in [3]:
             for substep_count in [2, 5, 10]:
-                yield MethodBuilderFactory(method=method, meth_order=order, 
+                yield MethodBuilderFactory(method=method, meth_order=order,
                         substep_count=substep_count)
-
-
-
-
 
 
 class IterativeMRABJob(IterativeStabilityTester):
@@ -315,23 +316,28 @@ class IterativeMRABJob(IterativeStabilityTester):
         stepper = self.method_fac(dt)
         mat = self.matrix
 
-        y = numpy.array([1,1], dtype=numpy.float64)
+        y = numpy.array([1, 1], dtype=numpy.float64)
         y /= la.norm(y)
 
-        def f2f_rhs(t, yf, ys): return mat[0,0] * yf()
-        def s2f_rhs(t, yf, ys): return mat[0,1] * ys()
-        def f2s_rhs(t, yf, ys): return mat[1,0] * yf()
-        def s2s_rhs(t, yf, ys): return mat[1,1] * ys()
+        def f2f_rhs(t, yf, ys):
+            return mat[0, 0] * yf()
+
+        def s2f_rhs(t, yf, ys):
+            return mat[0, 1] * ys()
+
+        def f2s_rhs(t, yf, ys):
+            return mat[1, 0] * yf()
+
+        def s2s_rhs(t, yf, ys):
+            return mat[1, 1] * ys()
 
         for i in range(self.stable_steps):
-            y = stepper(y, i*dt, 
+            y = stepper(y, i*dt,
                     (f2f_rhs, s2f_rhs, f2s_rhs, s2s_rhs))
             if la.norm(y) > 10:
                 return False
 
         return True
-
-
 
 
 class DirectMRABJob(StabilityTester):
@@ -347,29 +353,30 @@ class DirectMRABJob(StabilityTester):
 
             mat = self.matrix
 
-            def f2f_rhs(t, yf, ys): 
-                return fold_constants(expand(mat[0,0] * yf()))
-            def s2f_rhs(t, yf, ys): 
-                return fold_constants(expand(mat[0,1] * ys()))
-            def f2s_rhs(t, yf, ys): 
-                return fold_constants(expand(mat[1,0] * yf()))
-            def s2s_rhs(t, yf, ys): 
-                return fold_constants(expand(mat[1,1] * ys()))
+            def f2f_rhs(t, yf, ys):
+                return fold_constants(expand(mat[0, 0] * yf()))
 
-            method_matrix, _ = make_method_matrix(stepper, 
+            def s2f_rhs(t, yf, ys):
+                return fold_constants(expand(mat[0, 1] * ys()))
+
+            def f2s_rhs(t, yf, ys):
+                return fold_constants(expand(mat[1, 0] * yf()))
+
+            def s2s_rhs(t, yf, ys):
+                return fold_constants(expand(mat[1, 1] * ys()))
+
+            method_matrix, _ = make_method_matrix(stepper,
                     rhss=(f2f_rhs, s2f_rhs, f2s_rhs, s2s_rhs),
                     f_size=1, s_size=1)
 
             from pymbolic import compile
             self.method_matrix_func_cache = compile(method_matrix)
-            return self.method_matrix_func_cache 
+            return self.method_matrix_func_cache
 
     def is_stable(self, dt):
         eigvals = la.eigvals(self.method_matrix_func(dt))
         max_eigval = numpy.max(numpy.abs(eigvals))
         return max_eigval <= 1
-
-
 
 
 def generate_mrab_jobs():
@@ -378,14 +385,10 @@ def generate_mrab_jobs():
             yield DirectMRABJob(method_fac, matrix_fac)
 
 
-
-
 def generate_mrab_jobs_hires():
     for method_fac in generate_method_factories_hires():
         for matrix_fac in generate_matrix_factories_hires():
             yield DirectMRABJob(method_fac, matrix_fac)
-
-
 
 
 def generate_mrab_jobs_step_verify():
@@ -396,13 +399,17 @@ def generate_mrab_jobs_step_verify():
         offset_steps = 20
         for angle in [0.05*pi]:
             for offset in numpy.linspace(
-                    pi/offset_steps, 
+                    pi/offset_steps,
                     pi, offset_steps, endpoint=False):
                 for ratio in numpy.linspace(0.1, 1, 10):
-                    yield DecayMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                    yield OscillationMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                    yield OscillationDecayMatrixFactory(ratio=ratio, angle=angle, offset=offset)
-                    yield DecayOscillationMatrixFactory(ratio=ratio, angle=angle, offset=offset)
+                    yield DecayMatrixFactory(
+                            ratio=ratio, angle=angle, offset=offset)
+                    yield OscillationMatrixFactory(
+                            ratio=ratio, angle=angle, offset=offset)
+                    yield OscillationDecayMatrixFactory(
+                            ratio=ratio, angle=angle, offset=offset)
+                    yield DecayOscillationMatrixFactory(
+                            ratio=ratio, angle=angle, offset=offset)
 
     for method_fac in list(generate_method_factories())[:1]:
         for matrix_fac in my_generate_matrix_factories():
@@ -412,9 +419,8 @@ def generate_mrab_jobs_step_verify():
 # }}}
 
 
+# {{{ single-rate reference
 
-
-# {{{ single-rate reference ---------------------------------------------------
 class SRABMethodBuilderFactory(FactoryWithParameters):
     __slots__ = ["method", "substep_count", "meth_order"]
 
@@ -424,15 +430,13 @@ class SRABMethodBuilderFactory(FactoryWithParameters):
                 dtype=numpy.complex128)
 
 
-
-
 class SRABJob(IterativeStabilityTester):
     prec = 1e-4
 
     def is_stable(self, dt):
         stepper = self.method_fac()
 
-        y = numpy.array([1,1], dtype=numpy.complex128)
+        y = numpy.array([1, 1], dtype=numpy.complex128)
         y /= la.norm(y)
 
         def rhs(t, y):
@@ -446,16 +450,14 @@ class SRABJob(IterativeStabilityTester):
         return True
 
 
-
-
 def generate_srab_jobs():
-    for method_fac in [SRABMethodBuilderFactory(method="SRAB", substep_count=1, meth_order=3)]:
+    for method_fac in [
+            SRABMethodBuilderFactory(method="SRAB", substep_count=1, meth_order=3)
+            ]:
         for matrix_fac in generate_matrix_factories():
             yield SRABJob(method_fac, matrix_fac, 120)
 
 # }}}
-
-
 
 
 def test():
@@ -468,18 +470,21 @@ def test():
             substep_count=2,
             order=1)
 
-    mat = numpy.random.randn(2,2)
+    mat = numpy.random.randn(2, 2)
 
-    def f2f_rhs(t, yf, ys): 
-        return fold_constants(expand(mat[0,0] * yf()))
-    def s2f_rhs(t, yf, ys): 
-        return fold_constants(expand(mat[0,1] * ys()))
-    def f2s_rhs(t, yf, ys): 
-        return fold_constants(expand(mat[1,0] * yf()))
-    def s2s_rhs(t, yf, ys): 
-        return fold_constants(expand(mat[1,1] * ys()))
+    def f2f_rhs(t, yf, ys):
+        return fold_constants(expand(mat[0, 0] * yf()))
 
-    z, vars = make_method_matrix(stepper, 
+    def s2f_rhs(t, yf, ys):
+        return fold_constants(expand(mat[0, 1] * ys()))
+
+    def f2s_rhs(t, yf, ys):
+        return fold_constants(expand(mat[1, 0] * yf()))
+
+    def s2s_rhs(t, yf, ys):
+        return fold_constants(expand(mat[1, 1] * ys()))
+
+    z, vars = make_method_matrix(stepper,
             rhss=(f2f_rhs, s2f_rhs, f2s_rhs, s2s_rhs),
             f_size=1, s_size=1)
 
@@ -493,18 +498,14 @@ def test():
                 fold_constants(substitute(z, dt=0.1)),
                 dtype=numpy.complex128)
 
-        print la.norm(num_mat-num_mat_2)
+    print(la.norm(num_mat - num_mat_2))
 
     if True:
-        for row, var in zip(num_mat, vars):
-            print "".join("*" if entry else "." for entry in row), var
-
-
-
+        for row, ivar in zip(num_mat, vars):
+            print("".join("*" if entry else "." for entry in row), ivar)
 
 
 if __name__ == "__main__":
-    #test()
-    run()
+    test()
 
 # vim: foldmethod=marker
