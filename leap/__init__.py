@@ -1,6 +1,5 @@
 """Leap root module"""
 
-from __future__ import division
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
@@ -31,7 +30,7 @@ def run_script_from_commandline():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("script", metavar="SCRIPT.PY")
-    parser.add_argument("args", metavar="ARG", nargs='*')
+    parser.add_argument("args", metavar="ARG", nargs="*")
     args = parser.parse_args()
 
     from os.path import abspath, dirname
@@ -41,18 +40,18 @@ def run_script_from_commandline():
     sys.argv[1:] = args.args
     sys.path.append(scriptdir)
 
-    with open(args.script, "rt") as s:
+    with open(args.script) as s:
         script_contents = s.read()
 
     namespace = {"__name__": "__main__"}
-    exec(compile(script_contents, args.script, 'exec'), namespace)
+    exec(compile(script_contents, args.script, "exec"), namespace)
 
 # }}}
 
 
 # {{{ method builder base class
 
-class MethodBuilder(object):
+class MethodBuilder:
 
     def generate(self, *solver_hooks):
         """
@@ -110,18 +109,18 @@ class TwoOrderAdaptiveMethodBuilderMixin(MethodBuilder):
         from pymbolic.primitives import Comparison, LogicalOr, Max, Min
         from dagrt.expression import IfThenElse
 
-        norm_start_state = var('norm_start_state')
-        norm_end_state = var('norm_end_state')
-        rel_error_raw = var('rel_error_raw')
-        rel_error = var('rel_error')
+        norm_start_state = var("norm_start_state")
+        norm_end_state = var("norm_end_state")
+        rel_error_raw = var("rel_error_raw")
+        rel_error = var("rel_error")
 
         def norm(expr):
-            return var('<builtin>norm_2')(expr)
+            return var("<builtin>norm_2")(expr)
 
         cb(norm_start_state, norm(self.state))
         cb(norm_end_state, norm(low_order_estimate))
         cb(rel_error_raw, norm(high_order_estimate - low_order_estimate)
-                / (var('<builtin>len')(self.state) ** 0.5
+                / (var("<builtin>len")(self.state) ** 0.5
                     * (
                         self.atol + self.rtol
                         * Max((norm_start_state, norm_end_state))
@@ -131,16 +130,16 @@ class TwoOrderAdaptiveMethodBuilderMixin(MethodBuilder):
                                  1.0e-14, rel_error_raw))
 
         with cb.if_(LogicalOr((Comparison(rel_error, ">", 1),
-                               var('<builtin>isnan')(rel_error)))):
+                               var("<builtin>isnan")(rel_error)))):
 
-            with cb.if_(var('<builtin>isnan')(rel_error)):
+            with cb.if_(var("<builtin>isnan")(rel_error)):
                 cb(self.dt, self.min_dt_shrinkage * self.dt)
             with cb.else_():
                 cb(self.dt, Max((0.9 * self.dt
                     * rel_error ** (-1 / self.low_order),
                     self.min_dt_shrinkage * self.dt)))
 
-            with cb.if_(self.t + self.dt, '==', self.t):
+            with cb.if_(self.t + self.dt, "==", self.t):
                 cb.raise_(TimeStepUnderflow)
             with cb.else_():
                 cb.fail_step()

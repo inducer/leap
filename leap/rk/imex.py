@@ -1,5 +1,4 @@
 """Kennedy-Carpenter implicit/explicit RK."""
-from __future__ import division
 
 
 from pymbolic import var
@@ -135,7 +134,7 @@ class KennedyCarpenterIMEXRungeKuttaMethodBuilderBase(
 
     def finish(self, cb, estimate_coeff_set_names, estimate_vars):
         if not self.adaptive:
-            super(KennedyCarpenterIMEXRungeKuttaMethodBuilderBase, self).finish(
+            super().finish(
                     cb, estimate_coeff_set_names, estimate_vars)
         else:
             high_est = estimate_vars[
@@ -151,7 +150,7 @@ class KennedyCarpenterIMEXRungeKuttaMethodBuilderBase(
             est = low_order_estimate
 
         cb(self.state, est)
-        cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
+        cb.yield_state(self.state, self.component_id, self.t + self.dt, "final")
         cb(self.t, self.t + self.dt)
 
 

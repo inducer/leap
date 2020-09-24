@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import division
-
 __copyright__ = """
 Copyright (C) 2007-15 Andreas Kloeckner
 Copyright (C) 2014 Matt Wala
@@ -46,7 +43,7 @@ from utils import (  # noqa
         python_method_impl_codegen as pmi_cg)
 
 
-class MultirateTimestepperAccuracyChecker(object):
+class MultirateTimestepperAccuracyChecker:
     """Check that the multirate timestepper has the advertised accuracy."""
 
     def __init__(self, method, order, hist_length, step_ratio, static_dt, ode,
@@ -94,9 +91,9 @@ class MultirateTimestepperAccuracyChecker(object):
                     s2s(*args)),)
             return coupled
 
-        function_map = {'<func>f2f': self.ode.f2f_rhs,
-            '<func>s2f': self.ode.s2f_rhs, '<func>f2s': self.ode.f2s_rhs,
-            '<func>s2s': self.ode.s2s_rhs, '<func>coupled': make_coupled(
+        function_map = {"<func>f2f": self.ode.f2f_rhs,
+            "<func>s2f": self.ode.s2f_rhs, "<func>f2s": self.ode.f2s_rhs,
+            "<func>s2s": self.ode.s2s_rhs, "<func>coupled": make_coupled(
                 self.ode.f2f_rhs, self.ode.s2f_rhs, self.ode.f2s_rhs,
                 self.ode.s2s_rhs)}
 
@@ -106,7 +103,7 @@ class MultirateTimestepperAccuracyChecker(object):
         t = self.ode.t_start
         y = self.ode.initial_values
         method.set_up(t_start=t, dt_start=dt,
-                context={'fast': y[0], 'slow': y[1]})
+                context={"fast": y[0], "slow": y[1]})
         return method
 
     def get_error(self, dt, name=None, plot_solution=False):
@@ -159,7 +156,7 @@ class MultirateTimestepperAccuracyChecker(object):
         import matplotlib.pyplot as pt
         pt.plot(times, values, label="comp")
         pt.plot(times, soln(times), label="true")
-        pt.legend(loc='best')
+        pt.legend(loc="best")
         pt.show()
 
     def __call__(self):
@@ -266,12 +263,12 @@ def test_single_rate_identical(order=3, hist_length=3):
                 order,
                 (
                     (
-                        'dt', 'fast', '=',
+                        "dt", "fast", "=",
                         MRHistory(1, "<func>f", ("fast", "slow",),
                             hist_length=hist_length),
                         ),
                     (
-                        'dt', 'slow', '=',
+                        "dt", "slow", "=",
                         MRHistory(1, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late, hist_length=hist_length),
                         ),),
@@ -338,11 +335,11 @@ def test_mrab_scheme_explainers(order=3, step_ratio=3,
                 order,
                 (
                     (
-                        'dt', 'fast', '=',
+                        "dt", "fast", "=",
                         MRHistory(1, "<func>f", ("fast", "slow",)),
                         ),
                     (
-                        'dt', 'slow', '=',
+                        "dt", "slow", "=",
                         MRHistory(step_ratio, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late),
                         ),)

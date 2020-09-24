@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 
 def main():
@@ -7,13 +6,13 @@ def main():
 
     version_dict = {}
     init_filename = "leap/version.py"
-    exec(compile(open(init_filename, "r").read(), init_filename, "exec"),
+    exec(compile(open(init_filename).read(), init_filename, "exec"),
             version_dict)
 
     setup(name="leap",
           version=version_dict["VERSION_TEXT"],
           description="Time integration by code generation",
-          long_description=open("README.rst", "rt").read(),
+          long_description=open("README.rst").read(),
           author="Andreas Kloeckner",
           author_email="inform@tiker.net",
           license="MIT",
@@ -45,7 +44,6 @@ def main():
               "pytest>=2.3",
               "dagrt>=2019.4",
               "mako",
-              "six",
               ],
           )
 

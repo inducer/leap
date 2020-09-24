@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """This example demonstrates direct construction of an adaptive RK method using
 an order 2/3 method pair.
 
@@ -14,16 +13,13 @@ The same functionality is supported using leap.rk.ODE23MethodBuilder.
 
 """
 
-from __future__ import division, print_function
-
 import logging
 import numpy as np
-
 
 logging.basicConfig(level=logging.INFO)
 
 
-class KapsProblem(object):
+class KapsProblem:
     """
     Source: Section 7.1 of
 
@@ -163,8 +159,8 @@ def demo_rk_adaptive():
 
     # Generate and run the method.
     from dagrt.codegen import PythonCodeGenerator
-    RKAdaptiveMethod = PythonCodeGenerator("RKAdaptiveMethod").get_class(code)
-    eocrec = get_convergence_data(RKAdaptiveMethod, problem=KapsProblem(0.001))
+    cls = PythonCodeGenerator("RKAdaptiveMethod").get_class(code)
+    eocrec = get_convergence_data(cls, problem=KapsProblem(0.001))
     print(eocrec.pretty_print())
 
 

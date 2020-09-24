@@ -1,5 +1,3 @@
-from __future__ import division
-
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
 __license__ = """
@@ -21,9 +19,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
-
-import six
 
 from collections import namedtuple
 from dagrt.expression import EvaluationMapper
@@ -56,7 +51,7 @@ class LeapMaximaStringifyMapper(MaximaStringifyMapper):
 
 # {{{ step matrix finder
 
-class StepMatrixFinder(object):
+class StepMatrixFinder:
     """Constructs a step matrix on-the-fly while interpreting code.
 
     Assumes that all function evaluations occur as the root node of
@@ -94,7 +89,7 @@ class StepMatrixFinder(object):
     def _get_state_variables(self):
         """Extract all state-related variables from the code."""
         all_var_ids = set()
-        for phase in six.itervalues(self.code.phases):
+        for phase in self.code.phases.values():
             for inst in phase.statements:
                 all_var_ids |= inst.get_written_variables()
                 all_var_ids |= inst.get_read_variables()
@@ -102,8 +97,8 @@ class StepMatrixFinder(object):
         all_state_vars = []
         for var_name in all_var_ids:
             if (
-                    (var_name.startswith('<p>')
-                        or var_name.startswith('<state>'))
+                    (var_name.startswith("<p>")
+                        or var_name.startswith("<state>"))
                     and var_name not in self.exclude_variables):
                 all_state_vars.append(var_name)
 
@@ -157,7 +152,7 @@ class StepMatrixFinder(object):
         msm = LeapMaximaStringifyMapper()
 
         def msm_expr_list(name, exprs):
-            lines.append("%s: [" % name)
+            lines.append(f"{name}: [")
             for i, expr in enumerate(exprs):
                 line = "    "+msm(expr)
 
@@ -207,7 +202,7 @@ class StepMatrixFinder(object):
             indices = []
             data = []
 
-        iv_to_index = dict((iv, i) for i, iv in enumerate(initial_vals))
+        iv_to_index = {iv: i for i, iv in enumerate(initial_vals)}
         for i, v in enumerate(components):
             # Get the expression for v.
             if isinstance(v, self.VectorComponent):

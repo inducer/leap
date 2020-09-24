@@ -98,5 +98,6 @@ def main(show_dag=False, plot_solution=False):
     orderest = eocrec.estimate_order_of_convergence()[0, 1]
     assert orderest > expected_order*0.95
 
+
 if __name__ == "__main__":
     main()

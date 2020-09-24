@@ -1,6 +1,5 @@
 """Runge-Kutta ODE timestepper."""
 
-from __future__ import division
 
 __copyright__ = """
 Copyright (C) 2007-2013 Andreas Kloeckner
@@ -27,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import six
 import numpy as np
 from leap import MethodBuilder, TwoOrderAdaptiveMethodBuilderMixin
 from dagrt.language import CodeBuilder, DAGCode
@@ -89,7 +87,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 
             and all(
                 coeff_set[-1]
-                for coeff_set in six.itervalues(coeff_sets))
+                for coeff_set in coeff_sets.values())
 
             and output_stage_coefficients
 
@@ -97,7 +95,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
                 _truncate_final_zeros(coeff_set[-1])
                 ==  # noqa: W504
                 _truncate_final_zeros(output_stage_coefficients)
-                for coeff_set in six.itervalues(coeff_sets)))
+                for coeff_set in coeff_sets.values()))
 
 # }}}
 
@@ -127,9 +125,9 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
         self.component_id = component_id
 
-        self.dt = var('<dt>')
-        self.t = var('<t>')
-        self.state = var('<state>' + component_id)
+        self.dt = var("<dt>")
+        self.t = var("<t>")
+        self.state = var("<state>" + component_id)
 
         if state_filter_name is not None:
             self.state_filter = var("<func>" + state_filter_name)
@@ -190,11 +188,11 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         rhs_var_to_unknown = {}
         for name in stage_coeff_set_names:
             stage_rhs_vars[name] = [
-                    cb.fresh_var('rhs_%s_s%d' % (name, i)) for i in range(nstages)]
+                    cb.fresh_var(f"rhs_{name}_s{i}") for i in range(nstages)]
 
             # These are rhss if they are not yet known and pending an implicit solve.
             for i, rhsvar in enumerate(stage_rhs_vars[name]):
-                unkvar = cb.fresh_var('unk_%s_s%d' % (name, i))
+                unkvar = cb.fresh_var(f"unk_{name}_s{i}")
                 rhs_var_to_unknown[rhsvar] = unkvar
 
         knowns = set()
@@ -282,9 +280,9 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                         assignees = [unk.name for unk in unknowns]
 
                         from pymbolic import substitute
-                        subst_dict = dict(
-                                (rhs_var.name, rhs_var_to_unknown[rhs_var])
-                                for rhs_var in unknowns)
+                        subst_dict = {
+                                rhs_var.name: rhs_var_to_unknown[rhs_var]
+                                for rhs_var in unknowns}
 
                         cb.assign_implicit(
                                 assignees=assignees,
@@ -362,7 +360,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
     def finish(self, cb, estimate_names, estimate_vars):
         cb(self.state, estimate_vars[0])
-        cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
+        cb.yield_state(self.state, self.component_id, self.t + self.dt, "final")
         cb(self.t, self.t + self.dt)
 
 # }}}
@@ -373,7 +371,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 class SimpleButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
     def __init__(self, component_id, state_filter_name=None,
             rhs_func_name=None):
-        super(SimpleButcherTableauMethodBuilder, self).__init__(
+        super().__init__(
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
@@ -591,7 +589,7 @@ class EmbeddedButcherTableauMethodBuilder(
 
     def finish(self, cb, estimate_coeff_set_names, estimate_vars):
         if not self.adaptive:
-            super(EmbeddedButcherTableauMethodBuilder, self).finish(
+            super().finish(
                     cb, estimate_coeff_set_names, estimate_vars)
         else:
             high_est = estimate_vars[
@@ -607,7 +605,7 @@ class EmbeddedButcherTableauMethodBuilder(
             est = low_order_estimate
 
         cb(self.state, est)
-        cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
+        cb.yield_state(self.state, self.component_id, self.t + self.dt, "final")
         cb(self.t, self.t + self.dt)
 
 # }}}
@@ -781,7 +779,7 @@ class LSRK4MethodBuilder(MethodBuilder):
 
                 cb(state, new_state_expr)
 
-            cb.yield_state(state, comp_id, t + dt, 'final')
+            cb.yield_state(state, comp_id, t + dt, "final")
             cb(t, t + dt)
 
         cb_primary = cb

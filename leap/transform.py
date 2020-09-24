@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-from __future__ import division, with_statement, print_function
 
 __copyright__ = "Copyright (C) 2016 Andreas Kloeckner"
 
@@ -116,8 +115,7 @@ def strang_splitting(dag1, dag2, stepping_phase):
 
             if phase1.next_phase != phase2.next_phase:
                 raise ValueError("DAGs don't agree on default "
-                        "phase transition out of phase '%s'"
-                        % phase_name)
+                        f"phase transition out of phase '{phase_name}'")
 
             s2_name = phase_name + "_s2"
             s3_name = phase_name + "_s3"

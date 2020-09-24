@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 """Implicit Euler timestepper"""
-from __future__ import division
 
 from leap import MethodBuilder
 from dagrt.language import DAGCode, CodeBuilder
 from pymbolic import var
 from pymbolic.primitives import CallWithKwargs
-
 
 __copyright__ = "Copyright (C) 2014 Matt Wala"
 
@@ -42,10 +40,10 @@ class ImplicitEulerMethodBuilder(MethodBuilder):
 
     def __init__(self, component_id):
         self.component_id = component_id
-        self.dt = var('<dt>')
-        self.t = var('<t>')
-        self.state = var('<state>' + component_id)
-        self.rhs_func = var('<func>' + component_id)
+        self.dt = var("<dt>")
+        self.t = var("<t>")
+        self.state = var("<state>" + component_id)
+        self.rhs_func = var("<func>" + component_id)
 
     def generate(self, solver_hook):
         """Return code that implements the implicit Euler method for the single
@@ -65,13 +63,13 @@ class ImplicitEulerMethodBuilder(MethodBuilder):
     def _make_primary(self, builder):
         """Add code to drive the primary stage."""
 
-        solve_component = var('next_state')
+        solve_component = var("next_state")
         solve_expression = solve_component - self.state - \
                            self.dt * CallWithKwargs(
                                function=self.rhs_func,
                                parameters=(),
                                kw_parameters={
-                                   't': self.t + self.dt,
+                                   "t": self.t + self.dt,
                                    self.component_id: solve_component
                                })
 
@@ -80,5 +78,5 @@ class ImplicitEulerMethodBuilder(MethodBuilder):
                                 self.SOLVER_EXPRESSION_ID)
 
         builder.yield_state(self.state, self.component_id,
-                            self.t + self.dt, 'final')
+                            self.t + self.dt, "final")
         builder.assign(self.t, self.t + self.dt)

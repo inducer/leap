@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 __copyright__ = """
 Copyright (C) 2009 Andreas Stock
 Copyright (C) 2014 Andreas Kloeckner
