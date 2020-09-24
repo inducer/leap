@@ -795,4 +795,50 @@ class LSRK4MethodBuilder(MethodBuilder):
 # }}}
 
 
+# {{{ Explicit SSP Runge-Kutta methods
+
+class SSPRKMethodBuilder(MethodBuilder):
+    r"""Explicit Strong Stability Preserving (SSP) Runge-Kutta Methods.
+
+    The methods are given in the now-standard Shu-Oscher form
+
+        .. math::
+
+            \begin{aligned}
+            y^{(i)} =\,\, & \sum_{k = 0}^{i - 1}
+                \alpha_{ik} y^{(i)} + \Delta t \beta_{ik} f(y^{(i)}), \\
+            y^{n + 1} = y^{(n)},
+            \end{aligned}
+
+    for :math:`i \in \{1, \dots, n\}` and :math:`y^{(0)} = y^n`. For reference,
+    see [gst-2001]_.
+
+    .. [gst-2001] S. Gottlieb, C.-W. Shu, E. Tadmor, *Strong Stability
+        Preserving High-Order Time Discretization Methods*, SIAM, Vol. 43,
+        pp. 89-112, 2001.
+    """
+
+    def __init__(self, component_id, state_filter_name=None, rhs_func_name=None):
+        super().__init__()
+
+        state_filter = state_filter_name
+        if state_filter is not None:
+            state_filter = var(f"<func>{state_filter_name}")
+
+        if rhs_func_name is None:
+            rhs_func_name = f"<func>{component_id}"
+
+        self.component_id = component_id
+        self.dt = var("<dt>")
+        self.t = var("<t>")
+        self.state = var(f"<state>{component_id}")
+        self.state_filter = state_filter
+
+    def generate(self):
+        """
+        :returns: a :class:`~dagrt.language.DAGCode`.
+        """
+
+# }}}
+
 # vim: foldmethod=marker
