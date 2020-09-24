@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import six
 import numpy as np
 from leap import MethodBuilder, TwoOrderAdaptiveMethodBuilderMixin
 from dagrt.language import CodeBuilder, DAGCode

@@ -20,7 +20,6 @@ rm -f leap.pyz
 
 python $PYZZER_PATH -o leap.pyz \
   -m leap:run_script_from_commandline \
-  $(pymod_location six) \
   $(pymod_location decorator) \
   $(pymod_location pytools) \
   $(pymod_location pymbolic) \

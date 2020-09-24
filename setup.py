@@ -44,7 +44,6 @@ def main():
               "pytest>=2.3",
               "dagrt>=2019.4",
               "mako",
-              "six",
               ],
           )
 

@@ -27,7 +27,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import six.moves
 import numpy as np
 import numpy.linalg as la
 from leap import MethodBuilder
@@ -45,9 +44,9 @@ __doc__ = """
 
 def _linear_comb(coefficients, vectors):
     from operator import add
-    return six.moves.reduce(add,
-            (coeff * v for coeff, v in
-                zip(coefficients, vectors)))
+    from functools import reduce
+    return reduce(add,
+            (coeff * v for coeff, v in zip(coefficients, vectors)))
 
 
 class AdamsIntegrationFunctionFamily:
