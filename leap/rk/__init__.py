@@ -58,6 +58,12 @@ Adaptive/Embedded Methods
 .. autoclass:: ODE23MethodBuilder
 .. autoclass:: ODE45MethodBuilder
 
+Strong Stability Preserving (SSP) Methods
+-----------------------------------------
+
+.. autoclass:: SSPRKMethodBuilder
+.. autoclass:: SSPRK22MethodBuilder
+.. autoclass:: SSPRK33MethodBuilder
 """
 
 
@@ -807,15 +813,18 @@ class SSPRKMethodBuilder(MethodBuilder):
             \begin{aligned}
             y^{(i)} =\,\, & \sum_{k = 0}^{i - 1}
                 \alpha_{ik} y^{(i)} + \Delta t \beta_{ik} f(y^{(i)}), \\
-            y^{n + 1} = y^{(n)},
+            y^{n + 1} =\,\, & y^{(n)},
             \end{aligned}
 
     for :math:`i \in \{1, \dots, n\}` and :math:`y^{(0)} = y^n`. For reference,
     see [gst-2001]_.
 
-    .. [gst-2001] S. Gottlieb, C.-W. Shu, E. Tadmor, *Strong Stability
+    .. [gst-2001]
+
+        S. Gottlieb, C.-W. Shu, E. Tadmor, *Strong Stability
         Preserving High-Order Time Discretization Methods*, SIAM, Vol. 43,
         pp. 89-112, 2001.
+        https://doi.org/10.1137/S003614450036757X
     """
 
     def __init__(self, component_id, state_filter_name=None, rhs_func_name=None):
@@ -845,11 +854,12 @@ class SSPRKMethodBuilder(MethodBuilder):
 
     @property
     def beta(self):
-        pass
+        raise NotImplementedError
 
     def generate(self):
         """
-        :returns: a :class:`~dagrt.language.DAGCode`.
+        :returns: a :class:`~dagrt.language.DAGCode` that can be used to
+            generate code for this method.
         """
 
         # {{{ check coefficients are explicit
@@ -885,7 +895,11 @@ class SSPRKMethodBuilder(MethodBuilder):
                 cb(stages[i + 1], states + self.dt * rhss)
 
             # finish
-            cb(self.state, stages[-1])
+            if self.state_filter is None:
+                cb(self.state, stages[-1])
+            else:
+                cb(self.state, self.state_filter(stages[-1]))
+
             cb.yield_state(self.state, comp, self.t + self.dt, "final")
             cb(self.t, self.t + self.dt)
 
@@ -902,7 +916,6 @@ class SSPRKMethodBuilder(MethodBuilder):
 class SSPRK22MethodBuilder(SSPRKMethodBuilder):
     """Second-order SSP Runge-Kutta method from [gst-2001]_ Proposition 4.1.
 
-    .. automethod:: __init__
     .. automethod:: generate
     """
 
@@ -922,7 +935,6 @@ class SSPRK22MethodBuilder(SSPRKMethodBuilder):
 class SSPRK33MethodBuilder(SSPRKMethodBuilder):
     """Third-order SSP Runge-Kutta method from [gst-2001]_ Proposition 4.1.
 
-    .. automethod:: __init__
     .. automethod:: generate
     """
 

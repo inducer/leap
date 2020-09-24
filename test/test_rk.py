@@ -33,7 +33,9 @@ from leap.rk import (
         ForwardEulerMethodBuilder,
         MidpointMethodBuilder, HeunsMethodBuilder,
         RK3MethodBuilder, RK4MethodBuilder, RK5MethodBuilder,
-        LSRK4MethodBuilder,)
+        LSRK4MethodBuilder,
+        SSPRK22MethodBuilder, SSPRK33MethodBuilder,
+        )
 from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
 import numpy as np
 
@@ -65,6 +67,8 @@ logger = logging.getLogger(__name__)
     (LSRK4MethodBuilder("y"), 4),
     (KennedyCarpenterIMEXARK4MethodBuilder("y", use_implicit=False,
         explicit_rhs_name="y"), 4),
+    (SSPRK22MethodBuilder("y"), 2),
+    (SSPRK33MethodBuilder("y"), 3),
     ])
 def test_rk_accuracy(python_method_impl, method, expected_order,
                      show_dag=False, plot_solution=False):
