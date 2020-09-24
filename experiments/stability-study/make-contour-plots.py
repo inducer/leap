@@ -1,4 +1,3 @@
-from __future__ import division
 import sqlite3 as sqlite
 import numpy
 from plot_tools import auto_xy_reshape, unwrap_list
@@ -87,7 +86,7 @@ def make_stabplot(db_conn, mat_type, angle, method, substep_count):
             #va="center", ha="center")
     text(ratio[0], -0.1, "%.1f" % ratio[0], va="baseline", ha="center")
     text(ratio[-1], -0.1, "%.1f" % ratio[-1], va="baseline", ha="center")
-    text((ratio[-1]+ratio[0])/2, -0.1, "$\mu$" % ratio[-1],
+    text((ratio[-1]+ratio[0])/2, -0.1, r"$\mu$" % ratio[-1],
             va="baseline", ha="left")
 
     pcolormesh(x, y, dt)

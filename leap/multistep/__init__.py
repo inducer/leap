@@ -1,6 +1,5 @@
 """Adams-Bashforth ODE solvers."""
 
-from __future__ import division
 
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
@@ -51,7 +50,7 @@ def _linear_comb(coefficients, vectors):
                 zip(coefficients, vectors)))
 
 
-class AdamsIntegrationFunctionFamily(object):
+class AdamsIntegrationFunctionFamily:
     """An abstract interface for function families used for
     Adams-type time integration.
 
@@ -168,7 +167,7 @@ def _emit_func_family_operation(cb, name_gen,
         nfunctions = len(function_family)
 
         vdm_t = np.zeros((nfunctions, hist_len))
-        coeff_rhs = np.zeros((nfunctions))
+        coeff_rhs = np.zeros(nfunctions)
 
         for i in range(nfunctions):
             for j in range(hist_len):
@@ -241,7 +240,7 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
         if isinstance(function_family, int):
             function_family = AdamsMonomialIntegrationFunctionFamily(function_family)
 
-        super(AdamsBashforthMethodBuilder, self).__init__()
+        super().__init__()
         self.function_family = function_family
 
         if hist_length is None:

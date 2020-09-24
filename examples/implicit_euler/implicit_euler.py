@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """Implicit Euler timestepper"""
-from __future__ import division
 
 from leap import MethodBuilder
 from dagrt.language import DAGCode, CodeBuilder

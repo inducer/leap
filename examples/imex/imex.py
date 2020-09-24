@@ -3,7 +3,7 @@
 import numpy as np
 
 
-class KapsProblem(object):
+class KapsProblem:
     """
     From Kennedy and Carpenter, Section 7.1
 

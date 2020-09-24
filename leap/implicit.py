@@ -1,5 +1,3 @@
-from __future__ import division
-
 """Implicit solver utilities"""
 
 __copyright__ = """
@@ -46,7 +44,7 @@ def replace_AssignImplicit(dag, solver_hooks):
          * any other arguments are passed in *kwargs*.
     """
 
-    if six.callable(solver_hooks):
+    if callable(solver_hooks):
         hook = solver_hooks
         from collections import defaultdict
         solver_hooks = defaultdict(lambda: hook)

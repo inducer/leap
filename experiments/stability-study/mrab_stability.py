@@ -1,4 +1,3 @@
-from __future__ import division
 from pytools import Record
 import numpy
 import scipy.linalg as la

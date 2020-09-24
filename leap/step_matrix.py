@@ -1,5 +1,3 @@
-from __future__ import division
-
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
 __license__ = """
@@ -56,7 +54,7 @@ class LeapMaximaStringifyMapper(MaximaStringifyMapper):
 
 # {{{ step matrix finder
 
-class StepMatrixFinder(object):
+class StepMatrixFinder:
     """Constructs a step matrix on-the-fly while interpreting code.
 
     Assumes that all function evaluations occur as the root node of
@@ -94,7 +92,7 @@ class StepMatrixFinder(object):
     def _get_state_variables(self):
         """Extract all state-related variables from the code."""
         all_var_ids = set()
-        for phase in six.itervalues(self.code.phases):
+        for phase in self.code.phases.values():
             for inst in phase.statements:
                 all_var_ids |= inst.get_written_variables()
                 all_var_ids |= inst.get_read_variables()
@@ -207,7 +205,7 @@ class StepMatrixFinder(object):
             indices = []
             data = []
 
-        iv_to_index = dict((iv, i) for i, iv in enumerate(initial_vals))
+        iv_to_index = {iv: i for i, iv in enumerate(initial_vals)}
         for i, v in enumerate(components):
             # Get the expression for v.
             if isinstance(v, self.VectorComponent):

@@ -8,7 +8,6 @@ where x lies in [0, 2]. The solution uses a multirate AB method and the method
 of lines. The x coordinates are discretized so that [1, 2] is more densely
 partitioned than [0, 1] by a given ratio.
 """
-from __future__ import division
 
 from dagrt.codegen import PythonCodeGenerator
 from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder

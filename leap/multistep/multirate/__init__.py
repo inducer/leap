@@ -1,6 +1,5 @@
 """Multirate Adams ODE method."""
 
-from __future__ import division
 
 __copyright__ = """
 Copyright (C) 2007-15 Andreas Kloeckner
@@ -86,7 +85,7 @@ class MultiRateHistory(Record):
             least-squares solve rather than a linear solve to obtain the Adams
             coefficients for this history
         """
-        super(MultiRateHistory, self).__init__(
+        super().__init__(
                 interval=interval,
                 func_name=func_name,
                 arguments=arguments,
@@ -106,7 +105,7 @@ class RHS(MultiRateHistory):
         warn("RHS is deprecated--use MultiRateHistory instead",
                 DeprecationWarning, stacklevel=2)
 
-        super(RHS, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 # }}}
 
@@ -119,13 +118,13 @@ def _topologically_sort_comp_names_and_rhss(component_names, rhss):
 
     result_component_names = []
 
-    deps = dict(
-            (cname,
+    deps = {
+            cname:
                 frozenset(dep_cname
                     for mrh in rhs
                     for dep_cname in mrh.arguments
-                    if mrh in component_names))
-            for cname, rhs in zip(component_names, rhss))
+                    if mrh in component_names)
+            for cname, rhs in zip(component_names, rhss)}
 
     def add(cname):
         if cname in result_component_names:
@@ -223,7 +222,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         :arg static_dt: If *True*, changing the timestep in between steps
             during time integration is not allowed.
         """
-        super(MultiRateMultiStepMethodBuilder, self).__init__()
+        super().__init__()
 
         # Variables
         from pymbolic import var
@@ -299,7 +298,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         if state_filter_names is None:
             state_filter_names = {}
 
-        for comp_name, sfname in six.iteritems(state_filter_names):
+        for comp_name, sfname in state_filter_names.items():
             if comp_name not in component_names:
                 raise ValueError("component name '%s' in 'state_filter_names' "
                         "not known" % comp_name)
@@ -308,10 +307,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                 raise ValueError("component name '%s' in 'state_filter_names' "
                         "is a non-ODE component, which is not allowed" % comp_name)
 
-        self.state_filters = dict(
-                (comp_name, var("<func>" + sfname))
-                for comp_name, sfname in six.iteritems(state_filter_names)
-                if sfname is not None)
+        self.state_filters = {
+                comp_name: var("<func>" + sfname)
+                for comp_name, sfname in state_filter_names.items()
+                if sfname is not None}
 
         # }}}
 
@@ -499,10 +498,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                     contribs = []
 
                     for irhs, rhs in enumerate(component_rhss):
-                        kwargs = dict(
-                                (self.comp_name_to_kwarg_name[arg_comp_name],
-                                    component_state_ests[arg_comp_name])
-                                for arg_comp_name in rhs.arguments)
+                        kwargs = {
+                                self.comp_name_to_kwarg_name[arg_comp_name]:
+                                    component_state_ests[arg_comp_name]
+                                for arg_comp_name in rhs.arguments}
 
                         contribs.append(var(rhs.func_name)(
                                     t=self.t + (c/self.nsubsteps) * self.dt,
@@ -528,10 +527,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                         continue
 
                     for irhs, rhs in enumerate(component_rhss):
-                        kwargs = dict(
-                                (self.comp_name_to_kwarg_name[arg_comp_name],
-                                    component_state_ests[arg_comp_name])
-                                for arg_comp_name in rhs.arguments)
+                        kwargs = {
+                                self.comp_name_to_kwarg_name[arg_comp_name]:
+                                    component_state_ests[arg_comp_name]
+                                for arg_comp_name in rhs.arguments}
                         cb(stage_rhss[comp_name, irhs][istage],
                                 var(rhs.func_name)(
                                     t=self.t + (c/self.nsubsteps) * self.dt,
@@ -623,10 +622,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                             .format(name_prefix=name_prefix, comp_name=comp_name,
                                 irhs=irhs)))
 
-                    kwargs = dict(
-                            (self.comp_name_to_kwarg_name[arg_comp_name],
-                                var("<state>" + arg_comp_name))
-                            for arg_comp_name in rhs.arguments)
+                    kwargs = {
+                            self.comp_name_to_kwarg_name[arg_comp_name]:
+                                var("<state>" + arg_comp_name)
+                            for arg_comp_name in rhs.arguments}
 
                     cb(rhs_var, var(rhs.func_name)(t=self.t, **kwargs))
 
@@ -663,10 +662,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                         else:
                             return non_ode_states[comp_name]
 
-                    kwargs = dict(
-                            (self.comp_name_to_kwarg_name[arg_comp_name],
-                                get_state(arg_comp_name))
-                            for arg_comp_name in rhs.arguments)
+                    kwargs = {
+                            self.comp_name_to_kwarg_name[arg_comp_name]:
+                                get_state(arg_comp_name)
+                            for arg_comp_name in rhs.arguments}
 
                     cb(rhs_var, var(rhs.func_name)(t=self.t, **kwargs))
 
@@ -759,26 +758,26 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         # }}}
 
         def log_hist_state():
-            explainer.log_hist_state(dict(
-                (rhs.func_name, (
+            explainer.log_hist_state({
+                rhs.func_name: (
                     temp_hist_substeps[comp_name, irhs][-rhs.history_length::],
                     [v.name
                         for v in
-                        temp_hist_vars[comp_name, irhs][-rhs.history_length::]]))
+                        temp_hist_vars[comp_name, irhs][-rhs.history_length::]])
                 for comp_name, component_rhss in zip(self.component_names, self.rhss)
-                for irhs, rhs in enumerate(component_rhss)))
+                for irhs, rhs in enumerate(component_rhss)})
 
         log_hist_state()
 
         # A mapping from component_name to a list of tuples
         # (substep_level, state_var). This mapping is ordered
         # by substep_level.
-        computed_states = dict(
-                (comp_name, [
+        computed_states = {
+                comp_name: [
                     (0, state_var)
-                    ])
+                    ]
                 for comp_name, state_var in zip(
-                    self.component_names, self.state_vars))
+                    self.component_names, self.state_vars)}
 
         # {{{ get_state
 
@@ -910,10 +909,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
             progress_frac = isubstep / self.nsubsteps
             t_expr = self.t + self.dt * progress_frac
 
-            kwargs = dict(
-                    (self.comp_name_to_kwarg_name[arg_comp_name],
-                        get_state(arg_comp_name, isubstep))
-                    for arg_comp_name in rhs.arguments)
+            kwargs = {
+                    self.comp_name_to_kwarg_name[arg_comp_name]:
+                        get_state(arg_comp_name, isubstep)
+                    for arg_comp_name in rhs.arguments}
 
             # }}}
 
@@ -981,10 +980,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                     zip(self.component_names, self.rhss)):
                 for irhs, rhs in enumerate(component_rhss):
                     t_expr = self.t
-                    kwargs = dict(
-                            (self.comp_name_to_kwarg_name[arg_comp_name],
-                                get_state(arg_comp_name, 0))
-                            for arg_comp_name in rhs.arguments)
+                    kwargs = {
+                            self.comp_name_to_kwarg_name[arg_comp_name]:
+                                get_state(arg_comp_name, 0)
+                            for arg_comp_name in rhs.arguments}
                     test_rhs_var = var(
                             name_gen(
                                 "test_rhs_{comp_name}_rhs{irhs}_0"
@@ -1225,7 +1224,7 @@ class TwoRateAdamsBashforthMethodBuilder(MultiRateMultiStepMethodBuilder):
         if hist_length_fast is None:
             hist_length_slow = order
 
-        super(TwoRateAdamsBashforthMethodBuilder, self).__init__(
+        super().__init__(
                 order,
                 (
                     (
@@ -1262,7 +1261,7 @@ class TwoRateAdamsBashforthMethodBuilder(MultiRateMultiStepMethodBuilder):
 
 # {{{ scheme explainers
 
-class SchemeExplainerBase(object):
+class SchemeExplainerBase:
 
     def log_hist_state(self, hist_substeps):
         pass
@@ -1358,7 +1357,7 @@ class TextualSchemeExplainer(SchemeExplainerBase):
                     rhs_name=rhs_name.replace("<func>", ""),
                     isubstep=isubstep,
                     kwargs=", ".join(
-                        "%s=%s" % (k, v)
+                        f"{k}={v}"
                         for k, v in sorted(kwargs.items()))))
 
     def roll_back_history(self, rhs_name):

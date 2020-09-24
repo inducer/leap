@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import division
-
 __copyright__ = """
 Copyright (C) 2007-15 Andreas Kloeckner
 Copyright (C) 2014 Matt Wala
@@ -46,7 +43,7 @@ from utils import (  # noqa
         python_method_impl_codegen as pmi_cg)
 
 
-class MultirateTimestepperAccuracyChecker(object):
+class MultirateTimestepperAccuracyChecker:
     """Check that the multirate timestepper has the advertised accuracy."""
 
     def __init__(self, method, order, hist_length, step_ratio, static_dt, ode,

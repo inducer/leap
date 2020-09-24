@@ -1,6 +1,5 @@
 """Leap root module"""
 
-from __future__ import division
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
@@ -41,7 +40,7 @@ def run_script_from_commandline():
     sys.argv[1:] = args.args
     sys.path.append(scriptdir)
 
-    with open(args.script, "rt") as s:
+    with open(args.script) as s:
         script_contents = s.read()
 
     namespace = {"__name__": "__main__"}
@@ -52,7 +51,7 @@ def run_script_from_commandline():
 
 # {{{ method builder base class
 
-class MethodBuilder(object):
+class MethodBuilder:
 
     def generate(self, *solver_hooks):
         """

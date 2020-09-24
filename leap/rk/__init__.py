@@ -1,6 +1,5 @@
 """Runge-Kutta ODE timestepper."""
 
-from __future__ import division
 
 __copyright__ = """
 Copyright (C) 2007-2013 Andreas Kloeckner
@@ -89,7 +88,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 
             and all(
                 coeff_set[-1]
-                for coeff_set in six.itervalues(coeff_sets))
+                for coeff_set in coeff_sets.values())
 
             and output_stage_coefficients
 
@@ -97,7 +96,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
                 _truncate_final_zeros(coeff_set[-1])
                 ==  # noqa: W504
                 _truncate_final_zeros(output_stage_coefficients)
-                for coeff_set in six.itervalues(coeff_sets)))
+                for coeff_set in coeff_sets.values()))
 
 # }}}
 
@@ -282,9 +281,9 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                         assignees = [unk.name for unk in unknowns]
 
                         from pymbolic import substitute
-                        subst_dict = dict(
-                                (rhs_var.name, rhs_var_to_unknown[rhs_var])
-                                for rhs_var in unknowns)
+                        subst_dict = {
+                                rhs_var.name: rhs_var_to_unknown[rhs_var]
+                                for rhs_var in unknowns}
 
                         cb.assign_implicit(
                                 assignees=assignees,
@@ -373,7 +372,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 class SimpleButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
     def __init__(self, component_id, state_filter_name=None,
             rhs_func_name=None):
-        super(SimpleButcherTableauMethodBuilder, self).__init__(
+        super().__init__(
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
@@ -591,7 +590,7 @@ class EmbeddedButcherTableauMethodBuilder(
 
     def finish(self, cb, estimate_coeff_set_names, estimate_vars):
         if not self.adaptive:
-            super(EmbeddedButcherTableauMethodBuilder, self).finish(
+            super().finish(
                     cb, estimate_coeff_set_names, estimate_vars)
         else:
             high_est = estimate_vars[
