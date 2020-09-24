@@ -808,13 +808,13 @@ class SSPRKMethodBuilder(MethodBuilder):
 
     The methods are given in the now-standard Shu-Osher form
 
-        .. math::
+    .. math::
 
-            \begin{aligned}
-            y^{(i)} =\,\, & \sum_{k = 0}^{i - 1}
-                \alpha_{ik} y^{(i)} + \Delta t \beta_{ik} f(y^{(i)}), \\
-            y^{n + 1} =\,\, & y^{(n)},
-            \end{aligned}
+        \begin{aligned}
+        y^{(i)} =\,\, & \sum_{k = 0}^{i - 1}
+            \alpha_{ik} y^{(i)} + \Delta t \beta_{ik} f(y^{(i)}), \\
+        y^{n + 1} =\,\, & y^{(n)},
+        \end{aligned}
 
     for :math:`i \in \{1, \dots, n\}` and :math:`y^{(0)} = y^n`. For reference,
     see [gst-2001]_.
