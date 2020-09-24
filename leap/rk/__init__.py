@@ -873,7 +873,7 @@ class SSPRKMethodBuilder(MethodBuilder):
 
         # {{{ primary phase
 
-        comp = self.component_id
+        comp_id = self.component_id
 
         with CodeBuilder(name="primary") as cb:
             stages = [self.state] + [
@@ -888,19 +888,19 @@ class SSPRKMethodBuilder(MethodBuilder):
                 rhss = sum(
                         beta * self.rhs_func(
                             t=self.t + self.c[i] * self.dt,
-                            **{comp: stages[j]})
+                            **{comp_id: stages[j]})
                         for j, beta in enumerate(self.beta[i])
                         )
 
-                cb(stages[i + 1], states + self.dt * rhss)
+                expr = states + self.dt * rhss
+                if self.state_filter is not None:
+                    expr = self.state_filter(**{comp_id: expr})
+
+                cb(stages[i + 1], expr)
 
             # finish
-            if self.state_filter is None:
-                cb(self.state, stages[-1])
-            else:
-                cb(self.state, self.state_filter(stages[-1]))
-
-            cb.yield_state(self.state, comp, self.t + self.dt, "final")
+            cb(self.state, stages[-1])
+            cb.yield_state(self.state, comp_id, self.t + self.dt, "final")
             cb(self.t, self.t + self.dt)
 
         # }}}
