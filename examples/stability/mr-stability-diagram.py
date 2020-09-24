@@ -45,7 +45,7 @@ def main():
         mat = finder.get_phase_step_matrix("primary")
 
         if 0:
-            print('Variables: %s' % finder.variables)
+            print("Variables: %s" % finder.variables)
             np.set_printoptions(formatter={"all": str})
             print(mat)
 

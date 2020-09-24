@@ -97,8 +97,8 @@ class StepMatrixFinder:
         all_state_vars = []
         for var_name in all_var_ids:
             if (
-                    (var_name.startswith('<p>')
-                        or var_name.startswith('<state>'))
+                    (var_name.startswith("<p>")
+                        or var_name.startswith("<state>"))
                     and var_name not in self.exclude_variables):
                 all_state_vars.append(var_name)
 

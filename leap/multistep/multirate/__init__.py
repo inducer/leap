@@ -117,12 +117,11 @@ def _topologically_sort_comp_names_and_rhss(component_names, rhss):
     result_component_names = []
 
     deps = {
-            cname:
-                frozenset(dep_cname
-                    for mrh in rhs
-                    for dep_cname in mrh.arguments
-                    if mrh in component_names)
-            for cname, rhs in zip(component_names, rhss)}
+            cname: frozenset(dep_cname
+                for mrh in rhs
+                for dep_cname in mrh.arguments if mrh in component_names)
+            for cname, rhs in zip(component_names, rhss)
+            }
 
     def add(cname):
         if cname in result_component_names:
@@ -182,25 +181,25 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         :arg system_description: A tuple of the form::
 
                 (
-                    ('dt', 'fast',
-                    '=', MultiRateHistory(1, '<func>f1', ('fast', 'slow', 'dep')),
-                    MultiRateHistory(3, '<func>f2', ('slow', 'dep')),
+                    ("dt", "fast",
+                    "=", MultiRateHistory(1, "<func>f1", ("fast", "slow", "dep")),
+                    MultiRateHistory(3, "<func>f2", ("slow", "dep")),
                     ),
-                    ('dt', slow',
-                    '=', MultiRateHistory(3, '<func>f3', ('fast', 'slow', 'dep')),
+                    ("dt", "slow",
+                    "=", MultiRateHistory(3, "<func>f3", ("fast", "slow", "dep")),
                     ),
-                    ('dep',
-                    '=', MultiRateHistory(3, '<func>f4', ('slow')),
+                    ("dep",
+                    "=", MultiRateHistory(3, "<func>f4", ("slow")),
                     ),
                 )
 
             i.e. the outermost tuple represents a list of state components.
             These can either be ODEs (in which case the first string in the
-            tuple is ``'dt'``, followed by the component name, or
+            tuple is ``"dt"``, followed by the component name, or
             computed/dependent state, in which case the first string in the
             tuple is just the name of the computed piece of state.
 
-            The 'right-hand-side' of each tuple (after the intervening ``'='``
+            The right-hand-side of each tuple (after the intervening ``"="``
             string) consists of one or more instances of
             :class:`MultiRateHistory` describing the rate at which evaluations
             of the given functions should be stored (along with other
@@ -225,9 +224,9 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         # Variables
         from pymbolic import var
 
-        self.t = var('<t>')
-        self.dt = var('<dt>')
-        self.bootstrap_step = var('<p>bootstrap_step')
+        self.t = var("<t>")
+        self.dt = var("<dt>")
+        self.bootstrap_step = var("<p>bootstrap_step")
 
         # {{{ process system_description
 
@@ -391,9 +390,9 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                 hist_vars = []
                 for past in range(rhs.history_length):
                     t_vars.insert(0, var(
-                        '<p>t_%s_rhs%d_hist_%d_ago' % (comp_name, irhs, past)))
+                        "<p>t_%s_rhs%d_hist_%d_ago" % (comp_name, irhs, past)))
                     hist_vars.insert(0, var(
-                        '<p>hist_%s_rhs%d_hist_%d_ago' % (comp_name, irhs, past)))
+                        "<p>hist_%s_rhs%d_hist_%d_ago" % (comp_name, irhs, past)))
 
                 if not self.static_dt:
                     self.time_vars[key] = t_vars
@@ -599,7 +598,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         name_gen = UniqueNameGenerator()
 
         for isubstep in range(self.nsubsteps):
-            name_prefix = 'substep' + str(isubstep)
+            name_prefix = "substep" + str(isubstep)
 
             current_rhss = {}
             non_ode_states = {}
@@ -969,7 +968,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         # }}}
 
         def norm(expr):
-            return var('<builtin>norm_2')(expr)
+            return var("<builtin>norm_2")(expr)
 
         def check_history_consistency():
             # At the start of a macrostep, ensure that the last computed

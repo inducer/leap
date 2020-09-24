@@ -63,8 +63,8 @@ def test_rk_codegen(min_order, stepper, print_code=False):
     timestepper works.
     """
 
-    component_id = 'y'
-    rhs_function = '<func>y'
+    component_id = "y"
+    rhs_function = "<func>y"
 
     from dagrt.function_registry import (
             base_function_registry, register_ode_rhs)
@@ -82,7 +82,7 @@ def test_rk_codegen(min_order, stepper, print_code=False):
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
-                    f.BuiltinType('real (kind=8)'),
+                    f.BuiltinType("real (kind=8)"),
                     )
                 },
             function_registry=freg,
@@ -111,9 +111,9 @@ def test_rk_codegen_fancy():
     Runge-Kutta timestepper works.
     """
 
-    component_id = 'y'
-    rhs_function = '<func>y'
-    state_filter_name = 'state_filter_y'
+    component_id = "y"
+    rhs_function = "<func>y"
+    state_filter_name = "state_filter_y"
 
     stepper = ODE23MethodBuilder(component_id, use_high_order=True,
             state_filter_name=state_filter_name)
@@ -187,7 +187,7 @@ def test_rk_codegen_fancy():
                             ("conserved_var", f.PointerType(
                                 f.ArrayType(
                                     ("region%n_grid_dofs(igrid)",),
-                                    f.BuiltinType('real (kind=8)')))),
+                                    f.BuiltinType("real (kind=8)")))),
                         )))
                 },
             function_registry=freg,
@@ -305,11 +305,11 @@ def test_multirate_codegen(min_order, method_name):
             user_type_map={
                 "slow": f.ArrayType(
                     (1,),
-                    f.BuiltinType('real (kind=8)'),
+                    f.BuiltinType("real (kind=8)"),
                     ),
                 "fast": f.ArrayType(
                     (1,),
-                    f.BuiltinType('real (kind=8)'),
+                    f.BuiltinType("real (kind=8)"),
                     )
                 },
             function_registry=freg,
@@ -347,8 +347,8 @@ def test_adaptive_rk_codegen():
     timestepper works.
     """
 
-    component_id = 'y'
-    rhs_function = '<func>y'
+    component_id = "y"
+    rhs_function = "<func>y"
 
     stepper = ODE45MethodBuilder(component_id, use_high_order=False, rtol=1e-6)
 
@@ -369,7 +369,7 @@ def test_adaptive_rk_codegen():
             user_type_map={
                 "y": f.ArrayType(
                     (2,),
-                    f.BuiltinType('real (kind=8)'),
+                    f.BuiltinType("real (kind=8)"),
                     ),
                 },
             function_registry=freg)
@@ -385,8 +385,8 @@ def test_adaptive_rk_codegen_error():
     timestepper works.
     """
 
-    component_id = 'y'
-    rhs_function = '<func>y'
+    component_id = "y"
+    rhs_function = "<func>y"
 
     stepper = ODE45MethodBuilder(component_id, use_high_order=False, atol=1e-6)
 
@@ -406,7 +406,7 @@ def test_adaptive_rk_codegen_error():
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
-                    f.BuiltinType('real (kind=8)'),
+                    f.BuiltinType("real (kind=8)"),
                     )
                 },
             function_registry=freg)
@@ -422,8 +422,8 @@ def test_adaptive_rk_codegen_error():
 def test_singlerate_squarewave(min_order, hist_length):
     from leap.multistep import AdamsBashforthMethodBuilder
 
-    component_id = 'y'
-    rhs_function = '<func>y'
+    component_id = "y"
+    rhs_function = "<func>y"
 
     stepper = AdamsBashforthMethodBuilder("y", min_order, hist_length=hist_length)
 
@@ -443,7 +443,7 @@ def test_singlerate_squarewave(min_order, hist_length):
             user_type_map={
                 component_id: f.ArrayType(
                     (2,),
-                    f.BuiltinType('real (kind=8)'),
+                    f.BuiltinType("real (kind=8)"),
                     )
                 },
             function_registry=freg,
@@ -528,11 +528,11 @@ def test_multirate_squarewave(min_order, hist_length, method_name):
             user_type_map={
                 "slow": f.ArrayType(
                     (1,),
-                    f.BuiltinType('real (kind=8)'),
+                    f.BuiltinType("real (kind=8)"),
                     ),
                 "fast": f.ArrayType(
                     (1,),
-                    f.BuiltinType('real (kind=8)'),
+                    f.BuiltinType("real (kind=8)"),
                     )
                 },
             function_registry=freg,

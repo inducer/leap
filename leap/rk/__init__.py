@@ -125,9 +125,9 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
         self.component_id = component_id
 
-        self.dt = var('<dt>')
-        self.t = var('<t>')
-        self.state = var('<state>' + component_id)
+        self.dt = var("<dt>")
+        self.t = var("<t>")
+        self.state = var("<state>" + component_id)
 
         if state_filter_name is not None:
             self.state_filter = var("<func>" + state_filter_name)
@@ -188,11 +188,11 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         rhs_var_to_unknown = {}
         for name in stage_coeff_set_names:
             stage_rhs_vars[name] = [
-                    cb.fresh_var('rhs_%s_s%d' % (name, i)) for i in range(nstages)]
+                    cb.fresh_var("rhs_%s_s%d" % (name, i)) for i in range(nstages)]
 
             # These are rhss if they are not yet known and pending an implicit solve.
             for i, rhsvar in enumerate(stage_rhs_vars[name]):
-                unkvar = cb.fresh_var('unk_%s_s%d' % (name, i))
+                unkvar = cb.fresh_var("unk_%s_s%d" % (name, i))
                 rhs_var_to_unknown[rhsvar] = unkvar
 
         knowns = set()
@@ -360,7 +360,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
     def finish(self, cb, estimate_names, estimate_vars):
         cb(self.state, estimate_vars[0])
-        cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
+        cb.yield_state(self.state, self.component_id, self.t + self.dt, "final")
         cb(self.t, self.t + self.dt)
 
 # }}}
@@ -605,7 +605,7 @@ class EmbeddedButcherTableauMethodBuilder(
             est = low_order_estimate
 
         cb(self.state, est)
-        cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
+        cb.yield_state(self.state, self.component_id, self.t + self.dt, "final")
         cb(self.t, self.t + self.dt)
 
 # }}}
@@ -779,7 +779,7 @@ class LSRK4MethodBuilder(MethodBuilder):
 
                 cb(state, new_state_expr)
 
-            cb.yield_state(state, comp_id, t + dt, 'final')
+            cb.yield_state(state, comp_id, t + dt, "final")
             cb(t, t + dt)
 
         cb_primary = cb

@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
     ODE45MethodBuilder("y", use_high_order=True),
     ])
 def test_step_matrix(method, show_matrix=True, show_dag=False):
-    component_id = 'y'
+    component_id = "y"
     code = method.generate()
     if show_dag:
         from dagrt.language import show_dependency_graph
@@ -68,7 +68,7 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     mat = finder.get_phase_step_matrix("primary")
 
     if show_matrix:
-        print('Variables: %s' % finder.variables)
+        print("Variables: %s" % finder.variables)
         from pytools import indices_in_shape
         for i in indices_in_shape(mat.shape):
             print(i, mat[i])
@@ -130,7 +130,7 @@ def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
     from leap.step_matrix import StepMatrixFinder
     from pymbolic import var
 
-    component_id = 'y'
+    component_id = "y"
     code = euler(component_id, show_dag)
     J = np.diag([-3, -2, -1])  # noqa
 
@@ -145,7 +145,7 @@ def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
         shapes={"<state>" + component_id: 3})
 
     if show_matrix:
-        print('Variables: %s' % finder.variables)
+        print("Variables: %s" % finder.variables)
         from pytools import indices_in_shape
         for i in indices_in_shape(mat.shape):
             print(i, mat[i])
@@ -159,7 +159,7 @@ def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
 def test_step_matrix_fast_eval():
     from leap.step_matrix import StepMatrixFinder, fast_evaluator
 
-    component_id = 'y'
+    component_id = "y"
     code = euler(component_id, show_dag=False)
     J = np.diag([-3, -2, -1])  # noqa
 
@@ -181,7 +181,7 @@ def test_step_matrix_sparse():
     from leap.step_matrix import StepMatrixFinder, fast_evaluator
     from pymbolic import var
 
-    component_id = 'y'
+    component_id = "y"
     code = euler(component_id, show_dag=False)
     J = np.diag([-3, -2, -1])  # noqa
 

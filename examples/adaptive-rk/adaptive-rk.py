@@ -161,8 +161,8 @@ def demo_rk_adaptive():
 
     # Generate and run the method.
     from dagrt.codegen import PythonCodeGenerator
-    RKAdaptiveMethod = PythonCodeGenerator("RKAdaptiveMethod").get_class(code)
-    eocrec = get_convergence_data(RKAdaptiveMethod, problem=KapsProblem(0.001))
+    cls = PythonCodeGenerator("RKAdaptiveMethod").get_class(code)
+    eocrec = get_convergence_data(cls, problem=KapsProblem(0.001))
     print(eocrec.pretty_print())
 
 

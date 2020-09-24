@@ -150,7 +150,7 @@ class KennedyCarpenterIMEXRungeKuttaMethodBuilderBase(
             est = low_order_estimate
 
         cb(self.state, est)
-        cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
+        cb.yield_state(self.state, self.component_id, self.t + self.dt, "final")
         cb(self.t, self.t + self.dt)
 
 

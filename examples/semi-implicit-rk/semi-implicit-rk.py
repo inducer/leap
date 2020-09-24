@@ -114,8 +114,8 @@ def demo_rk_implicit():
     print(code)
 
     from dagrt.codegen import PythonCodeGenerator
-    IRKMethodBuilder = PythonCodeGenerator("IRKMethodBuilder").get_class(code)
-    eocrec = get_convergence_data(IRKMethodBuilder, SimpleDecayProblem())
+    cls = PythonCodeGenerator("IRKMethodBuilder").get_class(code)
+    eocrec = get_convergence_data(cls, SimpleDecayProblem())
     print(eocrec.pretty_print())
 
 

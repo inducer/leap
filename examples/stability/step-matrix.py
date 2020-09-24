@@ -26,7 +26,7 @@ def main():
     print(finder.get_maxima_expressions("primary"))
     mat = finder.get_phase_step_matrix("primary")
 
-    print('Variables: %s' % finder.variables)
+    print("Variables: %s" % finder.variables)
     np.set_printoptions(formatter={"all": str})
     print(mat)
 
