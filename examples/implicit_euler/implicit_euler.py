@@ -6,7 +6,6 @@ from dagrt.language import DAGCode, CodeBuilder
 from pymbolic import var
 from pymbolic.primitives import CallWithKwargs
 
-
 __copyright__ = "Copyright (C) 2014 Matt Wala"
 
 __license__ = """

@@ -115,8 +115,7 @@ def strang_splitting(dag1, dag2, stepping_phase):
 
             if phase1.next_phase != phase2.next_phase:
                 raise ValueError("DAGs don't agree on default "
-                        "phase transition out of phase '%s'"
-                        % phase_name)
+                        f"phase transition out of phase '{phase_name}'")
 
             s2_name = phase_name + "_s2"
             s3_name = phase_name + "_s3"

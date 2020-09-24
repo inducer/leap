@@ -152,7 +152,7 @@ class StepMatrixFinder:
         msm = LeapMaximaStringifyMapper()
 
         def msm_expr_list(name, exprs):
-            lines.append("%s: [" % name)
+            lines.append(f"{name}: [")
             for i, expr in enumerate(exprs):
                 line = "    "+msm(expr)
 

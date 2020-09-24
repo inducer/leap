@@ -1,4 +1,3 @@
-#
 # leap documentation build configuration file, created by
 # sphinx-quickstart on Sun Jan 26 10:09:04 2014.
 #

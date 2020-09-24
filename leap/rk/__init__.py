@@ -188,11 +188,11 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         rhs_var_to_unknown = {}
         for name in stage_coeff_set_names:
             stage_rhs_vars[name] = [
-                    cb.fresh_var("rhs_%s_s%d" % (name, i)) for i in range(nstages)]
+                    cb.fresh_var(f"rhs_{name}_s{i}") for i in range(nstages)]
 
             # These are rhss if they are not yet known and pending an implicit solve.
             for i, rhsvar in enumerate(stage_rhs_vars[name]):
-                unkvar = cb.fresh_var("unk_%s_s%d" % (name, i))
+                unkvar = cb.fresh_var(f"unk_{name}_s{i}")
                 rhs_var_to_unknown[rhsvar] = unkvar
 
         knowns = set()

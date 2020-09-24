@@ -131,10 +131,8 @@ def _topologically_sort_comp_names_and_rhss(component_names, rhss):
             add(dep)
 
         if cname in result_component_names:
-            raise ValueError("Component '%s' (directly or indirectly) "
-                    "depends on itself "
-                    "in system description. This is not allowed."
-                    % cname)
+            raise ValueError(f"Component '{cname}' (directly or indirectly) "
+                    "depends on itself in system description. This is not allowed.")
 
         result_component_names.append(cname)
 
@@ -241,22 +239,22 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
         for irow, row in enumerate(system_description):
             if not isinstance(row, tuple):
-                raise TypeError("row %d (1-based) of 'system_description' "
-                        "must be a tuple" % (irow + 1))
+                raise TypeError(f"row {irow + 1} (1-based) of 'system_description' "
+                        "must be a tuple")
 
             try:
                 eq_index = row.index("=")
             except ValueError:
-                raise ValueError("row %d (1-based) of 'system_description' "
-                        "must contain an equal sign" % (irow + 1))
+                raise ValueError(f"row {irow + 1} (1-based) of 'system_description' "
+                        "must contain an equal sign")
 
             is_ode = eq_index == 2
 
             if is_ode:
                 if row[0] != "dt":
-                    raise ValueError("row %d (1-based) of 'system_description' "
-                            "must have 'dt' as first element if describing an ODE"
-                            % (irow + 1))
+                    raise ValueError(f"row {irow + 1} (1-based) of "
+                            "'system_description' must have 'dt' as first "
+                            "element if describing an ODE")
                 comp_name = row[1]
 
                 ode_component_names.append(comp_name)
@@ -269,8 +267,8 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                 non_ode_rhss.append(row[eq_index+1:])
 
             else:
-                raise ValueError("row %d (1-based) of 'system_description' "
-                        "has equal sign in unexpected location" % (irow + 1))
+                raise ValueError(f"row {irow + 1} (1-based) of "
+                        "'system_description' has equal sign in unexpected location")
 
             is_ode_component[comp_name] = is_ode
 
@@ -297,12 +295,13 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
         for comp_name, sfname in state_filter_names.items():
             if comp_name not in component_names:
-                raise ValueError("component name '%s' in 'state_filter_names' "
-                        "not known" % comp_name)
+                raise ValueError(f"component name '{comp_name}' in "
+                    "'state_filter_names' not known")
 
             if not is_ode_component[comp_name]:
-                raise ValueError("component name '%s' in 'state_filter_names' "
-                        "is a non-ODE component, which is not allowed" % comp_name)
+                raise ValueError(f"component name '{comp_name}' in "
+                    "'state_filter_names' is a non-ODE component, "
+                    "which is not allowed")
 
         self.state_filters = {
                 comp_name: var("<func>" + sfname)
@@ -361,9 +360,8 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         interval_gcd = gcd(intervals)
         if interval_gcd != 1:
             raise ValueError(
-                    "integration intervals must be relatively prime: "
-                    "found intervals %s with common factor %d"
-                    % (intervals, interval_gcd))
+                    "integration intervals must be relatively prime: found "
+                    "intervals {intervals} with common factor {interval_gcd}")
 
         self.nsubsteps = lcm(intervals)
 
@@ -390,9 +388,9 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                 hist_vars = []
                 for past in range(rhs.history_length):
                     t_vars.insert(0, var(
-                        "<p>t_%s_rhs%d_hist_%d_ago" % (comp_name, irhs, past)))
+                        f"<p>t_{comp_name}_rhs{irhs}_hist_{past}_ago"))
                     hist_vars.insert(0, var(
-                        "<p>hist_%s_rhs%d_hist_%d_ago" % (comp_name, irhs, past)))
+                        f"<p>hist_{comp_name}_rhs{irhs}_hist_{past}_ago"))
 
                 if not self.static_dt:
                     self.time_vars[key] = t_vars
@@ -1007,22 +1005,21 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                                     self.early_hist_consistency_threshold):
                                 cb((), "<builtin>print(rel_rhs_error)")
                                 cb.raise_(InconsistentHistoryError,
-                                        "MRAdams: top-of-history for RHS '%s' is not"
-                                        " consistent with current state"
-                                        % rhs.func_name)
+                                        "MRAdams: top-of-history for RHS "
+                                        f"'{rhs.func_name}' is not "
+                                        "consistent with current state")
                         else:
                             cb.raise_(InconsistentHistoryError,
-                                    "MRAdams: RHS '%s' has early policy "
-                                    "and requires relaxed threshold input"
-                                    % rhs.func_name)
-
+                                    "MRAdams: RHS '{rhs.func_name}' has early "
+                                    "policy and requires relaxed threshold input")
                     else:
                         # Check for floating-point accuracy
                         with cb.if_("rel_rhs_error", ">=",
                                 self.hist_consistency_threshold):
                             cb.raise_(InconsistentHistoryError,
-                                    "MRAdams: top-of-history for RHS '%s' is not "
-                                    "consistent with current state" % rhs.func_name)
+                                    "MRAdams: top-of-history for RHS "
+                                    f"'{rhs.func_name}' is not "
+                                    "consistent with current state")
 
         # {{{ run_substep_loop
 
@@ -1308,7 +1305,7 @@ class TextualSchemeExplainer(SchemeExplainerBase):
                     .format(
                         rhs=contrib.rhs.replace("<func>", ""),
                         states=" ".join(
-                            "%d:%s" % (substep, name)
+                            f"{substep}:{name}"
                             for substep, name in zip(
                                 contrib.from_substeps, contrib.using))))
 
@@ -1358,7 +1355,7 @@ class TextualSchemeExplainer(SchemeExplainerBase):
                         for k, v in sorted(kwargs.items()))))
 
     def roll_back_history(self, rhs_name):
-        self.lines.append("ROLL BACK %s" % rhs_name)
+        self.lines.append(f"ROLL BACK {rhs_name}")
 
 # }}}
 
