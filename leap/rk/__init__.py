@@ -826,7 +826,7 @@ class SSPRKMethodBuilder(MethodBuilder):
             state_filter = var(f"<func>{state_filter_name}")
 
         if rhs_func_name is None:
-            rhs_func_name = "component_id"
+            rhs_func_name = component_id
 
         self.component_id = component_id
         self.dt = var("<dt>")
@@ -856,7 +856,7 @@ class SSPRKMethodBuilder(MethodBuilder):
 
         nstages = len(self.alpha)
         for n in range(1, nstages + 1):
-            if len(self.alpha) > n or len(self.beta) > n:
+            if len(self.alpha[n - 1]) > n or len(self.beta[n - 1]) > n:
                 raise ValueError("only explicit SSP schemes are supported")
 
         # }}}
