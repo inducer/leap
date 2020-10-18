@@ -22,7 +22,7 @@ jobs:
         -   name: "Main Script"
             run: |
                 curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-flake8.sh
-                . ./prepare-and-run-flake8.sh leap test examples
+                . ./prepare-and-run-flake8.sh "$(basename $GITHUB_REPOSITORY)" test examples
 
     pylint:
         name: Pylint
@@ -35,9 +35,8 @@ jobs:
                 python-version: '3.x'
         -   name: "Main Script"
             run: |
-                EXTRA_INSTALL="matplotlib scipy"
                 curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
-                . ./prepare-and-run-pylint.sh leap test/test_*.py
+                . ./prepare-and-run-pylint.sh "$(basename $GITHUB_REPOSITORY)" test examples
 
     pytest:
         name: Pytest on Py${{ matrix.python-version }}
