@@ -1,3 +1,4 @@
 - arg: ignored-modules
   val:
   - matplotlib
+  - scipy
