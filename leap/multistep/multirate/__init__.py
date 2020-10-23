@@ -588,7 +588,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                             # We require a solve here.
                             # In a DIRK/ARK setting, the unknown is always the same
                             # RHS as the stage number.
-                            unkvar = cb.fresh_var('unk_s%d' % (istage))
+                            unkvar = cb.fresh_var("unk_s%d" % (istage))
                             rhs_var_to_unknown[
                                     stage_rhss[comp_name,
                                                    irhs][istage]] = unkvar
@@ -620,7 +620,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
                                         # TODO: Could supply a starting guess
                                         other_params={
-                                            "guess": var('<state>'+comp_name)},
+                                            "guess": var("<state>"+comp_name)},
                                         solver_id="solve")
 
                                 del equations[:]
@@ -1042,7 +1042,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                 temp_hist_vars[comp_name, irhs].append(rhs_var)
                 implicit_rhs_var = temp_hist_vars[comp_name, irhs][-1]
                 unknowns.add(implicit_rhs_var)
-                unkvar = cb.fresh_var('unk')
+                unkvar = cb.fresh_var("unk")
                 rhs_var_to_unknown[implicit_rhs_var] = unkvar
 
             # {{{ get arguments together

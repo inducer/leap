@@ -464,19 +464,19 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
         self.component_id = component_id
 
         # Declare variables
-        self.step = var('<p>step')
-        self.function = var('<func>' + component_id)
+        self.step = var("<p>step")
+        self.function = var("<func>" + component_id)
         self.history = \
-            [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
+            [var("<p>f_n_minus_" + str(i)) for i in range(hist_length - 1, 0, -1)]
 
         if not self.static_dt:
             self.time_history = [
-                    var('<p>t_n_minus_' + str(i))
+                    var("<p>t_n_minus_" + str(i))
                     for i in range(hist_length - 1, 0, -1)]
 
-        self.state = var('<state>' + component_id)
-        self.t = var('<t>')
-        self.dt = var('<dt>')
+        self.state = var("<state>" + component_id)
+        self.t = var("<t>")
+        self.dt = var("<dt>")
 
         if state_filter_name is not None:
             self.state_filter = var("<func>" + state_filter_name)
@@ -503,7 +503,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
         with CodeBuilder(name="primary") as cb_primary:
 
             rhs_var_to_unknown = {}
-            unkvar = cb_primary.fresh_var('unk')
+            unkvar = cb_primary.fresh_var("unk")
             rhs_var_to_unknown[rhs_next_var] = unkvar
 
             # In implicit mode, the time history must
@@ -599,7 +599,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             cb_primary(self.t, self.t + self.dt)
             cb_primary.yield_state(expression=self.state,
                                    component_id=self.component_id,
-                                   time_id='', time=self.t)
+                                   time_id="", time=self.t)
 
         if self.hist_length == 1:
             # The first order method requires no bootstrapping.
@@ -616,7 +616,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             cb_bootstrap(self.t, self.t + self.dt)
             cb_bootstrap.yield_state(expression=self.state,
                                      component_id=self.component_id,
-                                     time_id='', time=self.t)
+                                     time_id="", time=self.t)
             cb_bootstrap(self.step, self.step + 1)
             # Bootstrap length is typically one less because of implicit,
             # but if we are comparing with IMEX MRAM, we need one more

@@ -441,13 +441,13 @@ def test_implicit_single_rate_identical(order=3, hist_length=3):
                 order,
                 (
                     (
-                        'dt', 'fast', '=',
+                        "dt", "fast", "=",
                         MRHistory(1, "<func>f", ("fast", "slow",),
                             hist_length=hist_length,
                             is_rhs_implicit=True),
                         ),
                     (
-                        'dt', 'slow', '=',
+                        "dt", "slow", "=",
                         MRHistory(1, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late, hist_length=hist_length,
                             is_rhs_implicit=False),
@@ -543,13 +543,13 @@ def test_implicit_accuracy(order, hist_length, system, static_dt, step_ratio,
                 order,
                 (
                     (
-                        'dt', 'fast', '=',
+                        "dt", "fast", "=",
                         MRHistory(1, "<func>f", ("fast", "slow",),
                             hist_length=hist_length,
                             is_rhs_implicit=True),
                         ),
                     (
-                        'dt', 'slow', '=',
+                        "dt", "slow", "=",
                         MRHistory(step_ratio, "<func>s", ("fast", "slow",),
                             rhs_policy=rhs_policy.late, hist_length=hist_length,
                             is_rhs_implicit=False),
@@ -615,20 +615,20 @@ def test_implicit_accuracy(order, hist_length, system, static_dt, step_ratio,
 
         if plotting:
             import matplotlib.pyplot as plt
-            plt.plot(f_times, f_values, label='IMEX')
-            plt.plot(f_times, f_values_true, label='True')
-            plt.title('Stiff Uncoupled System - Fast Component Evolution')
-            plt.xlabel('t')
-            plt.ylabel('f')
+            plt.plot(f_times, f_values, label="IMEX")
+            plt.plot(f_times, f_values_true, label="True")
+            plt.title("Stiff Uncoupled System - Fast Component Evolution")
+            plt.xlabel("t")
+            plt.ylabel("f")
             plt.legend()
-            plt.savefig('imex_comparison_sr2.png')
+            plt.savefig("imex_comparison_sr2.png")
             plt.clf()
 
-            plt.plot(f_times, f_err, label='IMEX')
-            plt.title('Stiff Uncoupled System - Fast Component Error')
-            plt.xlabel('t')
-            plt.ylabel('f_err')
-            plt.savefig('imex_error_sr2.png')
+            plt.plot(f_times, f_err, label="IMEX")
+            plt.title("Stiff Uncoupled System - Fast Component Error")
+            plt.xlabel("t")
+            plt.ylabel("f_err")
+            plt.savefig("imex_error_sr2.png")
             plt.clf()
 
         error = (
