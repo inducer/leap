@@ -685,7 +685,7 @@ class AdamsMoultonMethodBuilder(MethodBuilder):
             # In a DIRK setting, the unknown is always the same RHS
             # as the stage number.
             unknowns.add(rhss[stage_num])
-            unkvar = cb.fresh_var('unk_s%d' % (stage_num))
+            unkvar = cb.fresh_var("unk_s%d" % (stage_num))
             rhs_var_to_unknown[rhss[stage_num]] = unkvar
             from dagrt.expression import collapse_constants
             solve_expression = collapse_constants(
