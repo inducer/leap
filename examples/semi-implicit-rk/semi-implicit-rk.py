@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """This example demonstrates direct construction of a semi-implicit RK method.
 
 Source:
@@ -11,7 +10,6 @@ Source:
 
 """
 
-from __future__ import division, print_function
 
 import numpy as np
 import logging
@@ -20,7 +18,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-class SimpleDecayProblem(object):
+class SimpleDecayProblem:
 
     t_start = 0
     t_end = 0.5
@@ -116,8 +114,8 @@ def demo_rk_implicit():
     print(code)
 
     from dagrt.codegen import PythonCodeGenerator
-    IRKMethodBuilder = PythonCodeGenerator("IRKMethodBuilder").get_class(code)
-    eocrec = get_convergence_data(IRKMethodBuilder, SimpleDecayProblem())
+    cls = PythonCodeGenerator("IRKMethodBuilder").get_class(code)
+    eocrec = get_convergence_data(cls, SimpleDecayProblem())
     print(eocrec.pretty_print())
 
 

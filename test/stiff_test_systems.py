@@ -29,7 +29,7 @@ THE SOFTWARE.
 import numpy as np
 
 
-class StiffPartitionedODESystem(object):
+class StiffPartitionedODESystem:
     """
     .. attribute :: t_start
     .. attribute :: t_end

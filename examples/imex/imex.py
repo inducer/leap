@@ -3,7 +3,7 @@
 import numpy as np
 
 
-class KapsProblem(object):
+class KapsProblem:
     """
     From Kennedy and Carpenter, Section 7.1
 
@@ -59,10 +59,10 @@ _atol = 1.0e-5
 def solver(f, j, t, u_n, x, c):
     """Kennedy and Carpenter, page 15"""
     import numpy.linalg as nla
-    I = np.eye(len(u_n))
+    Id = np.eye(len(u_n))       # noqa: N806
     u = u_n
     while True:
-        M = I - c * j(t, u)
+        M = Id - c * j(t, u)    # noqa N806
         r = -(u - u_n) + x + c * f(t=t, y=u)
         d = nla.solve(M, r)
         u = u + d
@@ -95,12 +95,12 @@ def run():
 
     from leap.implicit import replace_AssignImplicit
     code = replace_AssignImplicit(code, {"solve": solver_hook})
-    IMEXIntegrator = PythonCodeGenerator("IMEXIntegrator").get_class(code)
+    cls = PythonCodeGenerator("IMEXIntegrator").get_class(code)
 
     # Set up the problem and run the method.
     from functools import partial
     problem = KapsProblem(epsilon=0.001)
-    integrator = IMEXIntegrator(function_map={
+    integrator = cls(function_map={
         "<func>expl_y": problem.nonstiff,
         "<func>impl_y": problem.stiff,
         "<func>solver": partial(solver, problem.stiff, problem.jacobian),

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import division, print_function
 import numpy as np
 import numpy.linalg as la
 from leap.rk import RK4MethodBuilder  # noqa
@@ -27,7 +26,7 @@ def main():
     print(finder.get_maxima_expressions("primary"))
     mat = finder.get_phase_step_matrix("primary")
 
-    print('Variables: %s' % finder.variables)
+    print("Variables: %s" % finder.variables)
     np.set_printoptions(formatter={"all": str})
     print(mat)
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Solves the 1D wave equation
 
   u_tt - c(x)^2 u_xx = 0
@@ -9,7 +8,6 @@
 with piecewise constant coefficients c(x) using a multirate multistep method.
 """
 
-from __future__ import division, print_function
 
 import argparse
 import fnmatch
@@ -64,7 +62,7 @@ if PAPER_OUTPUT:
 
 # {{{ problem discretization
 
-class VariableCoeffWaveEquationProblem(object):
+class VariableCoeffWaveEquationProblem:
     """Discretizes an instance of the 1D variable coefficient wave equation
     problem, providing initial values and right-hand side evaluations.
 
@@ -411,7 +409,7 @@ def plot_example(ngridpoints):
 @contextmanager
 def timer(name):
     from time import time
-    logging.info("start: {name}".format(name=name))
+    logging.info(f"start: {name}")
     start = time()
     yield
     end = time()
@@ -431,7 +429,7 @@ def generate_mrab_step_matrix(ngridpoints, coeffs, substep_ratio, filename):
             function_map=rhs_map,
             exclude_variables=["<p>bootstrap_step"])
 
-    with timer("Constructing MRAB({}) matrix".format(substep_ratio)):
+    with timer(f"Constructing MRAB({substep_ratio}) matrix"):
         component_sizes = {}
         for var in finder.variables:
             for i in range(problem.ncomponents):
@@ -467,7 +465,7 @@ def compute_all_stable_timesteps(filenames, stable_dts_outf):
     for fname in filenames:
         import pickle
 
-        with timer("loading {}".format(fname)):
+        with timer(f"loading {fname}"):
             with open(fname, "rb") as infile:
                 mat = pickle.load(infile)
 

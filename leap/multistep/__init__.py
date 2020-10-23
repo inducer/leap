@@ -1,6 +1,5 @@
 """Adams-Bashforth and Adams-Moulton ODE solvers."""
 
-from __future__ import division
 
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
@@ -28,7 +27,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import six.moves
 import numpy as np
 import numpy.linalg as la
 from leap import MethodBuilder
@@ -36,6 +34,8 @@ from pymbolic import var
 
 
 __doc__ = """
+.. autoclass:: AdamsIntegrationFunctionFamily
+.. autoclass:: AdamsMonomialIntegrationFunctionFamily
 .. autoclass:: AdamsBashforthMethodBuilder
 .. autoclass:: AdamsMoultonMethodBuilder
 """
@@ -45,12 +45,20 @@ __doc__ = """
 
 def _linear_comb(coefficients, vectors):
     from operator import add
-    return six.moves.reduce(add,
-            (coeff * v for coeff, v in
-                zip(coefficients, vectors)))
+    from functools import reduce
+    return reduce(add,
+            (coeff * v for coeff, v in zip(coefficients, vectors)))
 
 
-class AdamsIntegrationFunctionFamily(object):
+class AdamsIntegrationFunctionFamily:
+    """An abstract interface for function families used for
+    Adams-type time integration.
+
+    .. automethod:: __len__
+    .. automethod:: evaluate
+    .. automethod:: antiderivative
+    """
+
     def __len__(self):
         raise NotImplementedError()
 
@@ -62,6 +70,9 @@ class AdamsIntegrationFunctionFamily(object):
 
 
 class AdamsMonomialIntegrationFunctionFamily(AdamsIntegrationFunctionFamily):
+    """
+    Implements :class:`AdamsMonomialIntegrationFunctionFamily`.
+    """
     def __init__(self, order):
         self.order = order
 
@@ -156,7 +167,7 @@ def _emit_func_family_operation(cb, name_gen,
         nfunctions = len(function_family)
 
         vdm_t = np.zeros((nfunctions, hist_len))
-        coeff_rhs = np.zeros((nfunctions))
+        coeff_rhs = np.zeros(nfunctions)
 
         for i in range(nfunctions):
             for j in range(hist_len):
@@ -229,7 +240,7 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
         if isinstance(function_family, int):
             function_family = AdamsMonomialIntegrationFunctionFamily(function_family)
 
-        super(AdamsBashforthMethodBuilder, self).__init__()
+        super().__init__()
         self.function_family = function_family
 
         if hist_length is None:
@@ -241,19 +252,19 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
         self.component_id = component_id
 
         # Declare variables
-        self.step = var('<p>step')
-        self.function = var('<func>' + component_id)
+        self.step = var("<p>step")
+        self.function = var("<func>" + component_id)
         self.history = \
-            [var('<p>f_n_minus_' + str(i)) for i in range(hist_length - 1, 0, -1)]
+            [var("<p>f_n_minus_" + str(i)) for i in range(hist_length - 1, 0, -1)]
 
         if not self.static_dt:
             self.time_history = [
-                    var('<p>t_n_minus_' + str(i))
+                    var("<p>t_n_minus_" + str(i))
                     for i in range(hist_length - 1, 0, -1)]
 
-        self.state = var('<state>' + component_id)
-        self.t = var('<t>')
-        self.dt = var('<dt>')
+        self.state = var("<state>" + component_id)
+        self.t = var("<t>")
+        self.dt = var("<dt>")
 
         if state_filter_name is not None:
             self.state_filter = var("<func>" + state_filter_name)
@@ -319,7 +330,7 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
             cb_primary(self.t, self.t + self.dt)
             cb_primary.yield_state(expression=self.state,
                                    component_id=self.component_id,
-                                   time_id='', time=self.t)
+                                   time_id="", time=self.t)
 
         if self.hist_length == 1:
             # The first order method requires no bootstrapping.
@@ -336,7 +347,7 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
             cb_bootstrap(self.t, self.t + self.dt)
             cb_bootstrap.yield_state(expression=self.state,
                                      component_id=self.component_id,
-                                     time_id='', time=self.t)
+                                     time_id="", time=self.t)
             cb_bootstrap(self.step, self.step + 1)
             with cb_bootstrap.if_(self.step, "==", self.hist_length):
                 cb_bootstrap.switch_phase("primary")

@@ -1,5 +1,3 @@
-from __future__ import division, with_statement
-
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner, Matt Wala"
 
 __license__ = """
@@ -53,7 +51,7 @@ def execute_and_return_single_result(python_method_impl, code, initial_context={
     return state_component
 
 
-class Problem(object):
+class Problem:
     """
     .. attribute :: t_start
     .. attribute :: t_end

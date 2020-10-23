@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import division, print_function
 
 import matplotlib
 matplotlib.use("Agg")  # noqa
@@ -46,7 +45,7 @@ def main():
         mat = finder.get_phase_step_matrix("primary")
 
         if 0:
-            print('Variables: %s' % finder.variables)
+            print("Variables: %s" % finder.variables)
             np.set_printoptions(formatter={"all": str})
             print(mat)
 

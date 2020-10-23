@@ -1,6 +1,5 @@
 """Runge-Kutta ODE timestepper."""
 
-from __future__ import division
 
 __copyright__ = """
 Copyright (C) 2007-2013 Andreas Kloeckner
@@ -27,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import six
 import numpy as np
 from leap import MethodBuilder, TwoOrderAdaptiveMethodBuilderMixin
 from dagrt.language import CodeBuilder, DAGCode
@@ -60,6 +58,12 @@ Adaptive/Embedded Methods
 .. autoclass:: ODE23MethodBuilder
 .. autoclass:: ODE45MethodBuilder
 
+Strong Stability Preserving (SSP) Methods
+-----------------------------------------
+
+.. autoclass:: SSPRKMethodBuilder
+.. autoclass:: SSPRK22MethodBuilder
+.. autoclass:: SSPRK33MethodBuilder
 """
 
 
@@ -89,7 +93,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
 
             and all(
                 coeff_set[-1]
-                for coeff_set in six.itervalues(coeff_sets))
+                for coeff_set in coeff_sets.values())
 
             and output_stage_coefficients
 
@@ -97,7 +101,7 @@ def _is_last_stage_same_as_output(c, coeff_sets, output_stage_coefficients):
                 _truncate_final_zeros(coeff_set[-1])
                 ==  # noqa: W504
                 _truncate_final_zeros(output_stage_coefficients)
-                for coeff_set in six.itervalues(coeff_sets)))
+                for coeff_set in coeff_sets.values()))
 
 # }}}
 
@@ -131,9 +135,9 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
         self.component_id = component_id
 
-        self.dt = var('<dt>')
-        self.t = var('<t>')
-        self.state = var('<state>' + component_id)
+        self.dt = var("<dt>")
+        self.t = var("<t>")
+        self.state = var("<state>" + component_id)
 
         if state_filter_name is not None:
             self.state_filter = var("<func>" + state_filter_name)
@@ -194,11 +198,11 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         rhs_var_to_unknown = {}
         for name in stage_coeff_set_names:
             stage_rhs_vars[name] = [
-                    cb.fresh_var('rhs_%s_s%d' % (name, i)) for i in range(nstages)]
+                    cb.fresh_var(f"rhs_{name}_s{i}") for i in range(nstages)]
 
             # These are rhss if they are not yet known and pending an implicit solve.
             for i, rhsvar in enumerate(stage_rhs_vars[name]):
-                unkvar = cb.fresh_var('unk_%s_s%d' % (name, i))
+                unkvar = cb.fresh_var(f"unk_{name}_s{i}")
                 rhs_var_to_unknown[rhsvar] = unkvar
 
         knowns = set()
@@ -286,9 +290,9 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                         assignees = [unk.name for unk in unknowns]
 
                         from pymbolic import substitute
-                        subst_dict = dict(
-                                (rhs_var.name, rhs_var_to_unknown[rhs_var])
-                                for rhs_var in unknowns)
+                        subst_dict = {
+                                rhs_var.name: rhs_var_to_unknown[rhs_var]
+                                for rhs_var in unknowns}
 
                         cb.assign_implicit(
                                 assignees=assignees,
@@ -366,7 +370,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
     def finish(self, cb, estimate_names, estimate_vars):
         cb(self.state, estimate_vars[0])
-        cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
+        cb.yield_state(self.state, self.component_id, self.t + self.dt, "final")
         cb(self.t, self.t + self.dt)
 
 # }}}
@@ -377,7 +381,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 class SimpleButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
     def __init__(self, component_id, state_filter_name=None,
             rhs_func_name=None):
-        super(SimpleButcherTableauMethodBuilder, self).__init__(
+        super().__init__(
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
@@ -740,7 +744,7 @@ class EmbeddedButcherTableauMethodBuilder(
 
     def finish(self, cb, estimate_coeff_set_names, estimate_vars):
         if not self.adaptive:
-            super(EmbeddedButcherTableauMethodBuilder, self).finish(
+            super().finish(
                     cb, estimate_coeff_set_names, estimate_vars)
         else:
             high_est = estimate_vars[
@@ -756,7 +760,7 @@ class EmbeddedButcherTableauMethodBuilder(
             est = low_order_estimate
 
         cb(self.state, est)
-        cb.yield_state(self.state, self.component_id, self.t + self.dt, 'final')
+        cb.yield_state(self.state, self.component_id, self.t + self.dt, "final")
         cb(self.t, self.t + self.dt)
 
 # }}}
@@ -930,7 +934,7 @@ class LSRK4MethodBuilder(MethodBuilder):
 
                 cb(state, new_state_expr)
 
-            cb.yield_state(state, comp_id, t + dt, 'final')
+            cb.yield_state(state, comp_id, t + dt, "final")
             cb(t, t + dt)
 
         cb_primary = cb
@@ -945,5 +949,158 @@ class LSRK4MethodBuilder(MethodBuilder):
 
 # }}}
 
+
+# {{{ Explicit SSP Runge-Kutta methods
+
+class SSPRKMethodBuilder(MethodBuilder):
+    r"""Explicit Strong Stability Preserving (SSP) Runge-Kutta Methods.
+
+    The methods are given in the now-standard Shu-Osher form
+
+    .. math::
+
+        \begin{aligned}
+        y^{(i)} =\,\, & \sum_{k = 0}^{i - 1}
+            \alpha_{ik} y^{(i)} + \Delta t \beta_{ik} f(y^{(i)}), \\
+        y^{n + 1} =\,\, & y^{(n)},
+        \end{aligned}
+
+    for :math:`i \in \{1, \dots, n\}` and :math:`y^{(0)} = y^n`. For reference,
+    see [gst-2001]_.
+
+    .. [gst-2001]
+
+        S. Gottlieb, C.-W. Shu, E. Tadmor, *Strong Stability
+        Preserving High-Order Time Discretization Methods*, SIAM, Vol. 43,
+        pp. 89-112, 2001.
+        https://doi.org/10.1137/S003614450036757X
+    """
+
+    def __init__(self, component_id, state_filter_name=None, rhs_func_name=None):
+        super().__init__()
+
+        state_filter = state_filter_name
+        if state_filter is not None:
+            state_filter = var(f"<func>{state_filter_name}")
+
+        if rhs_func_name is None:
+            rhs_func_name = component_id
+
+        self.component_id = component_id
+        self.dt = var("<dt>")
+        self.t = var("<t>")
+        self.state = var(f"<state>{component_id}")
+        self.state_filter = state_filter
+        self.rhs_func = var(f"<func>{rhs_func_name}")
+
+    @property
+    def c(self):
+        raise NotImplementedError
+
+    @property
+    def alpha(self):
+        raise NotImplementedError
+
+    @property
+    def beta(self):
+        raise NotImplementedError
+
+    def generate(self):
+        """
+        :returns: a :class:`~dagrt.language.DAGCode` that can be used to
+            generate code for this method.
+        """
+
+        # {{{ check coefficients are explicit
+
+        nstages = len(self.alpha)
+        for n in range(1, nstages + 1):
+            if len(self.alpha[n - 1]) > n or len(self.beta[n - 1]) > n:
+                raise ValueError("only explicit SSP schemes are supported")
+
+        # }}}
+
+        # {{{ primary phase
+
+        comp_id = self.component_id
+
+        with CodeBuilder(name="primary") as cb:
+            stages = [self.state] + [
+                    cb.fresh_var(f"s{i}") for i in range(nstages)
+                    ]
+
+            for i in range(0, nstages):
+                states = sum(
+                        alpha * stages[j]
+                        for j, alpha in enumerate(self.alpha[i])
+                        )
+                rhss = sum(
+                        beta * self.rhs_func(
+                            t=self.t + self.c[i] * self.dt,
+                            **{comp_id: stages[j]})
+                        for j, beta in enumerate(self.beta[i])
+                        )
+
+                expr = states + self.dt * rhss
+                if self.state_filter is not None:
+                    expr = self.state_filter(**{comp_id: expr})
+
+                cb(stages[i + 1], expr)
+
+            # finish
+            cb(self.state, stages[-1])
+            cb.yield_state(self.state, comp_id, self.t + self.dt, "final")
+            cb(self.t, self.t + self.dt)
+
+        # }}}
+
+        return DAGCode(
+                phases={
+                    "primary": cb.as_execution_phase(next_phase="primary"),
+                    },
+                initial_phase="primary"
+                )
+
+
+class SSPRK22MethodBuilder(SSPRKMethodBuilder):
+    """Second-order SSP Runge-Kutta method from [gst-2001]_ Proposition 4.1.
+
+    .. automethod:: generate
+    """
+
+    c = (0, 1)
+
+    alpha = (
+            (1,),
+            (1/2, 1/2),
+            )
+
+    beta = (
+            (1,),
+            (0, 1/2),
+            )
+
+
+class SSPRK33MethodBuilder(SSPRKMethodBuilder):
+    """Third-order SSP Runge-Kutta method from [gst-2001]_ Proposition 4.1.
+
+    .. automethod:: generate
+    """
+
+    c = (0, 1, 1/2)
+
+    alpha = (
+            (1,),
+            (3/4, 1/4),
+            (1/3, 0, 2/3),
+            )
+
+    beta = (
+            (1,),
+            (0, 1/4),
+            (0, 0, 2/3),
+            )
+
+# }}}
 
 # vim: foldmethod=marker

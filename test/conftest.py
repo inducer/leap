@@ -1,5 +1,3 @@
-from __future__ import division, with_statement
-
 __copyright__ = "Copyright (C) 2014 Matt Wala"
 
 __license__ = """
@@ -36,4 +34,4 @@ def python_method_impl(request):
         return python_method_impl_interpreter
     elif kind == "codegen":
         return python_method_impl_codegen
-    raise ValueError("Unknown Python implementation \"{0}\"".format(kind))
+    raise ValueError(f"Unknown Python implementation '{kind}'")
