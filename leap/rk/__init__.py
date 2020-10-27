@@ -433,22 +433,6 @@ class SimpleButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
                     })
 
 
-class ImplicitButcherTableauMethodBuilder(SimpleButcherTableauMethodBuilder):
-    def generate(self):
-        """
-        :returns: :class:`dagrt.language.DAGCode`
-        """
-        return self.generate_butcher(
-                stage_coeff_set_names=("implicit",),
-                stage_coeff_sets={
-                    "implicit": self.a_implicit},
-                rhs_funcs={"implicit": var(self.rhs_func_name)},
-                estimate_coeff_set_names=("main",),
-                estimate_coeff_sets={
-                    "main": self.output_coeffs,
-                    })
-
-
 class ForwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
     """
     .. automethod:: __init__
@@ -458,22 +442,6 @@ class ForwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
 
     a_explicit = (
             (),
-            )
-
-    output_coeffs = (1,)
-
-    recycle_last_stage_coeff_set_names = ()
-
-
-class BackwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
-    """
-    .. automethod:: __init__
-    .. automethod:: generate
-    """
-    c = (1,)
-
-    a_implicit = (
-            (1,),
             )
 
     output_coeffs = (1,)
@@ -577,13 +545,69 @@ class RK5MethodBuilder(SimpleButcherTableauMethodBuilder):
     recycle_last_stage_coeff_set_names = ()
 
 
-class DIRK2MethodBuilder(ImplicitButcherTableauMethodBuilder):
+ORDER_TO_RK_METHOD_BUILDER = {
+        1: ForwardEulerMethodBuilder,
+        2: MidpointMethodBuilder,
+        3: RK3MethodBuilder,
+        4: RK4MethodBuilder,
+        5: RK5MethodBuilder,
+        }
+
+# }}}
+
+# {{{ implicit butcher tableau methods
+
+
+class ImplicitButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
+    def __init__(self, component_id, state_filter_name=None,
+            rhs_func_name=None):
+        super().__init__(
+                component_id=component_id,
+                state_filter_name=state_filter_name)
+
+        if rhs_func_name is None:
+            rhs_func_name = "<func>"+self.component_id
+        self.rhs_func_name = rhs_func_name
+
+    def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
+        return self.generate_butcher(
+                stage_coeff_set_names=("implicit",),
+                stage_coeff_sets={
+                    "implicit": self.a_implicit},
+                rhs_funcs={"implicit": var(self.rhs_func_name)},
+                estimate_coeff_set_names=("main",),
+                estimate_coeff_sets={
+                    "main": self.output_coeffs,
+                    })
+
+
+class BackwardEulerMethodBuilder(ImplicitButcherTableauMethodBuilder):
     """
     .. automethod:: __init__
     .. automethod:: generate
+    """
+    c = (1,)
+
+    a_implicit = (
+            (1,),
+            )
+
+    output_coeffs = (1,)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class DIRK2MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
     Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
-            Methods for Ordinary Differential Equations. A Review
-            pp. 72, eqn 221
+    Methods for Ordinary Differential Equations. A Review
+    pp. 72, eqn 221
+    
+    .. automethod:: __init__
+    .. automethod:: generate
     """
 
     _x = (2 - np.sqrt(2))/2
@@ -602,11 +626,12 @@ class DIRK2MethodBuilder(ImplicitButcherTableauMethodBuilder):
 
 class DIRK3MethodBuilder(ImplicitButcherTableauMethodBuilder):
     """
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+    Methods for Ordinary Differential Equations. A Review
+    pp. 77, eqn 229 & eqn 230
+    
     .. automethod:: __init__
     .. automethod:: generate
-    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
-            Methods for Ordinary Differential Equations. A Review
-            pp. 77, eqn 229 & eqn 230
     """
 
     _x = 0.4358665215
@@ -626,11 +651,12 @@ class DIRK3MethodBuilder(ImplicitButcherTableauMethodBuilder):
 
 class DIRK4MethodBuilder(ImplicitButcherTableauMethodBuilder):
     """
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+    Methods for Ordinary Differential Equations. A Review
+    pp. 78, eqn 232
+    
     .. automethod:: __init__
     .. automethod:: generate
-    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
-            Methods for Ordinary Differential Equations. A Review
-            pp. 78, eqn 232
     """
 
     _x1 = 1.06858
@@ -651,11 +677,12 @@ class DIRK4MethodBuilder(ImplicitButcherTableauMethodBuilder):
 
 class DIRK5MethodBuilder(ImplicitButcherTableauMethodBuilder):
     """
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+    Methods for Ordinary Differential Equations. A Review
+    pp. 98, Table 24
+    
     .. automethod:: __init__
     .. automethod:: generate
-    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
-            Methods for Ordinary Differential Equations. A Review
-            pp. 98, Table 24
     """
 
     c = (4024571134387/14474071345096, 5555633399575/5431021154178,
@@ -680,14 +707,6 @@ class DIRK5MethodBuilder(ImplicitButcherTableauMethodBuilder):
     recycle_last_stage_coeff_set_names = ()
 
 
-ORDER_TO_RK_METHOD_BUILDER = {
-        1: ForwardEulerMethodBuilder,
-        2: MidpointMethodBuilder,
-        3: RK3MethodBuilder,
-        4: RK4MethodBuilder,
-        5: RK5MethodBuilder,
-        }
-
 IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
         1: BackwardEulerMethodBuilder,
         2: DIRK2MethodBuilder,
@@ -696,9 +715,7 @@ IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
         5: DIRK4MethodBuilder,
         }
 
-
 # }}}
-
 
 # {{{ Embedded Runge-Kutta schemes base class
 
@@ -706,8 +723,8 @@ class EmbeddedButcherTableauMethodBuilder(
         ButcherTableauMethodBuilder, TwoOrderAdaptiveMethodBuilderMixin):
     """
     User-supplied context:
-        <state> + component_id: The value that is integrated
-        <func> + component_id: The right hand side function
+      <state> + component_id: The value that is integrated
+      <func> + component_id: The right hand side function
     """
 
     @property
