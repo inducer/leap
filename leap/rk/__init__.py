@@ -4,6 +4,7 @@
 __copyright__ = """
 Copyright (C) 2007-2013 Andreas Kloeckner
 Copyright (C) 2014, 2015 Matt Wala
+Copyright (C) 2020 Cory Mikida
 """
 
 __license__ = """
@@ -153,6 +154,53 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         else:
             self.state_filter = None
 
+    def generate_butcher(self, stage_coeff_set_names, stage_coeff_sets, rhs_funcs,
+            estimate_coeff_set_names, estimate_coeff_sets):
+        """
+        :arg stage_coeff_set_names: a list of names/string identifiers
+            for stage coefficient sets
+        :arg stage_coeff_sets: a mapping from set names to stage coefficients
+        :arg rhs_funcs: a mapping from set names to right-hand-side
+            functions
+        :arg estimate_coeffs_set_names: a list of names/string identifiers
+            for estimate coefficient sets
+        :arg estimate_coeffs_sets: a mapping from estimate coefficient set
+            names to cofficients.
+        """
+        # {{{ check coefficients for plausibility
+
+        for name in stage_coeff_set_names:
+            for istage in range(len(self.c)):
+                coeff_sum = sum(stage_coeff_sets[name][istage])
+                assert abs(coeff_sum - self.c[istage]) < 1e-12, (
+                        name, istage, coeff_sum, self.c[istage])
+
+        # }}}
+
+        cb_init = CodeBuilder(name="initialization")
+        cb_init = self.generate_butcher_init(cb_init, stage_coeff_set_names,
+                                              stage_coeff_sets, rhs_funcs,
+                                              estimate_coeff_set_names,
+                                              estimate_coeff_sets)
+        cb_primary = CodeBuilder(name="primary")
+        cb_primary, stage_rhs_vars, estimate_vars,  = self.generate_butcher_primary(
+                                              cb_primary, stage_coeff_set_names,
+                                              stage_coeff_sets, rhs_funcs,
+                                              estimate_coeff_set_names,
+                                              estimate_coeff_sets)
+        cb_primary = self.generate_butcher_finish(cb_primary, stage_coeff_set_names,
+                                              stage_coeff_sets, rhs_funcs,
+                                              estimate_coeff_set_names,
+                                              estimate_coeff_sets,
+                                              stage_rhs_vars,
+                                              estimate_vars)
+        return DAGCode(
+                phases={
+                    "initial": cb_init.as_execution_phase(next_phase="primary"),
+                    "primary": cb_primary.as_execution_phase(next_phase="primary")
+                    },
+                initial_phase="initial")
+    
     # {{{ initialization
 
     def generate_butcher_init(self, cb, stage_coeff_set_names,
@@ -273,7 +321,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                         cb(my_rhs, rhs_expr)
                         make_known(my_rhs)
 
-                # {{{ emit solve if possible
+                # {{{ emit solve if we have any unknowns/equations
 
                 if unknowns and len(unknowns) == len(equations):
                     from leap.implicit import generate_solve
@@ -321,6 +369,10 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
         return cb_primary, stage_rhs_vars, estimate_vars
 
+    # }}}
+
+    # {{{ update state and time
+
     def generate_butcher_finish(self, cb, stage_coeff_set_names,
             stage_coeff_sets, rhs_funcs, estimate_coeff_set_names,
             estimate_coeff_sets, stage_rhs_vars, estimate_vars):
@@ -344,53 +396,6 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         return cb_primary
 
     # }}}
-
-    def generate_butcher(self, stage_coeff_set_names, stage_coeff_sets, rhs_funcs,
-            estimate_coeff_set_names, estimate_coeff_sets):
-        """
-        :arg stage_coeff_set_names: a list of names/string identifiers
-            for stage coefficient sets
-        :arg stage_coeff_sets: a mapping from set names to stage coefficients
-        :arg rhs_funcs: a mapping from set names to right-hand-side
-            functions
-        :arg estimate_coeffs_set_names: a list of names/string identifiers
-            for estimate coefficient sets
-        :arg estimate_coeffs_sets: a mapping from estimate coefficient set
-            names to cofficients.
-        """
-        # {{{ check coefficients for plausibility
-
-        for name in stage_coeff_set_names:
-            for istage in range(len(self.c)):
-                coeff_sum = sum(stage_coeff_sets[name][istage])
-                assert abs(coeff_sum - self.c[istage]) < 1e-12, (
-                        name, istage, coeff_sum, self.c[istage])
-
-        # }}}
-
-        cb_init = CodeBuilder(name="initialization")
-        cb_init = self.generate_butcher_init(cb_init, stage_coeff_set_names,
-                                              stage_coeff_sets, rhs_funcs,
-                                              estimate_coeff_set_names,
-                                              estimate_coeff_sets)
-        cb_primary = CodeBuilder(name="primary")
-        cb_primary, stage_rhs_vars, estimate_vars,  = self.generate_butcher_primary(
-                                              cb_primary, stage_coeff_set_names,
-                                              stage_coeff_sets, rhs_funcs,
-                                              estimate_coeff_set_names,
-                                              estimate_coeff_sets)
-        cb_primary = self.generate_butcher_finish(cb_primary, stage_coeff_set_names,
-                                              stage_coeff_sets, rhs_funcs,
-                                              estimate_coeff_set_names,
-                                              estimate_coeff_sets,
-                                              stage_rhs_vars,
-                                              estimate_vars)
-        return DAGCode(
-                phases={
-                    "initial": cb_init.as_execution_phase(next_phase="primary"),
-                    "primary": cb_primary.as_execution_phase(next_phase="primary")
-                    },
-                initial_phase="initial")
 
     def finish(self, cb, estimate_names, estimate_vars):
         cb(self.state, estimate_vars[0])

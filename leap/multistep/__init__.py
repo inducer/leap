@@ -381,16 +381,6 @@ class AdamsMethodBuilder(MethodBuilder):
 # {{{ ab method
 
 class AdamsBashforthMethodBuilder(AdamsMethodBuilder):
-    """
-    User-supplied context:
-
-        <state> + component_id: The value that is integrated
-        <func> + component_id: The right hand side
-
-    .. automethod:: __init__
-    .. automethod:: generate
-    """
-
     def generate_primary(self, cb):
         rhs_var = var("rhs_var")
         from pytools import UniqueNameGenerator
@@ -469,15 +459,6 @@ class AdamsBashforthMethodBuilder(AdamsMethodBuilder):
 
 
 class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
-    """
-    User-supplied context:
-        <state> + component_id: The value that is integrated
-        <func> + component_id: The right hand side
-
-    .. automethod:: __init__
-    .. automethod:: generate
-    """
-
     def generate_primary(self, cb):
 
         from pytools import UniqueNameGenerator
