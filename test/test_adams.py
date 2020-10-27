@@ -28,7 +28,7 @@ THE SOFTWARE.
 
 import sys
 import pytest
-from leap.multistep import AdamsBashforthMethodBuilder
+from leap.multistep import AdamsBashforthMethodBuilder, AdamsMoultonMethodBuilder
 
 from utils import (  # noqa
         python_method_impl_interpreter as pmi_int,
@@ -51,6 +51,24 @@ def test_ab_accuracy(python_method_impl, method, expected_order,
     check_simple_convergence(method=method, method_impl=python_method_impl,
                              expected_order=expected_order, show_dag=show_dag,
                              plot_solution=plot_solution)
+
+
+@pytest.mark.parametrize(("method", "expected_order"), [
+    (AdamsMoultonMethodBuilder("y", order, static_dt=static_dt), order)
+    for order in [1, 3, 5]
+    for static_dt in [True, False]
+    ] + [
+    (AdamsMoultonMethodBuilder("y", order, hist_length=order+1,
+        static_dt=static_dt), order)
+    for order in [1, 3, 5]
+    for static_dt in [True, False]
+    ])
+def test_am_accuracy(python_method_impl, method, expected_order,
+        show_dag=False, plot_solution=False):
+    from utils import check_simple_convergence
+    check_simple_convergence(method=method, method_impl=python_method_impl,
+                             expected_order=expected_order, show_dag=show_dag,
+                             plot_solution=plot_solution, implicit=True)
 
 
 if __name__ == "__main__":
