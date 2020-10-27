@@ -200,7 +200,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                     "primary": cb_primary.as_execution_phase(next_phase="primary")
                     },
                 initial_phase="initial")
-    
+
     # {{{ initialization
 
     def generate_butcher_init(self, cb, stage_coeff_set_names,
@@ -555,6 +555,7 @@ ORDER_TO_RK_METHOD_BUILDER = {
 
 # }}}
 
+
 # {{{ implicit butcher tableau methods
 
 
@@ -605,7 +606,7 @@ class DIRK2MethodBuilder(ImplicitButcherTableauMethodBuilder):
     Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
     Methods for Ordinary Differential Equations. A Review
     pp. 72, eqn 221
-    
+
     .. automethod:: __init__
     .. automethod:: generate
     """
@@ -629,7 +630,7 @@ class DIRK3MethodBuilder(ImplicitButcherTableauMethodBuilder):
     Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
     Methods for Ordinary Differential Equations. A Review
     pp. 77, eqn 229 & eqn 230
-    
+
     .. automethod:: __init__
     .. automethod:: generate
     """
@@ -654,7 +655,7 @@ class DIRK4MethodBuilder(ImplicitButcherTableauMethodBuilder):
     Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
     Methods for Ordinary Differential Equations. A Review
     pp. 78, eqn 232
-    
+
     .. automethod:: __init__
     .. automethod:: generate
     """
@@ -680,7 +681,7 @@ class DIRK5MethodBuilder(ImplicitButcherTableauMethodBuilder):
     Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
     Methods for Ordinary Differential Equations. A Review
     pp. 98, Table 24
-    
+
     .. automethod:: __init__
     .. automethod:: generate
     """
@@ -717,7 +718,9 @@ IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
 
 # }}}
 
+
 # {{{ Embedded Runge-Kutta schemes base class
+
 
 class EmbeddedButcherTableauMethodBuilder(
         ButcherTableauMethodBuilder, TwoOrderAdaptiveMethodBuilderMixin):
