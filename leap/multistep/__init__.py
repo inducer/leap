@@ -29,7 +29,7 @@ THE SOFTWARE.
 
 import numpy as np
 import numpy.linalg as la
-from leap import MethodBuilder
+from leap import MethodBuilder, OneOrderAdaptiveMethodBuilderMixin
 from pymbolic import var
 
 
@@ -590,6 +590,250 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
             bootstrap_length = self.hist_length
         else:
             bootstrap_length = self.hist_length - 1
+
+        return bootstrap_length
+
+# }}}
+
+
+# {{{ embedded method w/adaptivity
+
+
+class EmbeddedAdamsMethodBuilder(
+        AdamsMethodBuilder, OneOrderAdaptiveMethodBuilderMixin):
+    """
+    User-supplied context:
+      <state> + component_id: The value that is integrated
+      <func> + component_id: The right hand side function
+    """
+
+    def __init__(self, component_id, function_family=None, state_filter_name=None,
+            hist_length=None, static_dt=False, order=None, _extra_bootstrap=False,
+            use_high_order=False, atol=0, rtol=0, max_dt_growth=None,
+            min_dt_shrinkage=None):
+        """
+        :arg function_family: Accepts an instance of
+            :class:`AdamsIntegrationFunctionFamily`
+            or an integer, in which case the classical monomial function family
+            with the order given by the integer is used.
+        :arg static_dt: If *True*, changing the timestep during time integration
+            is not allowed.
+        """
+
+        if function_family is not None and order is not None:
+            raise ValueError("may not specify both function_family and order")
+
+        if function_family is None:
+            function_family = order
+            del order
+
+        if isinstance(function_family, int):
+            function_family = AdamsMonomialIntegrationFunctionFamily(function_family)
+
+        self.function_family = function_family
+
+        if hist_length is None:
+            hist_length = len(function_family) + 1
+
+        # Check for reasonable history length.
+        if hist_length < len(function_family) + 1:
+            raise ValueError("Invalid history length specified for embedded Adams")
+
+        self.hist_length = hist_length
+
+        # If adaptivity is on, we can't have a static timestep.
+        if atol or rtol:
+            if static_dt is True:
+                raise ValueError("Can't have static timestepping with adaptivity")
+
+        self.static_dt = static_dt
+        self.extra_bootstrap = _extra_bootstrap
+
+        self.component_id = component_id
+
+        # Declare variables
+        self.step = var("<p>step")
+        self.function = var("<func>" + component_id)
+        self.history = \
+            [var("<p>f_n_minus_" + str(i)) for i in range(hist_length - 1, 0, -1)]
+
+        if not self.static_dt:
+            self.time_history = [
+                    var("<p>t_n_minus_" + str(i))
+                    for i in range(hist_length - 1, 0, -1)]
+
+        self.state = var("<state>" + component_id)
+        self.t = var("<t>")
+        self.dt = var("<dt>")
+
+        self.state_filter_name = state_filter_name
+        if state_filter_name is not None:
+            self.state_filter = var("<func>" + state_filter_name)
+        else:
+            self.state_filter = None
+
+        OneOrderAdaptiveMethodBuilderMixin.__init__(
+                self,
+                atol=atol,
+                rtol=rtol,
+                max_dt_growth=max_dt_growth,
+                min_dt_shrinkage=min_dt_shrinkage)
+
+        self.use_high_order = use_high_order
+
+    def generate_primary(self, cb):
+
+        from pytools import UniqueNameGenerator
+        name_gen = UniqueNameGenerator()
+        array = var("<builtin>array")
+        rhs_next_var = var("rhs_next_var")
+        rhs_var_to_unknown = {}
+        unkvar = cb.fresh_var("unk")
+        rhs_var_to_unknown[rhs_next_var] = unkvar
+
+        # In implicit mode, the time history must
+        # include the *next* point in time.
+        time_history_data, time_hist, \
+                dt_factor, t_end = self.set_up_time_history(cb, self.t + self.dt)
+
+        # Implicit setup - rhs_next_var is an unknown, needs implicit solve.
+        equations = []
+        unknowns = set()
+        knowns = set()
+
+        unknowns.add(rhs_next_var)
+
+        # Update history
+        history = self.history + [rhs_next_var]
+
+        # Create history to feed to AB.
+        history_ab = history[:-1]
+        time_hist_ab_var = var(name_gen("time_history_ab"))
+        cb(time_hist_ab_var, array(self.hist_length-1))
+        for i in range(self.hist_length-1):
+            cb(time_hist_ab_var[i], time_hist[i])
+
+        time_hist_ab = time_hist_ab_var
+
+        # Create history to feed to AM.
+        history_am = history[1:]
+        time_hist_am_var = var(name_gen("time_history_am"))
+        cb(time_hist_am_var, array(self.hist_length-1))
+        for i in range(self.hist_length-1):
+            cb(time_hist_am_var[i], time_hist[i+1])
+
+        time_hist_am = time_hist_am_var
+
+        # Set up the actual Adams-Moulton step.
+        am_sum = emit_adams_integration(
+                        cb, name_gen,
+                        self.function_family,
+                        time_hist_am, history_am,
+                        0, t_end)
+
+        ab_sum = emit_adams_integration(
+                        cb, name_gen,
+                        self.function_family,
+                        time_hist_ab, history_ab,
+                        0, t_end)
+
+        state_est_pred = self.state + dt_factor * ab_sum
+        state_est_corr = self.state + dt_factor * am_sum
+
+        # Build the implicit solve expression.
+        from dagrt.expression import collapse_constants
+        from pymbolic.mapper.distributor import DistributeMapper as DistMap
+        solve_expression = collapse_constants(
+                rhs_next_var - self.eval_rhs(self.t + self.dt,
+                                                 DistMap()(state_est_corr)),
+                list(unknowns) + [self.state],
+                cb.assign, cb.fresh_var)
+        equations.append(solve_expression)
+
+        # {{{ emit solve if possible
+
+        if unknowns and len(unknowns) == len(equations):
+            from leap.implicit import generate_solve
+            generate_solve(cb, unknowns, equations,
+                           rhs_var_to_unknown, state_est_pred)
+
+        del equations[:]
+        knowns.update(unknowns)
+        unknowns.clear()
+
+        # }}}
+
+        # Update the state now that we've solved.
+        if self.state_filter is not None:
+            state_est_pred = self.state_filter(state_est_pred)
+            state_est_corr = self.state_filter(state_est_corr)
+
+        # Finish needs to intervene here.
+        self.finish(cb, state_est_corr, state_est_pred, history, time_history_data)
+
+    def finish(self, cb, high_est, low_est, hist, time_hist):
+        if not self.adaptive:
+            cb(self.state, low_est)
+            # Rotate history and time history.
+            self.rotate_and_yield(cb, hist, time_hist)
+        else:
+            self.finish_adaptive(cb, high_est, low_est, hist, time_hist)
+
+    def finish_nonadaptive(self, cb, high_order_estimate,
+                           low_order_estimate, hist, time_hist):
+        if self.use_high_order:
+            est = high_order_estimate
+        else:
+            est = low_order_estimate
+
+        cb(self.state, est)
+        # Rotate history and time history.
+        self.rotate_and_yield(cb, hist, time_hist)
+
+    def rk_bootstrap(self, cb):
+        """Initialize the timestepper with an RK method."""
+
+        rhs_var = var("rhs_var")
+
+        cb(rhs_var, self.eval_rhs(self.t, self.state))
+
+        # Save the current RHS to the AB history
+
+        for i in range(len(self.history)):
+            with cb.if_(self.step, "==", i + 1):
+                cb(self.history[i], rhs_var)
+
+                if not self.static_dt:
+                    cb(self.time_history[i], self.t)
+
+        from leap.rk import ORDER_TO_RK_METHOD_BUILDER
+        rk_method = ORDER_TO_RK_METHOD_BUILDER[self.function_family.order]
+        rk_coeffs = rk_method.output_coeffs
+        stage_coeff_set_names = ("explicit",)
+        stage_coeff_sets = {"explicit": rk_method.a_explicit}
+        estimate_coeff_set_names = ("main",)
+        estimate_coeff_sets = {"main": rk_coeffs}
+        rhs_funcs = {"explicit": var("<func>"+self.component_id)}
+
+        # Traverse RK stage loop of appropriate order and update state.
+        rk = rk_method(self.component_id, self.state_filter_name)
+        cb = rk.generate_butcher_init(cb, stage_coeff_set_names,
+                                      stage_coeff_sets, rhs_funcs,
+                                      estimate_coeff_set_names,
+                                      estimate_coeff_sets)
+        cb, rhss, est_vars = rk.generate_butcher_primary(cb, stage_coeff_set_names,
+                                                         stage_coeff_sets, rhs_funcs,
+                                                         estimate_coeff_set_names,
+                                                         estimate_coeff_sets)
+
+        # Assign the value of the new state.
+        cb(self.state, est_vars[0])
+
+    def determine_bootstrap_length(self):
+
+        # In the explicit case, this is always
+        # equal to history length.
+        bootstrap_length = self.hist_length
 
         return bootstrap_length
 

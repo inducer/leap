@@ -1,7 +1,10 @@
 """Leap root module"""
 
 
-__copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
+__copyright__ = """
+Copyright (C) 2014 Andreas Kloeckner
+CopyRight (C) 2020 Cory Mikida
+"""
 
 __license__ = """
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -82,6 +85,7 @@ class MethodBuilder:
 
 # {{{ two-order adaptivity
 
+
 class TwoOrderAdaptiveMethodBuilderMixin(MethodBuilder):
     """
     This class expected the following members to be defined: state, t, dt.
@@ -150,6 +154,90 @@ class TwoOrderAdaptiveMethodBuilderMixin(MethodBuilder):
 
             cb(self.dt,
                Min((0.9 * self.dt * rel_error ** (-1 / self.high_order),
+                    self.max_dt_growth * self.dt)))
+
+# }}}
+
+
+# {{{ one-order adaptivity
+
+class OneOrderAdaptiveMethodBuilderMixin(MethodBuilder):
+    """
+    This class expected the following members to be defined: state, t, dt.
+    """
+
+    def __init__(self, atol=0, rtol=0, max_dt_growth=None, min_dt_shrinkage=None):
+        self.adaptive = bool(atol or rtol)
+        self.atol = atol
+        self.rtol = rtol
+
+        if max_dt_growth is None:
+            max_dt_growth = 5
+
+        if min_dt_shrinkage is None:
+            min_dt_shrinkage = 0.1
+
+        self.max_dt_growth = max_dt_growth
+        self.min_dt_shrinkage = min_dt_shrinkage
+
+        # Error constants for Adams methods
+        self.c_exp = [1/2, 5/12, 3/8, 251/720]
+        self.c_imp = [-1/2, -1/12, -1/24, -19/720]
+
+    def finish_nonadaptive(self, cb, high_order_estimate, low_order_estimate,
+                           hist, time_hist):
+        raise NotImplementedError()
+
+    def finish_adaptive(self, cb, high_order_estimate, low_order_estimate,
+                        hist, time_hist):
+        from pymbolic import var
+        from pymbolic.primitives import Comparison, LogicalOr, Max, Min
+        from dagrt.expression import IfThenElse
+
+        norm_start_state = var("norm_start_state")
+        norm_end_state = var("norm_end_state")
+        rel_error_raw = var("rel_error_raw")
+        rel_error = var("rel_error")
+
+        def norm(expr):
+            return var("<builtin>norm_2")(expr)
+
+        cb(norm_start_state, norm(self.state))
+        cb(norm_end_state, norm(low_order_estimate))
+        cb(rel_error_raw, abs(self.c_imp[self.function_family.order-1])
+                * norm(high_order_estimate - low_order_estimate)
+                / (abs(self.c_exp[self.function_family.order-1]
+                    - self.c_imp[self.function_family.order-1])
+                    * ((self.atol + self.rtol
+                        * Max((norm_start_state, norm_end_state))))
+                   ))
+
+        cb(rel_error, IfThenElse(Comparison(rel_error_raw, "==", 0),
+                                 1.0e-14, rel_error_raw))
+
+        with cb.if_(LogicalOr((Comparison(rel_error, ">", 1),
+                               var("<builtin>isnan")(rel_error)))):
+
+            with cb.if_(var("<builtin>isnan")(rel_error)):
+                cb(self.dt, self.min_dt_shrinkage * self.dt)
+            with cb.else_():
+                cb(self.dt, Max((0.9 * self.dt
+                    * rel_error ** (-1 / (self.function_family.order)),
+                    self.min_dt_shrinkage * self.dt)))
+
+            with cb.if_(self.t + self.dt, "==", self.t):
+                cb.raise_(TimeStepUnderflow)
+            with cb.else_():
+                cb.fail_step()
+
+        with cb.else_():
+            # This updates <t>: <dt> should not be set before this is called.
+            self.finish_nonadaptive(cb, high_order_estimate, low_order_estimate,
+                                    hist, time_hist)
+
+            cb(self.dt,
+               Min((0.9 * self.dt * rel_error
+                   ** (-1 / (self.function_family.order + 1)),
                     self.max_dt_growth * self.dt)))
 
 # }}}
