@@ -37,7 +37,6 @@ from leap.rk import (
         SSPRK22MethodBuilder, SSPRK33MethodBuilder,
         )
 from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
-import numpy as np
 
 import logging
 
@@ -90,77 +89,10 @@ def test_rk_accuracy(python_method_impl, method, expected_order,
     ])
 def test_adaptive_timestep(python_method_impl, method, show_dag=False,
                            plot=False):
-    # Use "DEBUG" to trace execution
-    logging.basicConfig(level=logging.INFO)
-
-    component_id = method.component_id
-    code = method.generate()
-    print(code)
-    #1/0
-
-    if show_dag:
-        from dagrt.language import show_dependency_graph
-        show_dependency_graph(code)
-
-    from stiff_test_systems import VanDerPolProblem
-    example = VanDerPolProblem()
-    y = example.initial()
-
-    interp = python_method_impl(code,
-                                function_map={"<func>" + component_id: example})
-    interp.set_up(t_start=example.t_start, dt_start=1e-5, context={component_id: y})
-
-    times = []
-    values = []
-
-    new_times = []
-    new_values = []
-
-    last_t = 0
-    step_sizes = []
-
-    for event in interp.run(t_end=example.t_end):
-        if isinstance(event, interp.StateComputed):
-            assert event.component_id == component_id
-
-            new_values.append(event.state_component)
-            new_times.append(event.t)
-        elif isinstance(event, interp.StepCompleted):
-            if not new_times:
-                continue
-
-            step_sizes.append(event.t - last_t)
-            last_t = event.t
-
-            times.extend(new_times)
-            values.extend(new_values)
-            del new_times[:]
-            del new_values[:]
-        elif isinstance(event, interp.StepFailed):
-            del new_times[:]
-            del new_values[:]
-
-            logger.info("failed step at t=%s" % event.t)
-
-    times = np.array(times)
-    values = np.array(values)
-    step_sizes = np.array(step_sizes)
-
-    if plot:
-        import matplotlib.pyplot as pt
-        pt.plot(times, values[:, 1], "x-")
-        pt.show()
-        pt.plot(times, step_sizes, "x-")
-        pt.show()
-
-    step_sizes = np.array(step_sizes)
-    small_step_frac = len(np.nonzero(step_sizes < 0.01)[0]) / len(step_sizes)
-    big_step_frac = len(np.nonzero(step_sizes > 0.05)[0]) / len(step_sizes)
-
-    print("small_step_frac (<0.01): %g - big_step_frac (>.05): %g"
-            % (small_step_frac, big_step_frac))
-    assert small_step_frac <= 0.35, small_step_frac
-    assert big_step_frac >= 0.16, big_step_frac
+    from utils import check_adaptive_timestep
+    check_adaptive_timestep(python_method_impl=python_method_impl, method=method,
+                             ss_frac=0.35, bs_frac=0.16, show_dag=show_dag,
+                             plot=plot, implicit=False)
 
 # }}}
 

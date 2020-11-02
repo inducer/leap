@@ -21,6 +21,9 @@ THE SOFTWARE.
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # {{{ things to pass for python_method_impl
@@ -112,7 +115,7 @@ def check_simple_convergence(method, method_impl, expected_order,
                              show_dag=False, plot_solution=False, implicit=False):
     component_id = method.component_id
     code = method.generate()
-    print(code)
+    #print(code)
 
     if show_dag:
         from dagrt.language import show_dependency_graph
@@ -171,6 +174,92 @@ def check_simple_convergence(method, method_impl, expected_order,
 
     orderest = eocrec.estimate_order_of_convergence()[0, 1]
     assert orderest > expected_order * 0.9
+
+
+def check_adaptive_timestep(python_method_impl, method, ss_frac, bs_frac,
+                            show_dag=False, plot=False, implicit=False):
+    # Use "DEBUG" to trace execution
+    logging.basicConfig(level=logging.INFO)
+
+    component_id = method.component_id
+    code = method.generate()
+    #print(code)
+    #1/0
+
+    if implicit:
+        from leap.implicit import replace_AssignImplicit
+        code = replace_AssignImplicit(code, {"solve": solver_hook})
+
+    if show_dag:
+        from dagrt.language import show_dependency_graph
+        show_dependency_graph(code)
+
+    from stiff_test_systems import VanDerPolProblem
+    example = VanDerPolProblem()
+    y = example.initial()
+
+    if implicit:
+        from functools import partial
+        interp = python_method_impl(code,
+                                    function_map={"<func>" + component_id: example,
+                                    "<func>solver": partial(solver, example)})
+    else:
+        interp = python_method_impl(code,
+                                    function_map={"<func>" + component_id: example})
+    interp.set_up(t_start=example.t_start, dt_start=1e-5, context={component_id: y})
+
+    times = []
+    values = []
+
+    new_times = []
+    new_values = []
+
+    last_t = 0
+    step_sizes = []
+
+    for event in interp.run(t_end=example.t_end):
+        if isinstance(event, interp.StateComputed):
+            assert event.component_id == component_id
+
+            new_values.append(event.state_component)
+            new_times.append(event.t)
+        elif isinstance(event, interp.StepCompleted):
+            if not new_times:
+                continue
+
+            step_sizes.append(event.t - last_t)
+            last_t = event.t
+
+            times.extend(new_times)
+            values.extend(new_values)
+            del new_times[:]
+            del new_values[:]
+        elif isinstance(event, interp.StepFailed):
+            del new_times[:]
+            del new_values[:]
+
+            logger.info("failed step at t=%s" % event.t)
+
+    times = np.array(times)
+    values = np.array(values)
+    step_sizes = np.array(step_sizes)
+
+    if plot:
+        import matplotlib.pyplot as pt
+        pt.clf()
+        pt.plot(times, values[:, 1], "x-")
+        pt.show()
+        pt.plot(times, step_sizes, "x-")
+        pt.show()
+
+    step_sizes = np.array(step_sizes)
+    small_step_frac = len(np.nonzero(step_sizes < 0.01)[0]) / len(step_sizes)
+    big_step_frac = len(np.nonzero(step_sizes > 0.05)[0]) / len(step_sizes)
+
+    print("small_step_frac (<0.01): %g - big_step_frac (>.05): %g"
+            % (small_step_frac, big_step_frac))
+    assert small_step_frac <= ss_frac, small_step_frac
+    assert big_step_frac >= bs_frac, big_step_frac
 
 
 # vim: foldmethod=marker
