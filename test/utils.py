@@ -218,7 +218,7 @@ def check_adaptive_timestep(python_method_impl, method, ss_frac, bs_frac,
     last_t = 0
     step_sizes = []
 
-    for event in interp.run(t_end=example.t_end):
+    for event in interp.run(t_end=example.t_end/4.0):
         if isinstance(event, interp.StateComputed):
             assert event.component_id == component_id
 
@@ -257,8 +257,8 @@ def check_adaptive_timestep(python_method_impl, method, ss_frac, bs_frac,
     small_step_frac = len(np.nonzero(step_sizes < ss_targ)[0]) / len(step_sizes)
     big_step_frac = len(np.nonzero(step_sizes > bs_targ)[0]) / len(step_sizes)
 
-    print("small_step_frac (<0.01): %g - big_step_frac (>.05): %g"
-            % (small_step_frac, big_step_frac))
+    print("small_step_frac (<%g): %g - big_step_frac (>%g): %g"
+            % (ss_targ, small_step_frac, bs_targ, big_step_frac))
     assert small_step_frac <= ss_frac, small_step_frac
     assert big_step_frac >= bs_frac, big_step_frac
 
