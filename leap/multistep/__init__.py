@@ -706,11 +706,11 @@ class EmbeddedAdamsMethodBuilder(
         history = self.history + [rhs_var]
 
         # Create history to feed to AB.
-        history_ab = history[:-1]
+        history_ab = history[1:]
         time_hist_ab_var = var(name_gen("time_history_ab"))
         cb(time_hist_ab_var, array(self.hist_length-1))
         for i in range(self.hist_length-1):
-            cb(time_hist_ab_var[i], time_hist[i])
+            cb(time_hist_ab_var[i], time_hist[i+1])
 
         time_hist_ab = time_hist_ab_var
 
