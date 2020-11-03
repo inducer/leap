@@ -28,7 +28,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from leap import MethodBuilder, TwoOrderAdaptiveMethodBuilderMixin
+from leap import MethodBuilder, AdaptiveMethodBuilderMixin
 from dagrt.language import CodeBuilder, DAGCode
 
 from pymbolic import var
@@ -727,7 +727,7 @@ IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
 
 
 class EmbeddedButcherTableauMethodBuilder(
-        ButcherTableauMethodBuilder, TwoOrderAdaptiveMethodBuilderMixin):
+        ButcherTableauMethodBuilder, AdaptiveMethodBuilderMixin):
     """
     User-supplied context:
       <state> + component_id: The value that is integrated
@@ -749,7 +749,7 @@ class EmbeddedButcherTableauMethodBuilder(
                 component_id=component_id,
                 state_filter_name=state_filter_name)
 
-        TwoOrderAdaptiveMethodBuilderMixin.__init__(
+        AdaptiveMethodBuilderMixin.__init__(
                 self,
                 atol=atol,
                 rtol=rtol,
