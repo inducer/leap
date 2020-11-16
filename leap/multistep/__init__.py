@@ -222,7 +222,7 @@ class AdamsMethodBuilder(MethodBuilder):
     """
 
     def __init__(self, component_id, function_family=None, state_filter_name=None,
-            hist_length=None, static_dt=False, order=None, _extra_bootstrap=False):
+            hist_length=None, static_dt=False, order=None):
         """
         :arg function_family: Accepts an instance of
             :class:`AdamsIntegrationFunctionFamily`
@@ -250,7 +250,6 @@ class AdamsMethodBuilder(MethodBuilder):
 
         self.hist_length = hist_length
         self.static_dt = static_dt
-        self.extra_bootstrap = _extra_bootstrap
 
         self.component_id = component_id
 
@@ -534,12 +533,7 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         estimate_coeff_sets = {"main": rk_coeffs}
         rhs_funcs = {"implicit": var("<func>"+self.component_id)}
 
-        if self.extra_bootstrap:
-            first_save_step = 2
-        else:
-            first_save_step = 1
-
-        with cb.if_(self.step, "==", first_save_step):
+        with cb.if_(self.step, "==", 1):
             # Save the first RHS to the AM history
             rhs_var = var("rhs_var")
 
@@ -569,12 +563,8 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         cb(rhs_next_var, self.eval_rhs(self.t + self.dt, self.state))
 
         for i in range(1, len(self.history)):
-            if self.extra_bootstrap:
-                save_crit = i+1
-            else:
-                save_crit = i
 
-            with cb.if_(self.step, "==", save_crit):
+            with cb.if_(self.step, "==", i):
                 cb(self.history[i], rhs_next_var)
 
                 if not self.static_dt:
@@ -583,13 +573,8 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
     def determine_bootstrap_length(self):
 
         # In the implicit case, this is
-        # equal to history length - 1, unless
-        # we want an extra bootstrap step for
-        # comparison with explicit methods.
-        if self.extra_bootstrap:
-            bootstrap_length = self.hist_length
-        else:
-            bootstrap_length = self.hist_length - 1
+        # equal to history length - 1
+        bootstrap_length = self.hist_length - 1
 
         return bootstrap_length
 
