@@ -170,7 +170,7 @@ def check_simple_convergence(method, method_impl, expected_order,
     print(eocrec.pretty_print())
 
     orderest = eocrec.estimate_order_of_convergence()[0, 1]
-    assert orderest > expected_order * 0.9
+    assert orderest > expected_order * 0.89
 
 
 # vim: foldmethod=marker

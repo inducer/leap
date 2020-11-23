@@ -306,7 +306,7 @@ class AdamsMethodBuilder(MethodBuilder):
                                      component_id=self.component_id,
                                      time_id="", time=self.t)
             cb_bootstrap(self.step, self.step + 1)
-            bootstrap_length = self.determine_bootstrap_length()
+            bootstrap_length = self.hist_length
             with cb_bootstrap.if_(self.step, "==", bootstrap_length):
                 cb_bootstrap.switch_phase("primary")
 
@@ -338,40 +338,40 @@ class AdamsMethodBuilder(MethodBuilder):
                                component_id=self.component_id,
                                time_id="", time=self.t)
 
-    def set_up_time_history(self, cb, new_t):
+    def set_up_time_data(self, cb, new_t):
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
         array = var("<builtin>array")
         if not self.static_dt:
-            time_history_data = self.time_history + [new_t]
-            time_hist_var = var(name_gen("time_history"))
-            cb(time_hist_var, array(self.hist_length))
+            time_data = self.time_history + [new_t]
+            time_data_var = var(name_gen("time_data"))
+            cb(time_data_var, array(self.hist_length))
             for i in range(self.hist_length):
-                cb(time_hist_var[i], time_history_data[i] - self.t)
+                cb(time_data_var[i], time_data[i] - self.t)
 
-            time_hist = time_hist_var
+            relv_times = time_data_var
             t_end = self.dt
             dt_factor = 1
 
         else:
             if new_t == self.t:
-                time_hist = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
-                time_history_data = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
+                relv_times = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
+                time_data = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
             else:
-                time_hist = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
-                time_history_data = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
+                # In implicit mode, the vector of times
+                # passed to adams_integration must
+                # include the *next* point in time.
+                relv_times = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
+                time_data = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
             dt_factor = self.dt
             t_end = 1
 
-        return time_history_data, time_hist, dt_factor, t_end
+        return time_data, relv_times, dt_factor, t_end
 
     def generate_primary(self, cb):
         raise NotImplementedError()
 
     def rk_bootstrap(self, cb):
-        raise NotImplementedError()
-
-    def determine_bootstrap_length(self):
         raise NotImplementedError()
 
 # }}}
@@ -386,7 +386,7 @@ class AdamsBashforthMethodBuilder(AdamsMethodBuilder):
         name_gen = UniqueNameGenerator()
 
         time_history_data, time_hist, \
-                dt_factor, t_end = self.set_up_time_history(cb, self.t)
+                dt_factor, t_end = self.set_up_time_data(cb, self.t)
 
         cb(rhs_var, self.eval_rhs(self.t, self.state))
         history = self.history + [rhs_var]
@@ -444,13 +444,6 @@ class AdamsBashforthMethodBuilder(AdamsMethodBuilder):
         # Assign the value of the new state.
         cb(self.state, est_vars[0])
 
-    def determine_bootstrap_length(self):
-
-        # In the explicit case, this is always
-        # equal to history length.
-        bootstrap_length = self.hist_length
-
-        return bootstrap_length
 # }}}
 
 
@@ -467,10 +460,11 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         unkvar = cb.fresh_var("unk")
         rhs_var_to_unknown[rhs_next_var] = unkvar
 
-        # In implicit mode, the time history must
+        # In implicit mode, the vector of times
+        # passed to adams_integration must
         # include the *next* point in time.
-        time_history_data, time_hist, \
-                dt_factor, t_end = self.set_up_time_history(cb, self.t + self.dt)
+        time_data, relv_times, \
+                dt_factor, t_end = self.set_up_time_data(cb, self.t + self.dt)
 
         # Implicit setup - rhs_next_var is an unknown, needs implicit solve.
         equations = []
@@ -479,14 +473,16 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
 
         unknowns.add(rhs_next_var)
 
-        # Update history
-        history = self.history + [rhs_next_var]
+        # Create RHS vector for Adams setup,
+        # including RHS value to be implicitly
+        # solved for
+        rhss = self.history + [rhs_next_var]
 
         # Set up the actual Adams-Moulton step.
         am_sum = emit_adams_integration(
                         cb, name_gen,
                         self.function_family,
-                        time_hist, history,
+                        relv_times, rhss,
                         0, t_end)
 
         state_est = self.state + dt_factor * am_sum
@@ -518,8 +514,9 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
             state_est = self.state_filter(state_est)
         cb(self.state, state_est)
 
-        # Rotate history and time history.
-        self.rotate_and_yield(cb, history, time_history_data)
+        # Add new RHS and time to history and rotate.
+        history = self.history + [rhs_next_var]
+        self.rotate_and_yield(cb, history, time_data)
 
     def rk_bootstrap(self, cb):
         """Initialize the timestepper with an IMPLICIT RK method."""
@@ -532,16 +529,6 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         estimate_coeff_set_names = ("main",)
         estimate_coeff_sets = {"main": rk_coeffs}
         rhs_funcs = {"implicit": var("<func>"+self.component_id)}
-
-        with cb.if_(self.step, "==", 1):
-            # Save the first RHS to the AM history
-            rhs_var = var("rhs_var")
-
-            cb(rhs_var, self.eval_rhs(self.t, self.state))
-            cb(self.history[0], rhs_var)
-
-            if not self.static_dt:
-                cb(self.time_history[0], self.t)
 
         # Traverse RK stage loop of appropriate order and update state.
         rk = rk_method(self.component_id, self.state_filter_name)
@@ -562,21 +549,13 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
 
         cb(rhs_next_var, self.eval_rhs(self.t + self.dt, self.state))
 
-        for i in range(1, len(self.history)):
+        for i in range(len(self.history)):
 
-            with cb.if_(self.step, "==", i):
+            with cb.if_(self.step, "==", i + 1):
                 cb(self.history[i], rhs_next_var)
 
                 if not self.static_dt:
                     cb(self.time_history[i], self.t + self.dt)
-
-    def determine_bootstrap_length(self):
-
-        # In the implicit case, this is
-        # equal to history length - 1
-        bootstrap_length = self.hist_length - 1
-
-        return bootstrap_length
 
 # }}}
 
