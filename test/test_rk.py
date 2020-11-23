@@ -35,6 +35,9 @@ from leap.rk import (
         RK3MethodBuilder, RK4MethodBuilder, RK5MethodBuilder,
         LSRK4MethodBuilder,
         SSPRK22MethodBuilder, SSPRK33MethodBuilder,
+        BackwardEulerMethodBuilder, DIRK2MethodBuilder,
+        DIRK3MethodBuilder, DIRK4MethodBuilder,
+        DIRK5MethodBuilder,
         )
 from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
 import numpy as np
@@ -76,6 +79,20 @@ def test_rk_accuracy(python_method_impl, method, expected_order,
     check_simple_convergence(method=method, method_impl=python_method_impl,
                              expected_order=expected_order, show_dag=show_dag,
                              plot_solution=plot_solution)
+
+@pytest.mark.parametrize(("method", "expected_order"), [
+    (BackwardEulerMethodBuilder("y"), 1),
+    (DIRK2MethodBuilder("y"), 2),
+    (DIRK3MethodBuilder("y"), 3),
+    (DIRK4MethodBuilder("y"), 4),
+    (DIRK5MethodBuilder("y"), 5),
+    ])
+def test_implicit_rk_accuracy(python_method_impl, method, expected_order,
+                     show_dag=False, plot_solution=False):
+    from utils import check_simple_convergence
+    check_simple_convergence(method=method, method_impl=python_method_impl,
+                             expected_order=expected_order, show_dag=show_dag,
+                             plot_solution=plot_solution, implicit=True)
 
 # }}}
 
