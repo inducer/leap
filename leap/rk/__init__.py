@@ -717,7 +717,7 @@ IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
         2: DIRK2MethodBuilder,
         3: DIRK3MethodBuilder,
         4: DIRK4MethodBuilder,
-        5: DIRK4MethodBuilder,
+        5: DIRK5MethodBuilder,
         }
 
 # }}}
