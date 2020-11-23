@@ -80,6 +80,7 @@ def test_rk_accuracy(python_method_impl, method, expected_order,
                              expected_order=expected_order, show_dag=show_dag,
                              plot_solution=plot_solution)
 
+
 @pytest.mark.parametrize(("method", "expected_order"), [
     (BackwardEulerMethodBuilder("y"), 1),
     (DIRK2MethodBuilder("y"), 2),
