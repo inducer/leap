@@ -185,11 +185,11 @@ class OneOrderAdaptiveMethodBuilderMixin(MethodBuilder):
         self.c_imp = [-1/2, -1/12, -1/24, -19/720]
 
     def finish_nonadaptive(self, cb, high_order_estimate, low_order_estimate,
-                           hist, time_hist):
+                           rhss, time_data):
         raise NotImplementedError()
 
     def finish_adaptive(self, cb, high_order_estimate, low_order_estimate,
-                        hist, time_hist):
+                        rhss, time_data):
         from pymbolic import var
         from pymbolic.primitives import Comparison, LogicalOr, Max, Min
         from dagrt.expression import IfThenElse
@@ -233,7 +233,7 @@ class OneOrderAdaptiveMethodBuilderMixin(MethodBuilder):
         with cb.else_():
             # This updates <t>: <dt> should not be set before this is called.
             self.finish_nonadaptive(cb, high_order_estimate, low_order_estimate,
-                                    hist, time_hist)
+                                    rhss, time_data)
 
             cb(self.dt,
                Min((0.9 * self.dt * rel_error
