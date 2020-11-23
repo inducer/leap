@@ -502,6 +502,14 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         if unknowns and len(unknowns) == len(equations):
             from leap.implicit import generate_solve
             generate_solve(cb, unknowns, equations, rhs_var_to_unknown, self.state)
+        elif not unknowns:
+            raise ValueError("Adams-Moulton implicit timestep has no unknowns")
+        elif len(unknowns) > len(equations):
+            raise ValueError("Adams-Moulton implicit timestep has more unknowns "
+                    "than equations")
+        elif len(unknowns) < len(equations):
+            raise ValueError("Adams-Moulton implicit timestep has more equations "
+                    "than unknowns")
 
         del equations[:]
         knowns.update(unknowns)

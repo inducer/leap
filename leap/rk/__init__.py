@@ -331,6 +331,15 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                     from leap.implicit import generate_solve
                     generate_solve(cb, unknowns, equations, rhs_var_to_unknown,
                                     self.state)
+                elif not unknowns:
+                    # we have an explicit Runge-Kutta method
+                    pass
+                elif len(unknowns) > len(equations):
+                    raise ValueError("Runge-Kutta implicit timestep has more "
+                            "unknowns than equations")
+                elif len(unknowns) < len(equations):
+                    raise ValueError("Runge-Kutta implicit timestep has more "
+                            "equations than unknowns")
 
                 del equations[:]
                 knowns.update(unknowns)
