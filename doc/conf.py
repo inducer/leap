@@ -31,6 +31,7 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -47,7 +48,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "leap"
-copyright = "2014-6, Matt Wala and Andreas Kloeckner"
+copyright = "2014-20, Matt Wala and Andreas Kloeckner"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -107,23 +108,13 @@ pygments_style = "sphinx"
 
 # -- Options for HTML output ----------------------------------------------
 
-html_theme = "alabaster"
+html_theme = "furo"
 
 html_theme_options = {
-        "extra_nav_links": {
-            "🚀 Code/Bugs": "https://gitlab.tiker.net/inducer/leap",
-            "💾 Download Releases": "https://pypi.python.org/pypi/leap",
-            }
         }
 
 html_sidebars = {
-    "**": [
-        "about.html",
-        "navigation.html",
-        "relations.html",
-        "searchbox.html",
-    ]
-}
+        }
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
@@ -280,8 +271,8 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    "https://docs.python.org/": None,
-    "https://docs.scipy.org/doc/numpy/": None,
+    "https://docs.python.org/3/": None,
+    "https://numpy.org/doc/stable/": None,
     "https://documen.tician.de/pymbolic/": None,
     "https://documen.tician.de/dagrt/": None,
     }
