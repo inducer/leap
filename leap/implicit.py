@@ -107,7 +107,6 @@ def generate_solve(cb, unknowns, equations, var_to_unknown, guess):
                 substitute(eq, subst_dict)
                 for eq in equations],
 
-            # TODO: Could supply a starting guess
             other_params={
                 "guess": guess},
             solver_id="solve")
