@@ -306,8 +306,7 @@ class AdamsMethodBuilder(MethodBuilder):
                                      component_id=self.component_id,
                                      time_id="", time=self.t)
             cb_bootstrap(self.step, self.step + 1)
-            bootstrap_length = self.hist_length
-            with cb_bootstrap.if_(self.step, "==", bootstrap_length):
+            with cb_bootstrap.if_(self.step, "==", self.hist_length):
                 cb_bootstrap.switch_phase("primary")
 
         return DAGCode(
@@ -339,6 +338,19 @@ class AdamsMethodBuilder(MethodBuilder):
                                time_id="", time=self.t)
 
     def set_up_time_data(self, cb, new_t):
+        """Creates full snapshot of time points involved in the current
+        Adams step, synthesized from the existing time history along with
+        the next time point to be used (new_t). Returns time_data
+        (a list of the time values themselves) and relevant_times
+        (an *array* of those same time values centered around self.t
+        for use in emit_adams_integration). In the case of static timestep,
+        both of these are replaced with integer lists.
+        :arg new_t: the most recent time point that will be used
+            in performing the Adams integration step. This
+            should be either self.t (the current time, in the
+            case of Adams-Bashforth) or self.t + self.dt (the
+            next time point, in Adams-Moulton)
+        """
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
         array = var("<builtin>array")
@@ -349,24 +361,26 @@ class AdamsMethodBuilder(MethodBuilder):
             for i in range(self.hist_length):
                 cb(time_data_var[i], time_data[i] - self.t)
 
-            relv_times = time_data_var
+            relevant_times = time_data_var
             t_end = self.dt
             dt_factor = 1
 
         else:
             if new_t == self.t:
-                relv_times = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
+                relevant_times = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
                 time_data = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
-            else:
+            elif new_t == self.t + self.dt:
                 # In implicit mode, the vector of times
                 # passed to adams_integration must
                 # include the *next* point in time.
-                relv_times = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
+                relevant_times = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
                 time_data = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
+            else:
+                raise ValueError("Invalid time point specified for Adams step")
             dt_factor = self.dt
             t_end = 1
 
-        return time_data, relv_times, dt_factor, t_end
+        return time_data, relevant_times, dt_factor, t_end
 
     def generate_primary(self, cb):
         raise NotImplementedError()
@@ -463,7 +477,7 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         # In implicit mode, the vector of times
         # passed to adams_integration must
         # include the *next* point in time.
-        time_data, relv_times, \
+        time_data, relevant_times, \
                 dt_factor, t_end = self.set_up_time_data(cb, self.t + self.dt)
 
         # Implicit setup - rhs_next_var is an unknown, needs implicit solve.
@@ -482,7 +496,7 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         am_sum = emit_adams_integration(
                         cb, name_gen,
                         self.function_family,
-                        relv_times, rhss,
+                        relevant_times, rhss,
                         0, t_end)
 
         state_est = self.state + dt_factor * am_sum
@@ -510,6 +524,8 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         elif len(unknowns) < len(equations):
             raise ValueError("Adams-Moulton implicit timestep has more equations "
                     "than unknowns")
+        else:
+            assert False
 
         del equations[:]
         knowns.update(unknowns)
