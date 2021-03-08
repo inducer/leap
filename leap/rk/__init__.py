@@ -4,6 +4,7 @@
 __copyright__ = """
 Copyright (C) 2007-2013 Andreas Kloeckner
 Copyright (C) 2014, 2015 Matt Wala
+Copyright (C) 2020 Cory Mikida
 """
 
 __license__ = """
@@ -39,8 +40,12 @@ __doc__ = """
     A dictionary mapping desired order of accuracy to a corresponding RK method
     builder.
 
+.. data:: IMPLICIT_ORDER_TO_RK_METHOD_BUILDER
+
+    A dictionary mapping desired order of accuracy to a corresponding implicit
+    RK method builder.
+
 .. autoclass:: ForwardEulerMethodBuilder
-.. autoclass:: BackwardEulerMethodBuilder
 .. autoclass:: MidpointMethodBuilder
 .. autoclass:: HeunsMethodBuilder
 .. autoclass:: RK3MethodBuilder
@@ -64,6 +69,15 @@ Strong Stability Preserving (SSP) Methods
 .. autoclass:: SSPRKMethodBuilder
 .. autoclass:: SSPRK22MethodBuilder
 .. autoclass:: SSPRK33MethodBuilder
+
+Implicit Methods
+-----------------------------------------
+
+.. autoclass:: BackwardEulerMethodBuilder
+.. autoclass:: DIRK2MethodBuilder
+.. autoclass:: DIRK3MethodBuilder
+.. autoclass:: DIRK4MethodBuilder
+.. autoclass:: DIRK5MethodBuilder
 """
 
 
@@ -120,6 +134,10 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         raise NotImplementedError
 
     @property
+    def a_implicit(self):
+        raise NotImplementedError
+
+    @property
     def output_coeffs(self):
         raise NotImplementedError
 
@@ -153,48 +171,85 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         :arg estimate_coeffs_sets: a mapping from estimate coefficient set
             names to cofficients.
         """
-
-        from pymbolic import var
-        comp = self.component_id
-
-        dt = self.dt
-        t = self.t
-        state = self.state
-
-        nstages = len(self.c)
-
         # {{{ check coefficients for plausibility
 
         for name in stage_coeff_set_names:
-            for istage in range(nstages):
+            for istage in range(len(self.c)):
                 coeff_sum = sum(stage_coeff_sets[name][istage])
                 assert abs(coeff_sum - self.c[istage]) < 1e-12, (
                         name, istage, coeff_sum, self.c[istage])
 
         # }}}
 
-        # {{{ initialization
+        cb_init = CodeBuilder(name="initialization")
+        cb_init = self.generate_butcher_init(cb_init, stage_coeff_set_names,
+                                              stage_coeff_sets, rhs_funcs,
+                                              estimate_coeff_set_names,
+                                              estimate_coeff_sets)
+        cb_primary = CodeBuilder(name="primary")
+        cb_primary, stage_rhs_vars, estimate_vars,  = self.generate_butcher_primary(
+                                              cb_primary, stage_coeff_set_names,
+                                              stage_coeff_sets, rhs_funcs,
+                                              estimate_coeff_set_names,
+                                              estimate_coeff_sets)
+        cb_primary = self.generate_butcher_finish(cb_primary, stage_coeff_set_names,
+                                              stage_coeff_sets, rhs_funcs,
+                                              estimate_coeff_set_names,
+                                              estimate_coeff_sets,
+                                              stage_rhs_vars,
+                                              estimate_vars)
+        return DAGCode(
+                phases={
+                    "initial": cb_init.as_execution_phase(next_phase="primary"),
+                    "primary": cb_primary.as_execution_phase(next_phase="primary")
+                    },
+                initial_phase="initial")
 
-        last_rhss = {}
+    # {{{ initialization
 
-        with CodeBuilder(name="initialization") as cb:
-            for name in stage_coeff_set_names:
-                if (
-                        name in self.recycle_last_stage_coeff_set_names
-                        and _is_first_stage_same_as_last_stage(
-                        self.c, stage_coeff_sets[name])):
-                    last_rhss[name] = var("<p>last_rhs_" + name)
-                    cb(last_rhss[name], rhs_funcs[name](t=t, **{comp: state}))
+    def generate_butcher_init(self, cb, stage_coeff_set_names,
+            stage_coeff_sets, rhs_funcs, estimate_coeff_set_names,
+            estimate_coeff_sets):
+        self.last_rhss = {}
+        from pymbolic import var
+        for name in stage_coeff_set_names:
+            if (
+                    name in self.recycle_last_stage_coeff_set_names
+                    and _is_first_stage_same_as_last_stage(
+                    self.c, stage_coeff_sets[name])):
+                self.last_rhss[name] = var("<p>last_rhs_" + name)
+                cb(self.last_rhss[name], rhs_funcs[name](
+                    t=self.t, **{self.component_id: self.state}))
 
         cb_init = cb
 
-        # }}}
+        return cb_init
+
+    # }}}
+
+    # {{{ stage loop
+
+    def generate_butcher_primary(self, cb, stage_coeff_set_names,
+            stage_coeff_sets, rhs_funcs, estimate_coeff_set_names,
+            estimate_coeff_sets):
+
+        last_state_est_var = cb.fresh_var("last_state_est")
+        last_state_est_var_valid = False
+
+        equations = []
+        unknowns = set()
+
+        comp = self.component_id
+        nstages = len(self.c)
+        dt = self.dt
+        t = self.t
+        last_rhss = self.last_rhss
 
         stage_rhs_vars = {}
         rhs_var_to_unknown = {}
         for name in stage_coeff_set_names:
             stage_rhs_vars[name] = [
-                    cb.fresh_var(f"rhs_{name}_s{i}") for i in range(nstages)]
+                    cb.fresh_var(f"rhs_{name}_s{i}") for i in range(len(self.c))]
 
             # These are rhss if they are not yet known and pending an implicit solve.
             for i, rhsvar in enumerate(stage_rhs_vars[name]):
@@ -203,166 +258,157 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
         knowns = set()
 
-        # {{{ stage loop
+        def make_known(v):
+            unknowns.discard(v)
+            knowns.add(v)
 
-        last_state_est_var = cb.fresh_var("last_state_est")
-        last_state_est_var_valid = False
-
-        with CodeBuilder(name="primary") as cb:
-            equations = []
-            unknowns = set()
-
-            def make_known(v):
-                unknowns.discard(v)
-                knowns.add(v)
-
-            for istage in range(nstages):
-                for name in stage_coeff_set_names:
-                    c = self.c[istage]
-                    my_rhs = stage_rhs_vars[name][istage]
-
-                    if (
-                            name in self.recycle_last_stage_coeff_set_names
-                            and istage == 0
-                            and _is_first_stage_same_as_last_stage(
-                                self.c, stage_coeff_sets[name])):
-                        cb(my_rhs, last_rhss[name])
-                        make_known(my_rhs)
-
-                    else:
-                        is_implicit = False
-
-                        state_increment = 0
-                        for src_name in stage_coeff_set_names:
-                            coeffs = stage_coeff_sets[src_name][istage]
-                            for src_istage, coeff in enumerate(coeffs):
-                                rhsval = stage_rhs_vars[src_name][src_istage]
-                                if rhsval not in knowns:
-                                    unknowns.add(rhsval)
-                                    is_implicit = True
-
-                                state_increment += dt * coeff * rhsval
-
-                        state_est = state + state_increment
-                        if (self.state_filter is not None
-                                and not (
-                                    # reusing last output state
-                                    c == 0
-                                    and all(
-                                        len(stage_coeff_sets[src_name][istage]) == 0
-                                        for src_name in stage_coeff_set_names))):
-                            state_est = self.state_filter(state_est)
-
-                        if is_implicit:
-                            rhs_expr = rhs_funcs[name](
-                                    t=t + c*dt, **{comp: state_est})
-
-                            from dagrt.expression import collapse_constants
-                            solve_expression = collapse_constants(
-                                    my_rhs - rhs_expr,
-                                    list(unknowns) + [self.state],
-                                    cb.assign, cb.fresh_var)
-                            equations.append(solve_expression)
-
-                            if istage + 1 == nstages:
-                                last_state_est_var_valid = False
-
-                        else:
-                            if istage + 1 == nstages:
-                                cb(last_state_est_var, state_est)
-                                state_est = last_state_est_var
-                                last_state_est_var_valid = True
-
-                            rhs_expr = rhs_funcs[name](
-                                    t=t + c*dt, **{comp: state_est})
-
-                            cb(my_rhs, rhs_expr)
-                            make_known(my_rhs)
-
-                    # {{{ emit solve if possible
-
-                    if unknowns and len(unknowns) == len(equations):
-                        # got a square system, let's solve
-                        assignees = [unk.name for unk in unknowns]
-
-                        from pymbolic import substitute
-                        subst_dict = {
-                                rhs_var.name: rhs_var_to_unknown[rhs_var]
-                                for rhs_var in unknowns}
-
-                        cb.assign_implicit(
-                                assignees=assignees,
-                                solve_components=[
-                                    rhs_var_to_unknown[unk].name
-                                    for unk in unknowns],
-                                expressions=[
-                                    substitute(eq, subst_dict)
-                                    for eq in equations],
-
-                                # TODO: Could supply a starting guess
-                                other_params={
-                                    "guess": state},
-                                solver_id="solve")
-
-                        del equations[:]
-                        knowns.update(unknowns)
-                        unknowns.clear()
-
-                    # }}}
-
-            # Compute solution estimates.
-            estimate_vars = [
-                    cb.fresh_var("est_"+name)
-                    for name in estimate_coeff_set_names]
-
-            for iest, name in enumerate(estimate_coeff_set_names):
-                out_coeffs = estimate_coeff_sets[name]
-
-                if (
-                        last_state_est_var_valid
-                        and  # noqa: W504
-                        _is_last_stage_same_as_output(self.c,
-                            stage_coeff_sets, out_coeffs)):
-                    state_est = last_state_est_var
-
-                else:
-                    state_increment = 0
-                    for src_name in stage_coeff_set_names:
-                        state_increment += sum(
-                                    coeff * stage_rhs_vars[src_name][src_istage]
-                                    for src_istage, coeff in enumerate(out_coeffs))
-
-                    state_est = state + dt*state_increment
-
-                    if self.state_filter is not None:
-                        state_est = self.state_filter(state_est)
-
-                cb(
-                        estimate_vars[iest],
-                        state_est)
-
-            # This updates <t>.
-            self.finish(cb, estimate_coeff_set_names, estimate_vars)
-
-            # These updates have to happen *after* finish because before we
-            # don't yet know whether finish will accept the new state.
+        for istage in range(len(self.c)):
             for name in stage_coeff_set_names:
+                c = self.c[istage]
+                my_rhs = stage_rhs_vars[name][istage]
+
                 if (
                         name in self.recycle_last_stage_coeff_set_names
+                        and istage == 0
                         and _is_first_stage_same_as_last_stage(
                             self.c, stage_coeff_sets[name])):
-                    cb(last_rhss[name], stage_rhs_vars[name][-1])
+                    cb(my_rhs, last_rhss[name])
+                    make_known(my_rhs)
+
+                else:
+                    is_implicit = False
+
+                    state_increment = 0
+                    for src_name in stage_coeff_set_names:
+                        coeffs = stage_coeff_sets[src_name][istage]
+                        for src_istage, coeff in enumerate(coeffs):
+                            rhsval = stage_rhs_vars[src_name][src_istage]
+                            if rhsval not in knowns:
+                                unknowns.add(rhsval)
+                                is_implicit = True
+
+                            state_increment += dt * coeff * rhsval
+
+                    state_est = self.state + state_increment
+                    if (self.state_filter is not None
+                            and not (
+                                # reusing last output state
+                                c == 0
+                                and all(
+                                    len(stage_coeff_sets[src_name][istage]) == 0
+                                    for src_name in stage_coeff_set_names))):
+                        state_est = self.state_filter(state_est)
+
+                    if is_implicit:
+                        rhs_expr = rhs_funcs[name](
+                                t=t + c*dt, **{comp: state_est})
+
+                        from dagrt.expression import collapse_constants
+                        solve_expression = collapse_constants(
+                                my_rhs - rhs_expr,
+                                list(unknowns) + [self.state],
+                                cb.assign, cb.fresh_var)
+                        equations.append(solve_expression)
+
+                        if istage + 1 == nstages:
+                            last_state_est_var_valid = False
+
+                    else:
+                        if istage + 1 == nstages:
+                            cb(last_state_est_var, state_est)
+                            state_est = last_state_est_var
+                            last_state_est_var_valid = True
+
+                        rhs_expr = rhs_funcs[name](
+                                t=t + c*dt, **{comp: state_est})
+
+                        cb(my_rhs, rhs_expr)
+                        make_known(my_rhs)
+
+                # {{{ emit solve if we have any unknowns/equations
+
+                if unknowns and len(unknowns) == len(equations):
+                    from leap.implicit import generate_solve
+                    generate_solve(cb, unknowns, equations, rhs_var_to_unknown,
+                                    self.state)
+                elif not unknowns:
+                    # we have an explicit Runge-Kutta method
+                    pass
+                elif len(unknowns) > len(equations):
+                    raise ValueError("Runge-Kutta implicit timestep has more "
+                            "unknowns than equations")
+                elif len(unknowns) < len(equations):
+                    raise ValueError("Runge-Kutta implicit timestep has more "
+                            "equations than unknowns")
+
+                del equations[:]
+                knowns.update(unknowns)
+                unknowns.clear()
+
+                # }}}
+
+        # Compute solution estimates.
+        estimate_vars = [
+                cb.fresh_var("est_"+name)
+                for name in estimate_coeff_set_names]
+
+        for iest, name in enumerate(estimate_coeff_set_names):
+            out_coeffs = estimate_coeff_sets[name]
+
+            if (
+                    last_state_est_var_valid
+                    and  # noqa: W504
+                    _is_last_stage_same_as_output(self.c,
+                        stage_coeff_sets, out_coeffs)):
+                state_est = last_state_est_var
+
+            else:
+                state_increment = 0
+                for src_name in stage_coeff_set_names:
+                    state_increment += sum(
+                                coeff * stage_rhs_vars[src_name][src_istage]
+                                for src_istage, coeff in enumerate(out_coeffs))
+
+                state_est = self.state + dt*state_increment
+
+                if self.state_filter is not None:
+                    state_est = self.state_filter(state_est)
+
+            cb(
+                estimate_vars[iest],
+                state_est)
 
         cb_primary = cb
 
-        # }}}
+        return cb_primary, stage_rhs_vars, estimate_vars
 
-        return DAGCode(
-                phases={
-                    "initial": cb_init.as_execution_phase(next_phase="primary"),
-                    "primary": cb_primary.as_execution_phase(next_phase="primary")
-                    },
-                initial_phase="initial")
+    # }}}
+
+    # {{{ update state and time
+
+    def generate_butcher_finish(self, cb, stage_coeff_set_names,
+            stage_coeff_sets, rhs_funcs, estimate_coeff_set_names,
+            estimate_coeff_sets, stage_rhs_vars, estimate_vars):
+
+        last_rhss = self.last_rhss
+
+        # This updates <t>.
+        self.finish(cb, estimate_coeff_set_names, estimate_vars)
+
+        # These updates have to happen *after* finish because before we
+        # don't yet know whether finish will accept the new state.
+        for name in stage_coeff_set_names:
+            if (
+                    name in self.recycle_last_stage_coeff_set_names
+                    and _is_first_stage_same_as_last_stage(
+                        self.c, stage_coeff_sets[name])):
+                cb(last_rhss[name], stage_rhs_vars[name][-1])
+
+        cb_primary = cb
+
+        return cb_primary
+
+    # }}}
 
     def finish(self, cb, estimate_names, estimate_vars):
         cb(self.state, estimate_vars[0])
@@ -409,22 +455,6 @@ class ForwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
 
     a_explicit = (
             (),
-            )
-
-    output_coeffs = (1,)
-
-    recycle_last_stage_coeff_set_names = ()
-
-
-class BackwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
-    """
-    .. automethod:: __init__
-    .. automethod:: generate
-    """
-    c = (0,)
-
-    a_explicit = (
-            (1,),
             )
 
     output_coeffs = (1,)
@@ -539,14 +569,178 @@ ORDER_TO_RK_METHOD_BUILDER = {
 # }}}
 
 
+# {{{ implicit butcher tableau methods
+
+
+class ImplicitButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
+    def __init__(self, component_id, state_filter_name=None,
+            rhs_func_name=None):
+        super().__init__(
+                component_id=component_id,
+                state_filter_name=state_filter_name)
+
+        if rhs_func_name is None:
+            rhs_func_name = "<func>"+self.component_id
+        self.rhs_func_name = rhs_func_name
+
+    def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
+        return self.generate_butcher(
+                stage_coeff_set_names=("implicit",),
+                stage_coeff_sets={
+                    "implicit": self.a_implicit},
+                rhs_funcs={"implicit": var(self.rhs_func_name)},
+                estimate_coeff_set_names=("main",),
+                estimate_coeff_sets={
+                    "main": self.output_coeffs,
+                    })
+
+
+class BackwardEulerMethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
+    c = (1,)
+
+    a_implicit = (
+            (1,),
+            )
+
+    output_coeffs = (1,)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class DIRK2MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+    Methods for Ordinary Differential Equations. A Review
+    pp. 72, eqn 221
+
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
+
+    _x = (2 - np.sqrt(2))/2
+
+    c = (_x, 1)
+
+    a_implicit = (
+            (_x,),
+            (1 - _x, _x,),
+            )
+
+    output_coeffs = (1 - _x, _x)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class DIRK3MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+    Methods for Ordinary Differential Equations. A Review
+    pp. 77, eqn 229 & eqn 230
+
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
+
+    _x = 0.4358665215
+
+    c = (_x, (1 + _x)/2, 1)
+
+    a_implicit = (
+            (_x,),
+            ((1 - _x)/2, _x,),
+            (-3*_x**2/2 + 4*_x - 0.25, 3*_x**2/2 - 5*_x + 5/4, _x,),
+            )
+
+    output_coeffs = (-3*_x**2/2 + 4*_x - 0.25, 3*_x**2/2 - 5*_x + 5/4, _x)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class DIRK4MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+    Methods for Ordinary Differential Equations. A Review
+    pp. 78, eqn 232
+
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
+
+    _x1 = 1.06858
+
+    c = (_x1, 1/2, 1 - _x1)
+
+    a_implicit = (
+            (_x1,),
+            (1/2 - _x1, _x1,),
+            (2*_x1, 1 - 4*_x1, _x1),
+            )
+
+    output_coeffs = (1/(6*(1 - 2*_x1)**2), (3*(1 - 2*_x1)**2 - 1)/(3*(1 - 2*_x1)**2),
+                     1/(6*(1 - 2*_x1)**2))
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class DIRK5MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+    Methods for Ordinary Differential Equations. A Review
+    pp. 98, Table 24
+
+    .. automethod:: __init__
+    .. automethod:: generate
+    """
+
+    c = (4024571134387/14474071345096, 5555633399575/5431021154178,
+         5255299487392/12852514622453, 3/20, 10449500210709/14474071345096)
+
+    a_implicit = (
+            (4024571134387/14474071345096,),
+            (9365021263232/12572342979331, 4024571134387/14474071345096,),
+            (2144716224527/9320917548702, -397905335951/4008788611757,
+             4024571134387/14474071345096,),
+            (-291541413000/6267936762551, 226761949132/4473940808273,
+             -1282248297070/9697416712681, 4024571134387/14474071345096,),
+            (-2481679516057/4626464057815, -197112422687/6604378783090,
+             3952887910906/9713059315593, 4906835613583/8134926921134,
+             4024571134387/14474071345096,),
+            )
+
+    output_coeffs = (-2522702558582/12162329469185, 1018267903655/12907234417901,
+                     4542392826351/13702606430957, 5001116467727/12224457745473,
+                     1509636094297/3891594770934)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
+        1: BackwardEulerMethodBuilder,
+        2: DIRK2MethodBuilder,
+        3: DIRK3MethodBuilder,
+        4: DIRK4MethodBuilder,
+        5: DIRK5MethodBuilder,
+        }
+
+# }}}
+
+
 # {{{ Embedded Runge-Kutta schemes base class
+
 
 class EmbeddedButcherTableauMethodBuilder(
         ButcherTableauMethodBuilder, TwoOrderAdaptiveMethodBuilderMixin):
     """
     User-supplied context:
-        <state> + component_id: The value that is integrated
-        <func> + component_id: The right hand side function
+      <state> + component_id: The value that is integrated
+      <func> + component_id: The right hand side function
     """
 
     @property
