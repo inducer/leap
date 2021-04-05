@@ -212,3 +212,46 @@ class KennedyCarpenterIMEXARK4MethodBuilder(
             == len(low_order_coeffs)
             == len(high_order_coeffs)
             == len(c))
+
+
+class KennedyCarpenterIMEXARK3MethodBuilder(
+        KennedyCarpenterIMEXRungeKuttaMethodBuilderBase):
+    gamma = 1767732205903/4055673282236
+
+    c = [0, 2*gamma, 3/5, 1]
+    low_order = 3
+    high_order = 4
+
+    high_order_coeffs = [
+            1471266399579/7840856788654,
+            -4482444167858/7529755066697,
+            11266239266428/11593286722821,
+            gamma]
+
+    low_order_coeffs = [
+            2756255671327/12835298489170,
+            -10771552573575/22201958757719,
+            9247589265047/10645013368117,
+            2193209047091/5459859503100]
+
+    # ARK3(2)4L[2]SA-ERK (explicit)
+    a_explicit = [[],
+            [2*gamma],
+            [5535828885825/10492691773637, 788022342437/10882634858940],
+            [6485989280629/16251701735622,
+                -4246266847089/9704473918619,
+                10755448449292/10357097424841]]
+
+    # ARK4(3)6L[2]SA-ESDIRK (implicit)
+    a_implicit = [[],
+            [gamma, gamma],
+            [2746238789719/10658868560708, -640167445237/6845629431997, gamma],
+            [1471266399579/7840856788654, -4482444167858/7529755066697,
+                11266239266428/11593286722821, gamma]]
+
+    recycle_last_stage_coeff_set_names = ("implicit",)
+
+    assert (len(a_explicit) == len(a_implicit)
+            == len(low_order_coeffs)
+            == len(high_order_coeffs)
+            == len(c))

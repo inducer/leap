@@ -120,6 +120,10 @@ class ButcherTableauMethodBuilder(MethodBuilder):
         raise NotImplementedError
 
     @property
+    def a_implicit(self):
+        raise NotImplementedError
+
+    @property
     def output_coeffs(self):
         raise NotImplementedError
 
@@ -400,6 +404,32 @@ class SimpleButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
                     })
 
 
+class ImplicitButcherTableauMethodBuilder(ButcherTableauMethodBuilder):
+    def __init__(self, component_id, state_filter_name=None,
+            rhs_func_name=None):
+        super(ImplicitButcherTableauMethodBuilder, self).__init__(
+                component_id=component_id,
+                state_filter_name=state_filter_name)
+
+        if rhs_func_name is None:
+            rhs_func_name = "<func>"+self.component_id
+        self.rhs_func_name = rhs_func_name
+
+    def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
+        return self.generate_butcher(
+                stage_coeff_set_names=("implicit",),
+                stage_coeff_sets={
+                    "implicit": self.a_implicit},
+                rhs_funcs={"implicit": var(self.rhs_func_name)},
+                estimate_coeff_set_names=("main",),
+                estimate_coeff_sets={
+                    "main": self.output_coeffs,
+                    })
+
+
 class ForwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
     """
     .. automethod:: __init__
@@ -421,9 +451,9 @@ class BackwardEulerMethodBuilder(SimpleButcherTableauMethodBuilder):
     .. automethod:: __init__
     .. automethod:: generate
     """
-    c = (0,)
+    c = (1,)
 
-    a_explicit = (
+    a_implicit = (
             (1,),
             )
 
@@ -528,12 +558,131 @@ class RK5MethodBuilder(SimpleButcherTableauMethodBuilder):
     recycle_last_stage_coeff_set_names = ()
 
 
+class DIRK2MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+            Methods for Ordinary Differential Equations. A Review
+            pp. 72, eqn 221
+    """
+
+    x = (2 - np.sqrt(2))/2
+
+    c = (x, 1)
+
+    a_implicit = (
+            (x,),
+            (1 - x, x,),
+            )
+
+    output_coeffs = (1 - x, x)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class DIRK3MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+            Methods for Ordinary Differential Equations. A Review
+            pp. 77, eqn 229 & eqn 230
+    """
+
+    x = 0.4358665215
+
+    c = (x, (1 + x)/2, 1)
+
+    a_implicit = (
+            (x,),
+            ((1 - x)/2, x,),
+            (-3*x**2/2 + 4*x - 0.25, 3*x**2/2 - 5*x + 5/4, x,),
+            )
+
+    output_coeffs = (-3*x**2/2 + 4*x - 0.25, 3*x**2/2 - 5*x + 5/4, x)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class DIRK4MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+            Methods for Ordinary Differential Equations. A Review
+            pp. 78, eqn 232
+    """
+
+    x1 = 1.06858
+
+    c = (x1, 1/2, 1 - x1)
+
+    a_implicit = (
+            (x1,),
+            (1/2 - x1, x1,),
+            (2*x1, 1 - 4*x1, x1),
+            )
+
+    output_coeffs = (1/(6*(1 - 2*x1)**2), (3*(1 - 2*x1)**2 - 1)/(3*(1 - 2*x1)**2),
+                     1/(6*(1 - 2*x1)**2))
+
+    recycle_last_stage_coeff_set_names = ()
+
+
+class DIRK5MethodBuilder(ImplicitButcherTableauMethodBuilder):
+    """
+    .. automethod:: __init__
+    .. automethod:: generate
+    Source: Kennedy & Carpenter: Diagonally Implicit Runge-Kutta
+            Methods for Ordinary Differential Equations. A Review
+            pp. 98, Table 24
+    """
+
+    c = (4024571134387/14474071345096, 5555633399575/5431021154178,
+         5255299487392/12852514622453, 3/20, 10449500210709/14474071345096)
+
+    a_implicit = (
+            (4024571134387/14474071345096,),
+            (9365021263232/12572342979331, 4024571134387/14474071345096,),
+            (2144716224527/9320917548702, -397905335951/4008788611757,
+             4024571134387/14474071345096,),
+            (-291541413000/6267936762551, 226761949132/4473940808273,
+             -1282248297070/9697416712681, 4024571134387/14474071345096,),
+            (-2481679516057/4626464057815, -197112422687/6604378783090,
+             3952887910906/9713059315593, 4906835613583/8134926921134,
+             4024571134387/14474071345096,),
+            )
+
+    output_coeffs = (-2522702558582/12162329469185, 1018267903655/12907234417901,
+                     4542392826351/13702606430957, 5001116467727/12224457745473,
+                     1509636094297/3891594770934)
+
+    recycle_last_stage_coeff_set_names = ()
+
+
 ORDER_TO_RK_METHOD_BUILDER = {
         1: ForwardEulerMethodBuilder,
         2: MidpointMethodBuilder,
         3: RK3MethodBuilder,
         4: RK4MethodBuilder,
         5: RK5MethodBuilder,
+        }
+
+IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
+        1: BackwardEulerMethodBuilder,
+        2: DIRK2MethodBuilder,
+        3: DIRK3MethodBuilder,
+        4: DIRK4MethodBuilder,
+        5: DIRK4MethodBuilder,
+        }
+
+from leap.rk.imex import (KennedyCarpenterIMEXARK3MethodBuilder,
+                          KennedyCarpenterIMEXARK4MethodBuilder)
+
+IMEX_ORDER_TO_RK_METHOD_BUILDER = {
+        3: KennedyCarpenterIMEXARK3MethodBuilder,
+        4: KennedyCarpenterIMEXARK4MethodBuilder,
         }
 
 # }}}
