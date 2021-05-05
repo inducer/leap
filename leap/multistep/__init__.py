@@ -588,7 +588,7 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
                 cb_init(self.error_const[4], 0.11354167)
                 cb_init(self.error_const[5], 0.16666667)
             else:
-                cb_init(self.kappa[j], 0, loops=[(j.name, 0, 5)])
+                cb_init(self.kappa[j], 0, loops=[(j.name, 0, 6)])
                 cb_init(self.error_const[0], 1)
                 cb_init(self.error_const[1], 0.5)
                 cb_init(self.error_const[2], 0.33333333)
