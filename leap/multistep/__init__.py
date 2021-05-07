@@ -500,7 +500,7 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
 
     def __init__(self, component_id, state_filter_name=None, fixed_order=None,
             use_high_order=True, atol=0, rtol=0, max_dt_growth=None,
-            min_dt_shrinkage=None, ndf=False):
+            min_dt_shrinkage=None, ndf=False, bootstrap_factor=None):
 
         # For adaptive BDF/NDF, we fix maximum order of 5.
         self.max_order = 5
@@ -508,6 +508,20 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
         self.component_id = component_id
 
         # Declare variables
+        if fixed_order:
+            self.fixed_order = fixed_order
+        else:
+            self.fixed_order = 0
+        if self.fixed_order and atol != 0:
+            raise ValueError("Cannot run adaptively with fixed order")
+        if self.fixed_order and rtol != 0:
+            raise ValueError("Cannot run adaptively with fixed order")
+        # Take smaller faux-bootstrap steps
+        if self.fixed_order > 1:
+            if bootstrap_factor:
+                self.bootstrap_factor = bootstrap_factor
+            else:
+                self.bootstrap_factor = 1
         self.step = var("<p>step")
         self.step_factor = var("<p>step_factor")
         self.equal_steps = var("<p>equal_steps")
@@ -523,6 +537,7 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
         self.state = var("<state>" + component_id)
         self.t = var("<t>")
         self.dt = var("<dt>")
+        self.dt_save = var("<p>dt_save")
 
         self.ndf = ndf
 
@@ -572,6 +587,10 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
             cb_init(self.history, array_utype(8, self.state))
             cb_init(self.order, 1)
             cb_init(self.equal_steps, 0)
+            # Faux-bootstrap steps needed
+            if self.fixed_order > 1:
+                cb_init(self.dt_save, self.dt)
+                cb_init(self.dt, self.dt/self.bootstrap_factor)
             # NDF vs. BDF:
             if self.ndf:
                 # Optimized for minimal truncation error.
@@ -640,6 +659,29 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
     def yield_state(self, cb):
         # Update state and time.
         cb(self.t, self.t + self.dt)
+        # If fixed order specified, increase order
+        # after each step until we hit it ("quasi-bootstrap")
+        if self.fixed_order > 1: 
+            from pymbolic.primitives import Comparison
+            with cb.if_(Comparison(self.order, "<", self.fixed_order)):
+                cb(self.order, self.order + 1)
+            with cb.if_(Comparison(self.dt, "!=", self.dt_save)):
+                cb(self.step_factor, 1.1)
+                with cb.if_(Comparison(self.t, "==", self.dt_save)):
+                    cb(self.step_factor, self.dt_save / self.dt)
+                    cb(self.dt, self.dt_save)
+                    cb(self.dt_monitor, self.dt)
+                    self.rescale_interval(cb)
+                with cb.else_():
+                    with cb.if_(Comparison(self.t + 1.1*self.dt, ">", self.dt_save)):
+                        cb(self.step_factor, (self.dt_save - self.t)/self.dt)
+                        cb(self.dt, self.dt_save - self.t)
+                        cb(self.dt_monitor, self.dt)
+                        self.rescale_interval(cb)
+                    with cb.else_():
+                        cb(self.dt, self.step_factor*self.dt)
+                        cb(self.dt_monitor, self.dt)
+                        self.rescale_interval(cb)
         cb.yield_state(expression=self.state,
                                component_id=self.component_id,
                                time_id="", time=self.t)

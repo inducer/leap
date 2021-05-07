@@ -29,6 +29,7 @@ import sys
 import pytest
 
 from leap.multistep import AdaptiveBDFMethodBuilder
+from stiff_test_systems import VanDerPolProblem, KapsProblem
 import numpy as np
 import scipy.linalg as la
 
@@ -39,6 +40,11 @@ from utils import (  # noqa
         python_method_impl_codegen as pmi_cg)
 
 logger = logging.getLogger(__name__)
+
+
+def kaps_solver(f, t, sub_y, coeff, guess):
+    from scipy.optimize import root
+    return root(lambda unk: unk - f(t=t, y=sub_y + coeff*unk), guess).x
 
 
 def VDPJac(t, y):
@@ -53,7 +59,6 @@ def VDPJac(t, y):
 
 def newton_solver(t, sub_y, coeff, guess):
 
-    from stiff_test_systems import VanDerPolProblem
     vdp = VanDerPolProblem()
     d = 0
     corr_norm = 1.0
@@ -106,10 +111,75 @@ def solver_hook(solve_expr, solve_var, solver_id, guess):
     return substitute("<func>solver(t, sub_y, coeff, guess)", pieces)
 
 
+@pytest.mark.parametrize("problem, method, expected_order", [
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=1, max_dt_growth=10), 1],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=2, max_dt_growth=10, bootstrap_factor=10), 2],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=3, max_dt_growth=10, bootstrap_factor=100), 3],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=4, max_dt_growth=10, bootstrap_factor=1000), 4],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=5, max_dt_growth=10, bootstrap_factor=20000), 5],
+    ])
+def test_convergence(python_method_impl, problem, method, expected_order):
+    pytest.importorskip("scipy")
+
+    code = method.generate()
+
+    from leap.implicit import replace_AssignImplicit
+    code = replace_AssignImplicit(code, {"solve": solver_hook})
+
+    from pytools.convergence import EOCRecorder
+    eocrec = EOCRecorder()
+
+    for n in range(3, 8):
+        dt = 2**(-n)
+
+        y_0 = problem.initial()
+        t_start = problem.t_start
+        t_end = problem.t_end
+
+        from functools import partial
+        interp = python_method_impl(code, function_map={
+            "<func>y": problem,
+            "<func>solver": partial(kaps_solver, problem),
+        })
+
+        interp.set_up(t_start=t_start, dt_start=dt, context={"y": y_0})
+
+        times = []
+        values = []
+
+        for event in interp.run(t_end=t_end):
+            if isinstance(event, interp.StateComputed):
+                values.append(event.state_component)
+                times.append(event.t)
+
+        times = np.array(times)
+        values = np.array(values)
+
+        assert abs(times[-1] - t_end) < 1e-10
+
+        times = np.array(times)
+
+        error = np.linalg.norm(values[-1] - problem.exact(t_end))
+        eocrec.add_data_point(dt, error)
+
+    print("------------------------------------------------------")
+    print("expected order %d" % expected_order)
+    print("------------------------------------------------------")
+    print(eocrec.pretty_print())
+
+    orderest = eocrec.estimate_order_of_convergence()[0, 1]
+    assert orderest > 0.9 * expected_order
+
+
 # {{{ adaptive test
 
 def test_adaptive_timestep(python_method_impl, show_dag=False,
-                           plot=True):
+                           plot=False):
     pytest.importorskip("scipy")
     # Use "DEBUG" to trace execution
     logging.basicConfig(level=logging.INFO)
@@ -125,7 +195,6 @@ def test_adaptive_timestep(python_method_impl, show_dag=False,
         from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
 
-    from stiff_test_systems import VanDerPolProblem
     example = VanDerPolProblem()
     y = example.initial()
 
@@ -187,7 +256,7 @@ def test_adaptive_timestep(python_method_impl, show_dag=False,
     print("small_step_frac (<0.01): %g - big_step_frac (>.05): %g"
             % (small_step_frac, big_step_frac))
     assert small_step_frac <= 0.7, small_step_frac
-    assert big_step_frac >= 0.16, big_step_frac
+    assert big_step_frac >= 0.2, big_step_frac
 
 # }}}
 
