@@ -115,13 +115,23 @@ def solver_hook(solve_expr, solve_var, solver_id, guess):
     [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
         "y", fixed_order=1, max_dt_growth=10), 1],
     [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=1, max_dt_growth=10, ndf=True), 1],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
         "y", fixed_order=2, max_dt_growth=10, bootstrap_factor=10), 2],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=2, max_dt_growth=10, bootstrap_factor=10, ndf=True), 2],
     [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
         "y", fixed_order=3, max_dt_growth=10, bootstrap_factor=100), 3],
     [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=3, max_dt_growth=10, bootstrap_factor=100, ndf=True), 3],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
         "y", fixed_order=4, max_dt_growth=10, bootstrap_factor=1000), 4],
     [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=4, max_dt_growth=10, bootstrap_factor=1000, ndf=True), 4],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
         "y", fixed_order=5, max_dt_growth=10, bootstrap_factor=20000), 5],
+    [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
+        "y", fixed_order=5, max_dt_growth=10, bootstrap_factor=20000, ndf=True), 5],
     ])
 def test_convergence(python_method_impl, problem, method, expected_order):
     pytest.importorskip("scipy")
@@ -178,13 +188,18 @@ def test_convergence(python_method_impl, problem, method, expected_order):
 
 # {{{ adaptive test
 
-def test_adaptive_timestep(python_method_impl, show_dag=False,
+@pytest.mark.parametrize("method", [
+    AdaptiveBDFMethodBuilder(
+        "y", rtol=1e-6),
+    AdaptiveBDFMethodBuilder(
+        "y", rtol=1e-6, ndf=True),
+    ])
+def test_adaptive_timestep(python_method_impl, method, show_dag=False,
                            plot=False):
     pytest.importorskip("scipy")
     # Use "DEBUG" to trace execution
     logging.basicConfig(level=logging.INFO)
 
-    method = AdaptiveBDFMethodBuilder("y", rtol=1e-6)
     component_id = method.component_id
     code = method.generate()
 

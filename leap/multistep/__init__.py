@@ -661,7 +661,7 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
         cb(self.t, self.t + self.dt)
         # If fixed order specified, increase order
         # after each step until we hit it ("quasi-bootstrap")
-        if self.fixed_order > 1: 
+        if self.fixed_order > 1:
             from pymbolic.primitives import Comparison
             with cb.if_(Comparison(self.order, "<", self.fixed_order)):
                 cb(self.order, self.order + 1)
