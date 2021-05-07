@@ -1,7 +1,3 @@
-import cantera as ct
-import pyrometheus as pyro
-
-
 class ReactorSystemOde(object):
     """
     Cantera example problem: reactor2.py
@@ -23,6 +19,8 @@ class ReactorSystemOde(object):
     wave propagation. It is somewhat artifical, but nevertheless instructive.
     """
     def __init__(self, gas1, gas2, np):
+        import cantera as ct
+        import pyrometheus as pyro
         self.gas1 = pyro.get_thermochem_class(gas1)(usr_np=np)
         self.gas2 = pyro.get_thermochem_class(gas2)(usr_np=np)
         self.gas2_ct = gas2

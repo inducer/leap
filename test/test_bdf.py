@@ -31,7 +31,6 @@ import pytest
 from leap.multistep import AdaptiveBDFMethodBuilder
 from stiff_test_systems import VanDerPolProblem, KapsProblem
 import numpy as np
-import scipy.linalg as la
 
 import logging
 
@@ -74,6 +73,7 @@ def newton_solver(t, sub_y, coeff, guess):
     converged = False
     # Try pulling this out of the loop.
     jac = VDPJac(t, y_old)
+    import scipy.linalg as la
     lu = la.lu_factor(np.eye(2) - coeff*jac, overwrite_a=True)
     # Check convergence w/weighted norm...
     for j in range(0, 2):
