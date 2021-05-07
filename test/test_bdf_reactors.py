@@ -43,13 +43,13 @@ def test_vs_scipy():
     #------------------------------
 
     # create an argon gas object and set its state
-    ar = ct.Solution('argon.xml')
+    ar = ct.Solution("argon.xml")
     ar.TP = 1000.0, 20.0 * ct.one_atm
 
     # use GRI-Mech 3.0 for the methane/air mixture, and set its initial state
-    gas = ct.Solution('gri30.xml')
+    gas = ct.Solution("gri30.xml")
     gas.TP = 500.0, 0.2 * ct.one_atm
-    gas.set_equivalence_ratio(1.1, 'CH4:1.0', 'O2:2, N2:7.52')
+    gas.set_equivalence_ratio(1.1, "CH4:1.0", "O2:2, N2:7.52")
 
     ar_mass = ar.density
     gas_mass = gas.density
@@ -280,7 +280,7 @@ def test_vs_scipy():
     ssteps = []
 
     # New interface
-    while solver.status == 'running' and solver.t < final_t:
+    while solver.status == "running" and solver.t < final_t:
         solver.step()
         ar.TDY = solver.y[0], ar_mass/solver.y[1], solver.y[2]
         sslow_vol.append(solver.y[1])

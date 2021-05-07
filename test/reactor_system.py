@@ -26,7 +26,7 @@ class ReactorSystemOde(object):
         self.gas1 = pyro.get_thermochem_class(gas1)(usr_np=np)
         self.gas2 = pyro.get_thermochem_class(gas2)(usr_np=np)
         self.gas2_ct = gas2
-        self.env = ct.Reservoir(ct.Solution('air.xml'))
+        self.env = ct.Reservoir(ct.Solution("air.xml"))
         # Initial volume of each reactor is 1.0, so...
         self.gas1_mass = gas1.density
         self.gas2_mass = gas2.density

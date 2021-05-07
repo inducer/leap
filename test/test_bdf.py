@@ -26,6 +26,7 @@ THE SOFTWARE.
 # pylint: disable=not-callable
 
 import sys
+import pytest
 
 from leap.multistep import AdaptiveBDFMethodBuilder
 import numpy as np
@@ -109,6 +110,7 @@ def solver_hook(solve_expr, solve_var, solver_id, guess):
 
 def test_adaptive_timestep(python_method_impl, show_dag=False,
                            plot=True):
+    pytest.importorskip("scipy")
     # Use "DEBUG" to trace execution
     logging.basicConfig(level=logging.INFO)
 
