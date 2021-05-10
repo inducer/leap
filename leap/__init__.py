@@ -201,9 +201,6 @@ class AdaptiveOrderMethodBuilderMixin(MethodBuilder):
         factor_p1 = var("factor_p1")
         factor_m1 = var("factor_m1")
 
-        def norm(expr):
-            return var("<builtin>norm_2")(expr)
-
         def weighted_norm(expr1, expr2, expr3, atol, rtol):
             return var("<builtin>norm_wrms")(expr1, expr2, expr3, atol, rtol)
 
