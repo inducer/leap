@@ -4,7 +4,7 @@
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
 Copyright (C) 2014, 2015 Matt Wala
-Copyright (C) 2015 Cory Mikida
+Copyright (C) 2015, 2021 Cory Mikida
 """
 
 __license__ = """
@@ -258,8 +258,6 @@ def change_D(cb, d, order, factor):
     cb(ru, matmul(r, u, order+1, order+1))
     # RU = R.dot(U)
     j = var(name_gen("m_j"))
-    n = var(name_gen("n"))
-    cb(n, var("<builtin>len")(d[0]))
     # Need to take subset of history here, then we'll reassign after.
     array_utype = var("<builtin>array_utype")
     d_in = var(name_gen("D_in"))
