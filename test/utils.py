@@ -80,10 +80,10 @@ class DefaultProblem(Problem):
 
     def exact(self, t):
         inner = np.sqrt(3) / 2 * np.log(t)
-        return np.sqrt(t) * (
+        return np.array([np.sqrt(t) * (
                 5 * np.sqrt(3) / 3 * np.sin(inner)
-                + np.cos(inner)
-                )
+                + np.cos(inner)), (3*np.cos(inner)
+                    + np.sqrt(3) / 3 * np.sin(inner))/np.sqrt(t)], dtype=np.float64)
 
     def __call__(self, t, y):
         u, v = y
@@ -95,10 +95,11 @@ _default_dts = 2 ** -np.array(range(4, 7), dtype=np.float64)  # noqa pylint:disa
 
 def check_simple_convergence(method, method_impl, expected_order,
                              problem=DefaultProblem(), dts=_default_dts,
-                             show_dag=False, plot_solution=False):
+                             show_dag=False, plot_solution=False,
+                             function_map=None, implicit=False,
+                             solver_hook=None):
     component_id = method.component_id
     code = method.generate()
-    print(code)
 
     if show_dag:
         from dagrt.language import show_dependency_graph
@@ -107,14 +108,19 @@ def check_simple_convergence(method, method_impl, expected_order,
     from pytools.convergence import EOCRecorder
     eocrec = EOCRecorder()
 
+    if function_map is None:
+        function_map = {"<func>" + component_id: problem}
+
+    if implicit:
+        from leap.implicit import replace_AssignImplicit
+        code = replace_AssignImplicit(code, {"solve": solver_hook})
+
     for dt in dts:
         t = problem.t_start
         y = problem.initial()
         final_t = problem.t_end
 
-        interp = method_impl(code, function_map={
-            "<func>" + component_id: problem,
-            })
+        interp = method_impl(code, function_map=function_map)
         interp.set_up(t_start=t, dt_start=dt, context={component_id: y})
 
         times = []
@@ -122,12 +128,13 @@ def check_simple_convergence(method, method_impl, expected_order,
         for event in interp.run(t_end=final_t):
             if isinstance(event, interp.StateComputed):
                 assert event.component_id == component_id
-                values.append(event.state_component[0])
+                values.append(event.state_component)
                 times.append(event.t)
 
         assert abs(times[-1] - final_t) / final_t < 0.1
 
         times = np.array(times)
+        values = np.array(values)
 
         if plot_solution:
             import matplotlib.pyplot as pt
@@ -135,7 +142,7 @@ def check_simple_convergence(method, method_impl, expected_order,
             pt.plot(times, problem.exact(times), label="true")
             pt.show()
 
-        error = abs(values[-1] - problem.exact(final_t))
+        error = np.linalg.norm(values[-1] - problem.exact(final_t))
         eocrec.add_data_point(dt, error)
 
     print("------------------------------------------------------")

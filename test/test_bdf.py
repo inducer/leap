@@ -133,57 +133,21 @@ def solver_hook(solve_expr, solve_var, solver_id, guess):
     [KapsProblem(epsilon=0.9), AdaptiveBDFMethodBuilder(
         "y", fixed_order=5, max_dt_growth=10, bootstrap_factor=20000, ndf=True), 5],
     ])
-def test_convergence(python_method_impl, problem, method, expected_order):
+def test_convergence(python_method_impl, problem, method, expected_order,
+                     show_dag=False, plot_solution=False):
     pytest.importorskip("scipy")
 
-    code = method.generate()
-
-    from leap.implicit import replace_AssignImplicit
-    code = replace_AssignImplicit(code, {"solve": solver_hook})
-
-    from pytools.convergence import EOCRecorder
-    eocrec = EOCRecorder()
-
-    for n in range(3, 8):
-        dt = 2**(-n)
-
-        y_0 = problem.initial()
-        t_start = problem.t_start
-        t_end = problem.t_end
-
-        from functools import partial
-        interp = python_method_impl(code, function_map={
-            "<func>y": problem,
-            "<func>solver": partial(kaps_solver, problem),
-        })
-
-        interp.set_up(t_start=t_start, dt_start=dt, context={"y": y_0})
-
-        times = []
-        values = []
-
-        for event in interp.run(t_end=t_end):
-            if isinstance(event, interp.StateComputed):
-                values.append(event.state_component)
-                times.append(event.t)
-
-        times = np.array(times)
-        values = np.array(values)
-
-        assert abs(times[-1] - t_end) < 1e-10
-
-        times = np.array(times)
-
-        error = np.linalg.norm(values[-1] - problem.exact(t_end))
-        eocrec.add_data_point(dt, error)
-
-    print("------------------------------------------------------")
-    print("expected order %d" % expected_order)
-    print("------------------------------------------------------")
-    print(eocrec.pretty_print())
-
-    orderest = eocrec.estimate_order_of_convergence()[0, 1]
-    assert orderest > 0.9 * expected_order
+    from functools import partial
+    dts = 2**-np.array(range(3, 8), dtype=np.float64)
+    function_map = {"<func>y": problem,
+                    "<func>solver": partial(kaps_solver, problem)}
+    from utils import check_simple_convergence
+    check_simple_convergence(method=method, method_impl=python_method_impl,
+                             expected_order=expected_order, show_dag=show_dag,
+                             plot_solution=plot_solution,
+                             function_map=function_map, dts=dts,
+                             implicit=True, problem=problem,
+                             solver_hook=solver_hook)
 
 
 # {{{ adaptive test
