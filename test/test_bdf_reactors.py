@@ -67,18 +67,6 @@ def test_vs_scipy():
     state = np.append(state, 1.0)
     state = np.append(state, gas.Y)
 
-    # Modify mass fractions in the gas so that none are initially zero.
-    sub_sum = 0
-    for i in range(0, 53):
-        if state[5+i] > 0:
-            state[5+i] -= 1e-8
-            sub_sum += 1e-8
-
-    sub = sub_sum/50
-    for i in range(0, 53):
-        if state[5+i] == 0:
-            state[5+i] += sub
-
     from leap.multistep import AdaptiveBDFMethodBuilder
 
     rtol = 1e-4
@@ -313,7 +301,7 @@ def test_vs_scipy():
     # 1.) Ensure Leap solution doesn't contain negative mass fractions
     assert max(fast_neg) < 1e-16
     # 2.) Ensure final Reactor 2 temperatures of Scipy and Leap are the same
-    assert abs(fast_temps[-1] - sfast_temps[-1]) < 1e-1
+    assert abs(fast_temps[-1] - sfast_temps[-1]) < 0.5
     # 3.) As a proxy for similar (but not exact) adaptive timestepping,
     #     ensure that Scipy and Leap took a similar number of steps
     #     to reach the same end time.
