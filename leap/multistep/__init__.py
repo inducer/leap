@@ -897,19 +897,19 @@ class AdaptiveSBDFMethodBuilder(AdaptiveBDFMethodBuilder):
                     rhs_next_var, equations, unknowns, rhs_var_to_unknown,
                     knowns):
 
-        from pytools import UniqueNameGenerator
-        name_gen = UniqueNameGenerator()
         # Build the explicit RHS prediction.
         # There are two ways of doing this - one is to spend
-        # an extra RHS evaluation and do the following:
-        #expl_rhs_pred = var("expl_rhs_pred")
-        #cb(expl_rhs_pred, self.eval_expl_rhs(self.t + self.dt, y_predict))
+        # an extra RHS evaluation and do the following (state extrapolation)
+        expl_rhs_pred = var("expl_rhs_pred")
+        cb(expl_rhs_pred, self.eval_expl_rhs(self.t + self.dt, state_est_low))
         # The other is to extrapolate with the RHS history and
         # time history (need to implement this).
-        expl_rhs_pred = emit_variable_order_adams_extrapolation(
-                        cb, name_gen,
-                        self.time_history, self.rhs_history,
-                        self.t + self.dt, self.order)
+        # from pytools import UniqueNameGenerator
+        # name_gen = UniqueNameGenerator()
+        # expl_rhs_pred = emit_variable_order_adams_extrapolation(
+        #                 cb, name_gen,
+        #                 self.time_history, self.rhs_history,
+        #                 self.t + self.dt, self.order)
 
         # Build the implicit solve expression.
         from dagrt.expression import collapse_constants
