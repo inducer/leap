@@ -185,6 +185,10 @@ class AdaptiveOrderMethodBuilderMixin(MethodBuilder):
     def rotate_history(self, cb, high_order_estimate, low_order_estimate):
         raise NotImplementedError()
 
+    def rotate_history_rhs(self, cb, high_order_estimate,
+                           low_order_estimate, new_rhs):
+        raise NotImplementedError()
+
     def rescale_interval(self, cb):
         raise NotImplementedError()
 
@@ -325,7 +329,8 @@ class AdaptiveOrderMethodBuilderMixin(MethodBuilder):
 
         with cb.else_():
             # Rotate state history.
-            self.rotate_history(cb, high_order_estimate, low_order_estimate, new_rhs)
+            self.rotate_history_rhs(cb, high_order_estimate,
+                                    low_order_estimate, new_rhs)
             cb(equal_steps, equal_steps+1)
             cb(factor, 1)
             cb(factor_p1, 0)

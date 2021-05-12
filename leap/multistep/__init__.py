@@ -922,7 +922,7 @@ class AdaptiveSBDFMethodBuilder(AdaptiveBDFMethodBuilder):
         cb(self.rhs_history[0], expl_rhs_dummy)
         cb(self.time_history[0], self.t)
 
-    def rotate_history(self, cb, state_est_high, state_est_low, new_rhs):
+    def rotate_history_rhs(self, cb, state_est_high, state_est_low, new_rhs):
         # Rotate the history.
         i = var("i")
         cb(self.history[self.order + 2], (state_est_high - state_est_low)
@@ -1073,7 +1073,7 @@ class AdaptiveSBDFMethodBuilder(AdaptiveBDFMethodBuilder):
 
     def finish(self, cb, high_est, low_est, expl_rhs_pred, new_rhs):
         if not self.adaptive:
-            self.rotate_history(cb, high_est, low_est, new_rhs)
+            self.rotate_history_rhs(cb, high_est, low_est, new_rhs)
             self.finish_nonadaptive(cb, high_est, low_est)
         else:
             self.finish_adaptive_rhs(cb, high_est, low_est, self.history,
