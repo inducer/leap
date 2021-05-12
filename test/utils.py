@@ -99,7 +99,6 @@ _default_dts = 2 ** -np.array(range(4, 7), dtype=np.float64)  # noqa pylint:disa
 
 
 def check_simple_convergence(method, method_impl, expected_order,
-
                              problem=None, dts=_default_dts,
                              show_dag=False, plot_solution=False,
                              function_map=None, implicit=False,

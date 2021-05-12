@@ -110,7 +110,7 @@ def test_vs_scipy():
         for j in range(0, 58):
             corr_weights[j] = (reltol * np.abs(y_old[j]) + abstol)
         psi = -(sub_y - guess)
-        for i in range(newton_maxiter):
+        for _i in range(newton_maxiter):
             rhs = ode(t, y_guess)
             corr = la.lu_solve(lu, coeff*rhs - psi - d, overwrite_b=True)
             y_guess += corr
@@ -262,7 +262,7 @@ def test_vs_scipy():
     sfast_species = []
     sfast_neg_sum = []
     sfast_neg_num = []
-    for j in range(0, gas.n_species):
+    for _j in range(0, gas.n_species):
         sfast_species.append([])
     stimes = []
     ssteps = []
