@@ -776,7 +776,13 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
             state_est_low = self.state_filter(state_est_low)
             state_est_high = self.state_filter(state_est_high)
 
-        self.finish(cb, state_est_high, state_est_low)
+        # this is needed in case the order changes
+        high_est = var("high_est")
+        low_est = var("low_est")
+        cb(high_est, state_est_high)
+        cb(low_est, state_est_low)
+
+        self.finish(cb, high_est, low_est)
 
     def finish(self, cb, high_est, low_est):
         if not self.adaptive:
