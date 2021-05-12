@@ -79,7 +79,7 @@ def newton_solver(t, sub_y, coeff, guess):
     for j in range(0, 2):
         corr_weights[j] = (reltol * np.abs(y_old[j]) + abstol)
     psi = -(sub_y - guess)
-    for i in range(newton_maxiter):
+    for _i in range(newton_maxiter):
         rhs = vdp(t, y_guess)
         corr = la.lu_solve(lu, coeff*rhs - psi - d, overwrite_b=True)
         y_guess += corr
