@@ -9,5 +9,6 @@ dependencies:
 - numpy
 - scipy
 - matplotlib
-
+- jax
+- cantera
 - pip
