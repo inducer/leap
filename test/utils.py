@@ -41,8 +41,10 @@ def python_method_impl_codegen(code, **kwargs):
 # }}}
 
 
-def execute_and_return_single_result(python_method_impl, code, initial_context={},
+def execute_and_return_single_result(python_method_impl, code, initial_context=None,
                                      max_steps=1):
+    if initial_context is None:
+        initial_context = {}
     interpreter = python_method_impl(code, function_map={})
     interpreter.set_up(t_start=0, dt_start=0, context=initial_context)
     has_state_component = False
@@ -97,10 +99,13 @@ _default_dts = 2 ** -np.array(range(4, 7), dtype=np.float64)  # noqa pylint:disa
 
 
 def check_simple_convergence(method, method_impl, expected_order,
-                             problem=DefaultProblem(), dts=_default_dts,
+                             problem=None, dts=_default_dts,
                              show_dag=False, plot_solution=False,
                              function_map=None, implicit=False,
                              solver_hook=None):
+    if problem is None:
+        problem = DefaultProblem()
+
     component_id = method.component_id
     code = method.generate()
 

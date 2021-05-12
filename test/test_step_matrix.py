@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#the ! /usr/bin/env python
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner, Matt Wala"
 
@@ -85,14 +85,14 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
     interp.set_up(t_start=0, dt_start=dt, context={component_id: 15})
 
     assert interp.next_phase == "initial"
-    for event in interp.run_single_step():
+    for _event in interp.run_single_step():
         pass
     assert interp.next_phase == "primary"
 
     start_values = np.array(
             [interp.context[v] for v in finder.variables])
 
-    for event in interp.run_single_step():
+    for _event in interp.run_single_step():
         pass
     assert interp.next_phase == "primary"
 
