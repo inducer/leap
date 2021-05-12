@@ -822,7 +822,14 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
             state_est_low = self.state_filter(state_est_low)
             state_est_high = self.state_filter(state_est_high)
 
-        self.finish(cb, state_est_high, state_est_low)
+        # Need to actually write these in case the order changes.
+        high_est = var("high_est")
+        low_est = var("low_est")
+        cb(high_est, state_est_high)
+        cb(low_est, state_est_low)
+
+        #self.finish(cb, state_est_high, state_est_low)
+        self.finish(cb, high_est, low_est)
 
     def finish(self, cb, high_est, low_est):
         if not self.adaptive:
@@ -847,8 +854,13 @@ class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
 
 # {{{ semi-implicit adaptive order BDF:
 
+
 class AdaptiveSBDFMethodBuilder(AdaptiveBDFMethodBuilder):
     """
+    Source: Shampine, Lawrence F., and Mark W. Reichelt.
+    "The matlab ode suite." SIAM journal on scientific
+    computing 18.1 (1997): 1-22.
+
     User-supplied context:
       <state> + component_id: The value that is integrated
       <func> + component_id: The right hand side function
@@ -856,8 +868,8 @@ class AdaptiveSBDFMethodBuilder(AdaptiveBDFMethodBuilder):
 
     def __init__(self, component_id, state_filter_name=None, fixed_order=None,
             use_high_order=True, atol=0, rtol=0, max_dt_growth=None,
-            min_dt_shrinkage=None, ndf=False, explicit_rhs_name=None,
-            implicit_rhs_name=None, bootstrap_factor=None):
+            min_dt_shrinkage=None, ndf=False, bootstrap_factor=None,
+            implicit_rhs_name=None, explicit_rhs_name=None, rhs_extrap=False):
 
         super().__init__(component_id=component_id,
                          state_filter_name=state_filter_name,
@@ -865,6 +877,7 @@ class AdaptiveSBDFMethodBuilder(AdaptiveBDFMethodBuilder):
                          atol=atol, rtol=rtol, max_dt_growth=max_dt_growth,
                          min_dt_shrinkage=min_dt_shrinkage, ndf=ndf,
                          bootstrap_factor=bootstrap_factor)
+        self.rhs_extrap = rhs_extrap
         self.rhs_history = var("<p>rhs_hist")
         self.time_history = var("<p>t_hist")
         if explicit_rhs_name is None:
@@ -893,23 +906,44 @@ class AdaptiveSBDFMethodBuilder(AdaptiveBDFMethodBuilder):
                               parameters=(),
                               kw_parameters={"t": t, self.component_id: y})
 
+    def init_history(self, cb):
+        array_utype = var("<builtin>array_utype")
+        array = var("<builtin>array")
+        cb(self.history, array_utype(8, self.state))
+        cb(self.rhs_history, array_utype(8, self.state))
+        cb(self.time_history, array(8))
+        full_rhs_dummy = var("full_rhs_dummy")
+        expl_rhs_dummy = var("expl_rhs_dummy")
+        cb(self.history[0], self.state)
+        cb(full_rhs_dummy, self.eval_impl_rhs(self.t, self.state)
+           + self.eval_expl_rhs(self.t, self.state))
+        cb(expl_rhs_dummy, self.eval_expl_rhs(self.t, self.state))
+        cb(self.history[1], self.dt * full_rhs_dummy)
+        cb(self.rhs_history[0], expl_rhs_dummy)
+        cb(self.time_history[0], self.t)
+
+    def rotate_history(self, cb, state_est_high, state_est_low, new_rhs):
+        # Rotate the history.
+        i = var("i")
+        cb(self.history[self.order + 2], (state_est_high - state_est_low)
+                - self.history[self.order + 1])
+        cb(self.history[self.order + 1], (state_est_high - state_est_low))
+        cb(self.history[self.order-i], self.history[self.order-i]
+                + self.history[self.order+1-i],
+                loops=[(i.name, 0, self.order+1)])
+        # Rotate the RHS and time histories in the simpler way.
+        for j in range(self.max_order):
+            cb(self.rhs_history[self.max_order - j],
+                    self.rhs_history[self.max_order - j - 1])
+            cb(self.time_history[self.max_order - j],
+                    self.time_history[self.max_order - j - 1])
+
+        cb(self.rhs_history[0], new_rhs)
+        cb(self.time_history[0], self.t + self.dt)
+
     def build_solve(self, cb, state_est_low, state_est_high,
                     rhs_next_var, equations, unknowns, rhs_var_to_unknown,
-                    knowns):
-
-        # Build the explicit RHS prediction.
-        # There are two ways of doing this - one is to spend
-        # an extra RHS evaluation and do the following (state extrapolation)
-        expl_rhs_pred = var("expl_rhs_pred")
-        cb(expl_rhs_pred, self.eval_expl_rhs(self.t + self.dt, state_est_low))
-        # The other is to extrapolate with the RHS history and
-        # time history (need to implement this).
-        # from pytools import UniqueNameGenerator
-        # name_gen = UniqueNameGenerator()
-        # expl_rhs_pred = emit_variable_order_adams_extrapolation(
-        #                 cb, name_gen,
-        #                 self.time_history, self.rhs_history,
-        #                 self.t + self.dt, self.order)
+                    knowns, expl_rhs_pred):
 
         # Build the implicit solve expression.
         from dagrt.expression import collapse_constants
@@ -957,61 +991,97 @@ class AdaptiveSBDFMethodBuilder(AdaptiveBDFMethodBuilder):
             raise ValueError("SBDF/SNDF implicit timestep has more "
                     "equations than unknowns")
 
-    def init_history(self, cb):
-        array_utype = var("<builtin>array_utype")
-        array = var("<builtin>array")
-        cb(self.history, array_utype(8, self.state))
-        cb(self.rhs_history, array_utype(8, self.state))
-        cb(self.time_history, array(8))
-        full_rhs_dummy = var("full_rhs_dummy")
-        expl_rhs_dummy = var("expl_rhs_dummy")
-        cb(self.history[0], self.state)
-        cb(full_rhs_dummy, self.eval_impl_rhs(self.t, self.state)
-           + self.eval_expl_rhs(self.t, self.state))
-        cb(expl_rhs_dummy, self.eval_expl_rhs(self.t, self.state))
-        cb(self.history[1], self.dt * full_rhs_dummy)
-        cb(self.rhs_history[0], expl_rhs_dummy)
-        cb(self.time_history[0], self.t)
+    def generate_primary(self, cb):
 
-    def yield_state(self, cb):
-        # Update state and time.
-        cb(self.t, self.t + self.dt)
-        # If fixed order specified, increase order
-        # after each step until we hit it ("quasi-bootstrap")
-        if self.fixed_order > 1:
-            from pymbolic.primitives import Comparison
-            with cb.if_(Comparison(self.order, "<", self.fixed_order)):
-                cb(self.order, self.order + 1)
-            with cb.if_(Comparison(self.dt, "!=", self.dt_save)):
-                cb(self.step_factor, 1.1)
-                with cb.if_(Comparison(self.t, "==", self.dt_save)):
-                    cb(self.step_factor, self.dt_save / self.dt)
-                    cb(self.dt, self.dt_save)
-                    cb(self.dt_monitor, self.dt)
-                    self.rescale_interval(cb)
-                with cb.else_():
-                    with cb.if_(Comparison(self.t + 1.1*self.dt, ">", self.dt_save)):
-                        cb(self.step_factor, (self.dt_save - self.t)/self.dt)
-                        cb(self.dt, self.dt_save - self.t)
-                        cb(self.dt_monitor, self.dt)
-                        self.rescale_interval(cb)
-                    with cb.else_():
-                        cb(self.dt, self.step_factor*self.dt)
-                        cb(self.dt_monitor, self.dt)
-                        self.rescale_interval(cb)
-        # Rotate the RHS history in the simpler way.
-        for j in range(self.max_order):
-            cb(self.rhs_history[self.max_order - j],
-                    self.rhs_history[self.max_order - j - 1])
-            cb(self.time_history[self.max_order - j],
-                    self.time_history[self.max_order - j - 1])
+        from pytools import UniqueNameGenerator
+        name_gen = UniqueNameGenerator()
+        rhs_next_var = var("rhs_next_var")
+        rhs_var_to_unknown = {}
+        unkvar = cb.fresh_var("unk")
+        rhs_var_to_unknown[rhs_next_var] = unkvar
+        equations = []
+        unknowns = set()
+        knowns = set()
 
-        rhs_dummy = var("rhs_dummy")
-        cb(rhs_dummy, self.eval_expl_rhs(self.t, self.state))
-        cb(self.rhs_history[0], rhs_dummy)
-        cb(self.time_history[0], self.t)
-        cb.yield_state(expression=self.state,
-                               component_id=self.component_id,
-                               time_id="", time=self.t)
+        unknowns.add(rhs_next_var)
+
+        # First, check to see if dt got modified out from
+        # under us in order to adhere to some end time.
+        from pymbolic.primitives import Comparison
+        with cb.if_(Comparison(self.dt, "!=", self.dt_monitor)):
+            cb(self.step_factor, self.dt/self.dt_monitor)
+            cb(self.dt_monitor, self.dt)
+            self.rescale_interval(cb)
+
+        # Use existing scaled histories to form prediction.
+        j = var(name_gen("m_j"))
+        y_predict = var("y_predict")
+        cb(y_predict, self.history[0])
+        cb(y_predict, y_predict + self.history[j],
+            loops=[(j.name, 1, self.order+1)])
+
+        state_est_low = y_predict
+
+        # Build the explicit RHS prediction.
+        # There are two ways of doing this
+        if self.rhs_extrap:
+            from pytools import UniqueNameGenerator
+            name_gen = UniqueNameGenerator()
+            expl_rhs_pred = emit_variable_order_adams_extrapolation(
+                            cb, name_gen,
+                            self.time_history, self.rhs_history,
+                            self.t + self.dt, self.order)
+        else:
+            expl_rhs_pred = var("expl_rhs_pred")
+            cb(expl_rhs_pred, self.eval_expl_rhs(self.t + self.dt, state_est_low))
+
+        # Form expression(s) for correction.
+        psi = var("psi")
+        cb(psi, 0)
+        cb(psi, psi + (1 / self.alpha[self.order])
+                * self.gamma[j]*self.history[j],
+                loops=[(j.name, 1, self.order+1)])
+        state_est_high = (self.dt / self.alpha[self.order]) * \
+                rhs_next_var - psi + state_est_low
+
+        # Solve.
+        self.build_solve(cb, state_est_low, state_est_high,
+                    rhs_next_var, equations, unknowns, rhs_var_to_unknown,
+                    knowns, expl_rhs_pred)
+
+        # }}}
+
+        # Update the state now that we've solved.
+        if self.state_filter is not None:
+            state_est_low = self.state_filter(state_est_low)
+            state_est_high = self.state_filter(state_est_high)
+
+        new_rhs = var("new_rhs")
+        new_est = var("new_est")
+        high_est = var("high_est")
+        low_est = var("low_est")
+        # We need to write these to variables because of the potential
+        # order change
+        cb(high_est, state_est_high)
+        cb(low_est, state_est_low)
+        if self.use_high_order:
+            cb(new_est, state_est_high)
+        else:
+            cb(new_est, state_est_low)
+        cb(new_rhs, self.eval_expl_rhs(self.t + self.dt, new_est))
+        self.finish(cb, high_est, low_est, expl_rhs_pred, new_rhs)
+
+    def finish(self, cb, high_est, low_est, expl_rhs_pred, new_rhs):
+        if not self.adaptive:
+            self.rotate_history(cb, high_est, low_est, new_rhs)
+            self.finish_nonadaptive(cb, high_est, low_est)
+        else:
+            self.finish_adaptive_rhs(cb, high_est, low_est, self.history,
+                                 self.order, self.step_factor,
+                                 self.equal_steps, expl_rhs_pred,
+                                 self.rhs_history, new_rhs)
+
+
+# }}}
 
 # vim: fdm=marker
