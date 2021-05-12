@@ -268,11 +268,14 @@ def emit_R_computation(cb, order, factor, name_gen):
         loops=[(l_ind.name, 0, order), (k.name, 0, order)])
     cb(m[l_ind], 1, loops=[(l_ind.name, 0, order+1)])
     # M[1:, 1:] = (I - 1 - factor * J) / I
-    cumprod = var("<builtin>cumulative_product")
-    reshape = var("<builtin>reshape")
     transpose = var("<builtin>transpose")
     r = var(name_gen("R"))
-    cb(r, cumprod(reshape(transpose(m, order+1), order+1), 0))
+    cb(r, array((order + 1)*(order + 1)))
+    cb(r[k], m[k], loops=[(k.name, 0, order+1)])
+    cb(r[k + (l_ind)*(order+1)], m[k + (l_ind)*(order+1)]
+        * r[k + (l_ind - 1)*(order+1)],
+        loops=[(l_ind.name, 1, order+1), (k.name, 0, order+1)])
+    cb(r, transpose(r, order+1))
     # return np.cumprod(M, axis=0)
     return r
 

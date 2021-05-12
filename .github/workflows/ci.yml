@@ -44,7 +44,7 @@ jobs:
         runs-on: ubuntu-latest
         strategy:
             matrix:
-                python-version: [3.6, 3.7, 3.8]
+                python-version: ["3.6", "3.8", "3.x"]
         steps:
         -   uses: actions/checkout@v2
         -
@@ -60,12 +60,32 @@ jobs:
                 curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
                 . ./build-and-test-py-project.sh
 
+    pytest_conda:
+        name: Pytest Conda
+        runs-on: ubuntu-latest
+        steps:
+        -   uses: actions/checkout@v2
+        -   name: "Main Script"
+            run: |
+                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
+                echo "git+https://github.com/ecisneros8/pyrometheus.git#egg=pyrometheus" >> requirements.txt
+
+                curl -L -O -k https://tiker.net/ci-support-v0
+                . ./ci-support-v0
+                build_py_project_in_conda_env
+
+                sudo apt update
+                sudo apt install gfortran-7 liblapack-dev libblas-dev
+                sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
+
+                test_py_project
+
     examples:
         name: Examples on Py${{ matrix.python-version }}
         runs-on: ubuntu-latest
         strategy:
             matrix:
-                python-version: [3.6, 3.7, 3.8]
+                python-version: ["3.6", "3.8", "3.x"]
         steps:
         -   uses: actions/checkout@v2
         -
@@ -75,11 +95,33 @@ jobs:
         -   name: "Main Script"
             run: |
                 EXTRA_INSTALL="numpy matplotlib scipy"
+
                 sudo apt update
                 sudo apt install gfortran-7 liblapack-dev libblas-dev
                 sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
+
                 curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
                 . ./build-py-project-and-run-examples.sh
+
+    examples_conda:
+        name: Examples Conda
+        runs-on: ubuntu-latest
+        steps:
+        -   uses: actions/checkout@v2
+        -   name: "Main Script"
+            run: |
+                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
+                echo "git+https://github.com/ecisneros8/pyrometheus.git#egg=pyrometheus" >> requirements.txt
+
+                curl -L -O -k https://tiker.net/ci-support-v0
+                . ./ci-support-v0
+                build_py_project_in_conda_env
+
+                sudo apt update
+                sudo apt install gfortran-7 liblapack-dev libblas-dev
+                sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
+
+                run_examples
 
     docs:
         name: Documentation

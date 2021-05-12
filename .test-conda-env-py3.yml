@@ -1,0 +1,14 @@
+name: test-conda-env
+channels:
+- conda-forge
+- nodefaults
+
+dependencies:
+- python=3
+- git
+- numpy
+- scipy
+- matplotlib
+- jax
+- cantera
+- pip
