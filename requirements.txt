@@ -1,4 +1,3 @@
 git+https://github.com/inducer/pytools.git#egg=pytools
 git+https://github.com/inducer/pymbolic.git#egg=pymbolic
 git+https://github.com/cmikida2/dagrt.git@bdf-builtins#=egg=dagrt
-git+https://github.com/ecisneros8/pyrometheus.git#egg=pyrometheus
