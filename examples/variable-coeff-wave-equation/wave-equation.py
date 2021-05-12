@@ -120,8 +120,7 @@ class VariableCoeffWaveEquationProblem:
         component_indices = []
         component_sizes = []
 
-        for i, (start, stop) in enumerate(
-                zip(component_times, component_times[1:])):
+        for start, stop in zip(component_times, component_times[1:]):
             indices = (start < grid) & (grid < stop)
             component_indices.append(indices)
             component_sizes.append(2 * sum(indices))
