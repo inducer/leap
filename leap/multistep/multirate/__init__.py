@@ -293,7 +293,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         if state_filter_names is None:
             state_filter_names = {}
 
-        for comp_name, sfname in state_filter_names.items():
+        for comp_name, _sfname in state_filter_names.items():
             if comp_name not in component_names:
                 raise ValueError(f"component name '{comp_name}' in "
                     "'state_filter_names' not known")
@@ -425,7 +425,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
             if not self.is_ode_component[comp_name]:
                 continue
 
-            for irhs, rhs in enumerate(component_rhss):
+            for irhs in range(len(component_rhss)):
                 stage_rhss[comp_name, irhs] = make_stage_history(
                         "{name_prefix}_rk_{comp_name}_rhs{irhs}"
                         .format(
@@ -441,21 +441,20 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                     if not self.is_ode_component[comp_name]:
                         continue
 
-                    for irhs, rhs in enumerate(component_rhss):
+                    for irhs in range(len(component_rhss)):
                         cb(stage_rhss[comp_name, irhs][istage],
                                 rhss_on_entry[comp_name, irhs])
 
             else:
                 component_state_ests = {}
 
-                for icomp, (comp_name, component_rhss) in enumerate(
-                        zip(self.component_names, self.rhss)):
-
+                for comp_name, component_rhss in zip(
+                        self.component_names, self.rhss):
                     if not self.is_ode_component[comp_name]:
                         continue
 
                     contribs = []
-                    for irhs, rhs in enumerate(component_rhss):
+                    for irhs in range(len(component_rhss)):
                         state_contrib_var = var(
                                 name_gen(
                                     "state_contrib_{comp_name}_rhs{irhs}"
@@ -492,10 +491,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
                     contribs = []
 
-                    for irhs, rhs in enumerate(component_rhss):
+                    for rhs in component_rhss:
                         kwargs = {
                                 self.comp_name_to_kwarg_name[arg_comp_name]:
-                                    component_state_ests[arg_comp_name]
+                                component_state_ests[arg_comp_name]
                                 for arg_comp_name in rhs.arguments}
 
                         contribs.append(var(rhs.func_name)(
@@ -524,7 +523,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                     for irhs, rhs in enumerate(component_rhss):
                         kwargs = {
                                 self.comp_name_to_kwarg_name[arg_comp_name]:
-                                    component_state_ests[arg_comp_name]
+                                component_state_ests[arg_comp_name]
                                 for arg_comp_name in rhs.arguments}
                         cb(stage_rhss[comp_name, irhs][istage],
                                 var(rhs.func_name)(
@@ -535,11 +534,10 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
         component_state_ests = {}
 
-        for icomp, (comp_name, component_rhss) in enumerate(
-                zip(self.component_names, self.rhss)):
+        for comp_name, component_rhss in zip(self.component_names, self.rhss):
 
             contribs = []
-            for irhs, rhs in enumerate(component_rhss):
+            for irhs in range(len(component_rhss)):
                 if not self.is_ode_component[comp_name]:
                     continue
 
@@ -619,7 +617,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
                     kwargs = {
                             self.comp_name_to_kwarg_name[arg_comp_name]:
-                                var("<state>" + arg_comp_name)
+                            var("<state>" + arg_comp_name)
                             for arg_comp_name in rhs.arguments}
 
                     cb(rhs_var, var(rhs.func_name)(t=self.t, **kwargs))
@@ -659,7 +657,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
                     kwargs = {
                             self.comp_name_to_kwarg_name[arg_comp_name]:
-                                get_state(arg_comp_name)
+                            get_state(arg_comp_name)
                             for arg_comp_name in rhs.arguments}
 
                     cb(rhs_var, var(rhs.func_name)(t=self.t, **kwargs))
@@ -906,7 +904,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
             kwargs = {
                     self.comp_name_to_kwarg_name[arg_comp_name]:
-                        get_state(arg_comp_name, isubstep)
+                    get_state(arg_comp_name, isubstep)
                     for arg_comp_name in rhs.arguments}
 
             # }}}
@@ -945,7 +943,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                 for other_comp_name, other_component_rhss in zip(
                         self.component_names, self.rhss):
                     do_invalidate = False
-                    for other_rhs in enumerate(other_component_rhss):
+                    for _other_rhs in enumerate(other_component_rhss):
                         if comp_name in rhs.arguments:
                             do_invalidate = True
                             break
@@ -971,13 +969,12 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         def check_history_consistency():
             # At the start of a macrostep, ensure that the last computed
             # RHS history corresponds to the current state
-            for comp_idx, (comp_name, component_rhss) in enumerate(
-                    zip(self.component_names, self.rhss)):
+            for comp_name, component_rhss in zip(self.component_names, self.rhss):
                 for irhs, rhs in enumerate(component_rhss):
                     t_expr = self.t
                     kwargs = {
                             self.comp_name_to_kwarg_name[arg_comp_name]:
-                                get_state(arg_comp_name, 0)
+                            get_state(arg_comp_name, 0)
                             for arg_comp_name in rhs.arguments}
                     test_rhs_var = var(
                             name_gen(
