@@ -107,10 +107,12 @@ class StepMatrixFinder:
 
     VectorComponent = namedtuple("VectorComponent", "name, index")
 
-    def run_symbolic_step(self, phase_name, shapes={}):
+    def run_symbolic_step(self, phase_name, shapes=None):
         """
         `shapes` maps variable names to vector lengths.
         """
+        if shapes is None:
+            shapes = {}
         phase = self.code.phases[phase_name]
 
         from pymbolic import var
@@ -139,12 +141,14 @@ class StepMatrixFinder:
 
         self.exec_controller.reset()
         self.exec_controller.update_plan(phase, phase.depends_on)
-        for event in self.exec_controller(phase, self):
+        for _event in self.exec_controller(phase, self):
             pass
 
         return components, initial_vals
 
-    def get_maxima_expressions(self, phase_name, shapes={}):
+    def get_maxima_expressions(self, phase_name, shapes=None):
+        if shapes is None:
+            shapes = {}
         components, initial_vals = self.run_symbolic_step(phase_name, shapes)
 
         lines = []
@@ -166,7 +170,7 @@ class StepMatrixFinder:
         msm_expr_list("initial", initial_vals)
 
         exprs = []
-        for i, v in enumerate(components):
+        for v in components:
             # Get the expression for v.
             if isinstance(v, self.VectorComponent):
                 expr = self.context[v.name][v.index]
@@ -179,7 +183,7 @@ class StepMatrixFinder:
 
         return "\n".join(lines)
 
-    def get_phase_step_matrix(self, phase_name, shapes={}, sparse=False):
+    def get_phase_step_matrix(self, phase_name, shapes=None, sparse=False):
         """
         `shapes` maps variable names to vector lengths.
 
@@ -187,6 +191,9 @@ class StepMatrixFinder:
              `sparse=True`, returns a SparseStepMatrix.
              Otherwise returns a numpy object array.
         """
+
+        if shapes is None:
+            shapes = {}
 
         components, initial_vals = self.run_symbolic_step(phase_name, shapes)
 
