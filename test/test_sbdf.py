@@ -105,8 +105,6 @@ def test_adaptive(python_method_impl, problem, method, rhs_extrap):
         from leap.implicit import replace_AssignImplicit
         code = replace_AssignImplicit(code, {"solve": solver_hook})
 
-        #print(code)
-        #1/0
         from functools import partial
         interp = python_method_impl(code, function_map={
             "<func>expl_y": problem.nonstiff,
@@ -143,12 +141,6 @@ def test_adaptive(python_method_impl, problem, method, rhs_extrap):
         exact = problem.exact(times[-1])
         error = np.linalg.norm(values[-1] - exact)
         eocrec.add_data_point(atol, error)
-        
-        # Plots
-        #import matplotlib.pyplot as pt
-        #pt.clf()
-        #pt.plot(times, values[:, 1], "x-")
-        #pt.show()
 
     print("Error vs. tolerance")
     print(eocrec.pretty_print())
