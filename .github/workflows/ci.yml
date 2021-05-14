@@ -65,6 +65,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
         -   uses: actions/checkout@v2
+        -   name: Setup tmate session
+            uses: mxschmitt/action-tmate@v3
         -   name: "Main Script"
             run: |
                 CONDA_ENVIRONMENT=.test-conda-env-py3.yml
@@ -109,8 +111,6 @@ jobs:
         runs-on: ubuntu-latest
         steps:
         -   uses: actions/checkout@v2
-        -   name: Setup tmate session
-            uses: mxschmitt/action-tmate@v3
         -   name: "Main Script"
             run: |
                 CONDA_ENVIRONMENT=.test-conda-env-py3.yml
