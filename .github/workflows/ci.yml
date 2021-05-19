@@ -65,8 +65,6 @@ jobs:
         runs-on: ubuntu-latest
         steps:
         -   uses: actions/checkout@v2
-        -   name: Setup tmate session
-            uses: mxschmitt/action-tmate@v3
         -   name: "Main Script"
             run: |
                 CONDA_ENVIRONMENT=.test-conda-env-py3.yml
@@ -80,6 +78,9 @@ jobs:
                 sudo apt update
                 sudo apt install gfortran-7 liblapack-dev libblas-dev
                 sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
+
+                # crashes observed in https://github.com/inducer/leap/pull/17
+                export CISUPPORT_PARALLEL_PYTEST=no
 
                 test_py_project
 
