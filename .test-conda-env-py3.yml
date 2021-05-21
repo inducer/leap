@@ -8,6 +8,6 @@ dependencies:
 - git
 - numpy
 - scipy
-- matplotlib
+- matplotlib-base
 
 - pip
