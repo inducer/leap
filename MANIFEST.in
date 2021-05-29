@@ -1,0 +1,11 @@
+recursive-include examples *.py
+
+include test/*.f90
+include test/conftest.py
+include test/utils.py
+include test/*_test_systems.py
+
+include doc/*.rst
+include doc/conf.py
+include doc/Makefile
+include doc/make.bat
