@@ -16,7 +16,7 @@ def main():
         author="Andreas Kloeckner",
         author_email="inform@tiker.net",
         license="MIT",
-        url="http://wiki.tiker.net/Leap",
+        url="https://documen.tician.de/leap",
         classifiers=[
             "Development Status :: 3 - Alpha",
             "Intended Audience :: Developers",
