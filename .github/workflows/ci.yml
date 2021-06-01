@@ -85,6 +85,9 @@ jobs:
         -   uses: mxschmitt/action-tmate@v3
         -   name: "Main Script"
             run: |
+                # We need to re-grab the CI support doodad for the test command to work
+                curl -L -O -k https://tiker.net/ci-support-v0
+                . ./ci-support-v0
                 test_py_project
 
     examples:
