@@ -64,9 +64,6 @@ pygments_style = "sphinx"
 
 html_theme = "furo"
 
-html_theme_options = {}
-
-
 intersphinx_mapping = {
     "https://docs.python.org/3/": None,
     "https://numpy.org/doc/stable/": None,
@@ -75,4 +72,3 @@ intersphinx_mapping = {
     }
 
 autoclass_content = "class"
-autodoc_typehints = "description"
