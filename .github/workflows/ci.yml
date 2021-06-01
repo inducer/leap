@@ -80,7 +80,7 @@ jobs:
                 sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
 
                 # crashes observed in https://github.com/inducer/leap/pull/17
-                #export CISUPPORT_PARALLEL_PYTEST=no
+                # export CISUPPORT_PARALLEL_PYTEST=no
 
         -   uses: mxschmitt/action-tmate@v3
         -   name: "Main Script"
