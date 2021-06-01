@@ -1,3 +1,56 @@
+def make_jax_pyro_class(ptk_base_cls, usr_np):
+
+    class PyroJaxNumpy(ptk_base_cls):
+
+        def pyro_make_array(self, res_list):
+            """This works around (e.g.) numpy.exp not working with object arrays of numpy
+            scalars. It defaults to making object arrays, however if an array
+            consists of all scalars, it makes a "plain old" :class:`numpy.ndarray`.
+
+            See ``this numpy bug <https://github.com/numpy/numpy/issues/18004>`__
+            for more context.
+            """
+
+            from numbers import Number
+            # Needed to play nicely with Jax, which frequently creates
+            # arrays of shape () when handed numbers
+            all_numbers = all(
+                isinstance(e, Number)
+                or (isinstance(e, self.usr_np.ndarray) and e.shape == ())
+                for e in res_list)
+
+            if all_numbers:
+                return self.usr_np.array(res_list, dtype=self.usr_np.float64)
+
+            result = self.usr_np.empty_like(res_list, dtype=object,
+                                            shape=(len(res_list),))
+
+            # 'result[:] = res_list' may look tempting, however:
+            # https://github.com/numpy/numpy/issues/16564
+            for idx in range(len(res_list)):
+                result[idx] = res_list[idx]
+
+            return result
+
+        def pyro_norm(self, argument, normord):
+            """This works around numpy.linalg norm not working with scalars.
+
+            If the argument is a regular ole number, it uses :func:`numpy.abs`,
+            otherwise it uses ``usr_np.linalg.norm``.
+            """
+            # Wrap norm for scalars
+            from numbers import Number
+            if isinstance(argument, Number):
+                return self.usr_np.abs(argument)
+            # Needed to play nicely with Jax, which frequently creates
+            # arrays of shape () when handed numbers
+            if isinstance(argument, self.usr_np.ndarray) and argument.shape == ():
+                return self.usr_np.abs(argument)
+            return self.usr_np.linalg.norm(argument, normord)
+
+    return PyroJaxNumpy(usr_np=usr_np)
+
+
 class ReactorSystemOde(object):
     """
     Cantera example problem: reactor2.py
@@ -21,8 +74,10 @@ class ReactorSystemOde(object):
     def __init__(self, gas1, gas2, np):
         import cantera as ct
         import pyrometheus as pyro
-        self.gas1 = pyro.get_thermochem_class(gas1)(usr_np=np)
-        self.gas2 = pyro.get_thermochem_class(gas2)(usr_np=np)
+        ptk_base_cls_1 = pyro.get_thermochem_class(gas1)
+        ptk_base_cls_2 = pyro.get_thermochem_class(gas2)
+        self.gas1 = make_jax_pyro_class(ptk_base_cls_1, np)
+        self.gas2 = make_jax_pyro_class(ptk_base_cls_2, np)
         self.gas2_ct = gas2
         self.env = ct.Reservoir(ct.Solution("air.xml"))
         # Initial volume of each reactor is 1.0, so...
