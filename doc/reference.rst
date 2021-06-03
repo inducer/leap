@@ -1,7 +1,7 @@
 Reference
 =========
 
-.. module:: leap
+.. automodule:: leap
 
 Runge-Kutta Methods
 -------------------
