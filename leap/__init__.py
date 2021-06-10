@@ -207,8 +207,7 @@ class AdaptiveOrderMethodBuilderMixin(MethodBuilder):
         def weighted_norm(x, y):
             # Weighted RMS norm.
             # FIXME: need to support array of relative tolerances?
-            # FIXME: elementwise absolute value?
-            denom = self.rtol * (y*y) ** 0.5 + self.atol
+            denom = self.rtol * var("<builtin>elementwise_abs")(y) + self.atol
             length = var("<builtin>len")(y)
             return norm(x/denom) / length ** 0.5
 
