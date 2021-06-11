@@ -216,11 +216,11 @@ def emit_R_computation(cb, order, factor, name_gen):
     "The matlab ode suite." Section 2.2"""
     array = var("<builtin>array")
     k = var(name_gen("m_k"))
-    i = var(name_gen("I"))
+    i = var(name_gen("mat_I"))
     cb(i, array(order))
     cb(i[k-1], k, loops=[(k.name, 1, order+1)])
     # I = np.arange(1, order + 1)[:, None]
-    j = var(name_gen("J"))
+    j = var(name_gen("mat_J"))
     cb(j, array(order))
     cb(j[k-1], k, loops=[(k.name, 1, order+1)])
     # J = np.arange(1, order + 1)
@@ -262,11 +262,12 @@ def change_D(cb, d, order, factor):
     j = var(name_gen("m_j"))
     array_utype = var("<builtin>array_utype")
     d_out = var(name_gen("D_out"))
-    # Requires that usertype arrays be initialized to zero!
     cb(d_out, array_utype(order+1, d[0]))
     # D[:order + 1] = np.dot(RU.T, D[:order + 1])
+    cb(d_out[j], ru[j*(order+1)] * d[0],
+        loops=[(j.name, 0, order+1)])
     cb(d_out[j], d_out[j] + ru[i + j*(order+1)] * d[i],
-        loops=[(i.name, 0, order+1), (j.name, 0, order+1)])
+        loops=[(i.name, 1, order+1), (j.name, 0, order+1)])
     cb(d[j], d_out[j], loops=[(j.name, 0, order+1)])
 
 
