@@ -290,20 +290,18 @@ def change_D(cb, d, order, factor):
     u = emit_R_computation(cb, order, 1, name_gen)
     ru = var(name_gen("RU"))
     matmul = var("<builtin>matmul")
-    usr_matmul = var("<builtin>user_matmul")
-    transpose = var("<builtin>transpose")
-    cb(ru, matmul(r, u, order+1, order+1))
     # RU = R.dot(U)
+    cb(ru, matmul(r, u, order+1, order+1))
+    i = var(name_gen("m_i"))
     j = var(name_gen("m_j"))
-    # Need to take subset of history here, then we'll reassign after.
     array_utype = var("<builtin>array_utype")
-    d_in = var(name_gen("D_in"))
-    cb(d_in, array_utype(order+1, d[0]))
-    cb(d_in[j], d[j], loops=[(j.name, 0, order+1)])
-    cb(d_in, usr_matmul(transpose(ru, order+1), d_in, order+1,
-        var("<builtin>len")(d[0]), var("<builtin>len")(d[0])))
-    cb(d[j], d_in[j], loops=[(j.name, 0, order+1)])
+    d_out = var(name_gen("D_out"))
+    # Requires that usertype arrays be initialized to zero!
+    cb(d_out, array_utype(order+1, d[0]))
     # D[:order + 1] = np.dot(RU.T, D[:order + 1])
+    cb(d_out[j], d_out[j] + ru[i + j*(order+1)] * d[i],
+        loops=[(i.name, 0, order+1), (j.name, 0, order+1)])
+    cb(d[j], d_out[j], loops=[(j.name, 0, order+1)])
 
 
 # }}}

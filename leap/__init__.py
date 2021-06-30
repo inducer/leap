@@ -205,12 +205,19 @@ class AdaptiveOrderMethodBuilderMixin(MethodBuilder):
         factor_p1 = var("factor_p1")
         factor_m1 = var("factor_m1")
 
-        def weighted_norm(expr1, expr2, expr3, atol, rtol):
-            return var("<builtin>norm_wrms")(expr1, expr2, expr3, atol, rtol)
+        def norm(expr):
+            return var("<builtin>norm_2")(expr)
+
+        def weighted_norm(x, y):
+            # Weighted RMS norm.
+            # FIXME: need to support array of relative tolerances?
+            denom = self.rtol * var("<builtin>elementwise_abs")(y) + self.atol
+            length = var("<builtin>len")(y)
+            return norm(x/denom) / length ** 0.5
 
         cb(rel_error_raw, weighted_norm(
             self.error_const[order]*(high_order_estimate - low_order_estimate),
-            self.state, high_order_estimate, self.atol, self.rtol))
+            high_order_estimate))
 
         cb(rel_error, IfThenElse(Comparison(rel_error_raw, "==", 0),
                                  1.0e-14, rel_error_raw))
@@ -250,8 +257,7 @@ class AdaptiveOrderMethodBuilderMixin(MethodBuilder):
                 with cb.if_(Comparison(order, ">", 1)):
                     cb(rel_error_m1, weighted_norm(
                         self.error_const[order-1]*hist[order],
-                        self.state, high_order_estimate, self.atol,
-                        self.rtol))
+                        high_order_estimate))
                     cb(factor_m1, 0.81
                         * rel_error_m1 ** (-1.0 / (order)))
                 with cb.else_():
@@ -259,8 +265,7 @@ class AdaptiveOrderMethodBuilderMixin(MethodBuilder):
                 with cb.if_(Comparison(order, "<", 5)):
                     cb(rel_error_p1, weighted_norm(
                         self.error_const[order+1]*hist[order+2],
-                        self.state, high_order_estimate, self.atol,
-                        self.rtol))
+                        high_order_estimate))
                     cb(factor_p1, 0.81
                         * rel_error_p1 ** (-1.0 / (order + 2)))
                 with cb.else_():
