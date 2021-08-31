@@ -76,7 +76,7 @@ def solver_hook(solve_expr, solve_var, solver_id, guess):
 @pytest.mark.parametrize(("method", "ss_frac", "bs_frac"), [
     (EmbeddedAdamsMethodBuilder("y", order=2, rtol=1e-6), 0.5, 0.05),
     (EmbeddedAdamsMethodBuilder("y", order=3, rtol=1e-6), 0.5, 0.01),
-    (EmbeddedAdamsMethodBuilder("y", order=4, rtol=1e-6), 0.8, 0.0005),
+    (EmbeddedAdamsMethodBuilder("y", order=4, rtol=1e-6), 0.8, 0.0004),
     ])
 def test_adaptive_timestep(python_method_impl, method, ss_frac, bs_frac,
                            show_dag=False, plot=False):
