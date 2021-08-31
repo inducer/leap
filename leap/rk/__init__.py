@@ -337,7 +337,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                     raise ValueError("Runge-Kutta implicit timestep has more "
                             "equations than unknowns")
                 else:
-                    assert False
+                    raise AssertionError()
 
                 del equations[:]
                 knowns.update(unknowns)

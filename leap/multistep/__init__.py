@@ -525,7 +525,7 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
             raise ValueError("Adams-Moulton implicit timestep has more equations "
                     "than unknowns")
         else:
-            assert False
+            raise AssertionError()
 
         del equations[:]
         knowns.update(unknowns)
