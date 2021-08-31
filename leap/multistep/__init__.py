@@ -762,24 +762,24 @@ class EmbeddedAdamsMethodBuilder(
                     cb.assign, cb.fresh_var)
             equations.append(solve_expression)
 
-        # {{{ emit solve if possible
+            # {{{ emit solve if possible
 
-        if unknowns and len(unknowns) == len(equations):
-            from leap.implicit import generate_solve
-            generate_solve(cb, unknowns, equations,
-                           rhs_var_to_unknown, state_est_low)
-        elif not unknowns:
-            raise ValueError("Adaptive Adams implicit timestep has no unknowns")
-        elif len(unknowns) > len(equations):
-            raise ValueError("Adaptive Adams implicit timestep has more "
-                    "unknowns than equations")
-        elif len(unknowns) < len(equations):
-            raise ValueError("Adaptive Adams implicit timestep has more "
-                    "equations than unknowns")
+            if unknowns and len(unknowns) == len(equations):
+                from leap.implicit import generate_solve
+                generate_solve(cb, unknowns, equations,
+                               rhs_var_to_unknown, state_est_low)
+            elif not unknowns:
+                raise ValueError("Adaptive Adams implicit timestep has no unknowns")
+            elif len(unknowns) > len(equations):
+                raise ValueError("Adaptive Adams implicit timestep has more "
+                        "unknowns than equations")
+            elif len(unknowns) < len(equations):
+                raise ValueError("Adaptive Adams implicit timestep has more "
+                        "equations than unknowns")
 
-        del equations[:]
-        knowns.update(unknowns)
-        unknowns.clear()
+            del equations[:]
+            knowns.update(unknowns)
+            unknowns.clear()
 
         # }}}
 

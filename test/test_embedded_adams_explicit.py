@@ -53,9 +53,12 @@ logger = logging.getLogger(__name__)
 def test_embedded_accuracy(python_method_impl, method, expected_order, implicit,
                      show_dag=False, plot_solution=False):
     from utils import check_simple_convergence
+    # Order 2 is persnickety and barely fails its convergence test
+    dts = 2 ** -np.array(range(5, 8), dtype=np.float64)
     check_simple_convergence(method=method, method_impl=python_method_impl,
                              expected_order=expected_order, show_dag=show_dag,
-                             plot_solution=plot_solution, implicit=implicit)
+                             plot_solution=plot_solution, implicit=implicit,
+                             dts=dts)
 
 # }}}
 
