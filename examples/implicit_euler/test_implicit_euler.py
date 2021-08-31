@@ -59,7 +59,7 @@ def test_im_euler_accuracy(python_method_impl, show_dag=False,
                            plot_solution=False):
     component_id = "y"
 
-    from implicit_euler import ImplicitEulerMethodBuilder
+    from .implicit_euler import ImplicitEulerMethodBuilder
 
     method = ImplicitEulerMethodBuilder(component_id)
     code = method.generate(solver_hook)
