@@ -258,10 +258,6 @@ class ButcherTableauMethodBuilder(MethodBuilder):
 
         knowns = set()
 
-        def make_known(v):
-            unknowns.discard(v)
-            knowns.add(v)
-
         for istage in range(len(self.c)):
             for name in stage_coeff_set_names:
                 c = self.c[istage]
@@ -273,7 +269,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                         and _is_first_stage_same_as_last_stage(
                             self.c, stage_coeff_sets[name])):
                     cb(my_rhs, last_rhss[name])
-                    make_known(my_rhs)
+                    knowns.add(my_rhs)
 
                 else:
                     is_implicit = False
@@ -323,7 +319,7 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                                 t=t + c*dt, **{comp: state_est})
 
                         cb(my_rhs, rhs_expr)
-                        make_known(my_rhs)
+                        knowns.add(my_rhs)
 
                 # {{{ emit solve if we have any unknowns/equations
 
@@ -331,6 +327,17 @@ class ButcherTableauMethodBuilder(MethodBuilder):
                     from leap.implicit import generate_solve
                     generate_solve(cb, unknowns, equations, rhs_var_to_unknown,
                                     self.state)
+                elif not unknowns:
+                    # we have an explicit Runge-Kutta method
+                    pass
+                elif len(unknowns) > len(equations):
+                    raise ValueError("Runge-Kutta implicit timestep has more "
+                            "unknowns than equations")
+                elif len(unknowns) < len(equations):
+                    raise ValueError("Runge-Kutta implicit timestep has more "
+                            "equations than unknowns")
+                else:
+                    assert False
 
                 del equations[:]
                 knowns.update(unknowns)
@@ -717,7 +724,7 @@ IMPLICIT_ORDER_TO_RK_METHOD_BUILDER = {
         2: DIRK2MethodBuilder,
         3: DIRK3MethodBuilder,
         4: DIRK4MethodBuilder,
-        5: DIRK4MethodBuilder,
+        5: DIRK5MethodBuilder,
         }
 
 # }}}

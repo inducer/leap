@@ -222,7 +222,7 @@ class AdamsMethodBuilder(MethodBuilder):
     """
 
     def __init__(self, component_id, function_family=None, state_filter_name=None,
-            hist_length=None, static_dt=False, order=None, _extra_bootstrap=False):
+            hist_length=None, static_dt=False, order=None):
         """
         :arg function_family: Accepts an instance of
             :class:`AdamsIntegrationFunctionFamily`
@@ -250,7 +250,6 @@ class AdamsMethodBuilder(MethodBuilder):
 
         self.hist_length = hist_length
         self.static_dt = static_dt
-        self.extra_bootstrap = _extra_bootstrap
 
         self.component_id = component_id
 
@@ -307,8 +306,7 @@ class AdamsMethodBuilder(MethodBuilder):
                                      component_id=self.component_id,
                                      time_id="", time=self.t)
             cb_bootstrap(self.step, self.step + 1)
-            bootstrap_length = self.determine_bootstrap_length()
-            with cb_bootstrap.if_(self.step, "==", bootstrap_length):
+            with cb_bootstrap.if_(self.step, "==", self.hist_length):
                 cb_bootstrap.switch_phase("primary")
 
         return DAGCode(
@@ -339,40 +337,55 @@ class AdamsMethodBuilder(MethodBuilder):
                                component_id=self.component_id,
                                time_id="", time=self.t)
 
-    def set_up_time_history(self, cb, new_t):
+    def set_up_time_data(self, cb, new_t):
+        """Creates full snapshot of time points involved in the current
+        Adams step, synthesized from the existing time history along with
+        the next time point to be used (new_t). Returns time_data
+        (a list of the time values themselves) and relevant_times
+        (an *array* of those same time values centered around self.t
+        for use in emit_adams_integration). In the case of static timestep,
+        both of these are replaced with integer lists.
+        :arg new_t: the most recent time point that will be used
+            in performing the Adams integration step. This
+            should be either self.t (the current time, in the
+            case of Adams-Bashforth) or self.t + self.dt (the
+            next time point, in Adams-Moulton)
+        """
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
         array = var("<builtin>array")
         if not self.static_dt:
-            time_history_data = self.time_history + [new_t]
-            time_hist_var = var(name_gen("time_history"))
-            cb(time_hist_var, array(self.hist_length))
+            time_data = self.time_history + [new_t]
+            time_data_var = var(name_gen("time_data"))
+            cb(time_data_var, array(self.hist_length))
             for i in range(self.hist_length):
-                cb(time_hist_var[i], time_history_data[i] - self.t)
+                cb(time_data_var[i], time_data[i] - self.t)
 
-            time_hist = time_hist_var
+            relevant_times = time_data_var
             t_end = self.dt
             dt_factor = 1
 
         else:
             if new_t == self.t:
-                time_hist = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
-                time_history_data = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
+                relevant_times = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
+                time_data = list(range(-self.hist_length+1, 0+1))  # noqa pylint:disable=invalid-unary-operand-type
+            elif new_t == self.t + self.dt:
+                # In implicit mode, the vector of times
+                # passed to adams_integration must
+                # include the *next* point in time.
+                relevant_times = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
+                time_data = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
             else:
-                time_hist = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
-                time_history_data = list(range(-self.hist_length+2, 0+2))  # noqa pylint:disable=invalid-unary-operand-type
+                raise ValueError("Invalid time point specified for Adams step")
             dt_factor = self.dt
             t_end = 1
 
-        return time_history_data, time_hist, dt_factor, t_end
+        return time_data, relevant_times, dt_factor, t_end
 
     def generate_primary(self, cb):
         raise NotImplementedError()
 
     def rk_bootstrap(self, cb):
-        raise NotImplementedError()
-
-    def determine_bootstrap_length(self):
         raise NotImplementedError()
 
 # }}}
@@ -387,7 +400,7 @@ class AdamsBashforthMethodBuilder(AdamsMethodBuilder):
         name_gen = UniqueNameGenerator()
 
         time_history_data, time_hist, \
-                dt_factor, t_end = self.set_up_time_history(cb, self.t)
+                dt_factor, t_end = self.set_up_time_data(cb, self.t)
 
         cb(rhs_var, self.eval_rhs(self.t, self.state))
         history = self.history + [rhs_var]
@@ -445,13 +458,6 @@ class AdamsBashforthMethodBuilder(AdamsMethodBuilder):
         # Assign the value of the new state.
         cb(self.state, est_vars[0])
 
-    def determine_bootstrap_length(self):
-
-        # In the explicit case, this is always
-        # equal to history length.
-        bootstrap_length = self.hist_length
-
-        return bootstrap_length
 # }}}
 
 
@@ -468,10 +474,11 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         unkvar = cb.fresh_var("unk")
         rhs_var_to_unknown[rhs_next_var] = unkvar
 
-        # In implicit mode, the time history must
+        # In implicit mode, the vector of times
+        # passed to adams_integration must
         # include the *next* point in time.
-        time_history_data, time_hist, \
-                dt_factor, t_end = self.set_up_time_history(cb, self.t + self.dt)
+        time_data, relevant_times, \
+                dt_factor, t_end = self.set_up_time_data(cb, self.t + self.dt)
 
         # Implicit setup - rhs_next_var is an unknown, needs implicit solve.
         equations = []
@@ -480,14 +487,16 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
 
         unknowns.add(rhs_next_var)
 
-        # Update history
-        history = self.history + [rhs_next_var]
+        # Create RHS vector for Adams setup,
+        # including RHS value to be implicitly
+        # solved for
+        rhss = self.history + [rhs_next_var]
 
         # Set up the actual Adams-Moulton step.
         am_sum = emit_adams_integration(
                         cb, name_gen,
                         self.function_family,
-                        time_hist, history,
+                        relevant_times, rhss,
                         0, t_end)
 
         state_est = self.state + dt_factor * am_sum
@@ -507,6 +516,16 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         if unknowns and len(unknowns) == len(equations):
             from leap.implicit import generate_solve
             generate_solve(cb, unknowns, equations, rhs_var_to_unknown, self.state)
+        elif not unknowns:
+            raise ValueError("Adams-Moulton implicit timestep has no unknowns")
+        elif len(unknowns) > len(equations):
+            raise ValueError("Adams-Moulton implicit timestep has more unknowns "
+                    "than equations")
+        elif len(unknowns) < len(equations):
+            raise ValueError("Adams-Moulton implicit timestep has more equations "
+                    "than unknowns")
+        else:
+            assert False
 
         del equations[:]
         knowns.update(unknowns)
@@ -519,8 +538,9 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
             state_est = self.state_filter(state_est)
         cb(self.state, state_est)
 
-        # Rotate history and time history.
-        self.rotate_and_yield(cb, history, time_history_data)
+        # Add new RHS and time to history and rotate.
+        history = self.history + [rhs_next_var]
+        self.rotate_and_yield(cb, history, time_data)
 
     def rk_bootstrap(self, cb):
         """Initialize the timestepper with an IMPLICIT RK method."""
@@ -533,21 +553,6 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
         estimate_coeff_set_names = ("main",)
         estimate_coeff_sets = {"main": rk_coeffs}
         rhs_funcs = {"implicit": var("<func>"+self.component_id)}
-
-        if self.extra_bootstrap:
-            first_save_step = 2
-        else:
-            first_save_step = 1
-
-        with cb.if_(self.step, "==", first_save_step):
-            # Save the first RHS to the AM history
-            rhs_var = var("rhs_var")
-
-            cb(rhs_var, self.eval_rhs(self.t, self.state))
-            cb(self.history[0], rhs_var)
-
-            if not self.static_dt:
-                cb(self.time_history[0], self.t)
 
         # Traverse RK stage loop of appropriate order and update state.
         rk = rk_method(self.component_id, self.state_filter_name)
@@ -568,30 +573,13 @@ class AdamsMoultonMethodBuilder(AdamsMethodBuilder):
 
         cb(rhs_next_var, self.eval_rhs(self.t + self.dt, self.state))
 
-        for i in range(1, len(self.history)):
-            if self.extra_bootstrap:
-                save_crit = i+1
-            else:
-                save_crit = i
+        for i in range(len(self.history)):
 
-            with cb.if_(self.step, "==", save_crit):
+            with cb.if_(self.step, "==", i + 1):
                 cb(self.history[i], rhs_next_var)
 
                 if not self.static_dt:
                     cb(self.time_history[i], self.t + self.dt)
-
-    def determine_bootstrap_length(self):
-
-        # In the implicit case, this is
-        # equal to history length - 1, unless
-        # we want an extra bootstrap step for
-        # comparison with explicit methods.
-        if self.extra_bootstrap:
-            bootstrap_length = self.hist_length
-        else:
-            bootstrap_length = self.hist_length - 1
-
-        return bootstrap_length
 
 # }}}
 

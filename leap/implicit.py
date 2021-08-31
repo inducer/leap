@@ -90,7 +90,7 @@ def replace_AssignImplicit(dag, solver_hooks):
 
 def generate_solve(cb, unknowns, equations, var_to_unknown, guess):
 
-    # got a square system, let's solve
+    assert len(unknowns) == len(equations)
     assignees = [unk.name for unk in unknowns]
 
     from pymbolic import substitute
@@ -107,7 +107,6 @@ def generate_solve(cb, unknowns, equations, var_to_unknown, guess):
                 substitute(eq, subst_dict)
                 for eq in equations],
 
-            # TODO: Could supply a starting guess
             other_params={
                 "guess": guess},
             solver_id="solve")
