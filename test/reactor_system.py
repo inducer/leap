@@ -2,7 +2,7 @@ def make_jax_pyro_class(ptk_base_cls, usr_np):
 
     class PyroJaxNumpy(ptk_base_cls):
 
-        def pyro_make_array(self, res_list):
+        def _pyro_make_array(self, res_list):
             """This works around (e.g.) numpy.exp not working with object arrays of numpy
             scalars. It defaults to making object arrays, however if an array
             consists of all scalars, it makes a "plain old" :class:`numpy.ndarray`.
@@ -32,7 +32,7 @@ def make_jax_pyro_class(ptk_base_cls, usr_np):
 
             return result
 
-        def pyro_norm(self, argument, normord):
+        def _pyro_norm(self, argument, normord):
             """This works around numpy.linalg norm not working with scalars.
 
             If the argument is a regular ole number, it uses :func:`numpy.abs`,
@@ -81,11 +81,11 @@ class ReactorSystemOde(object):
         self.gas2_ct = gas2
         self.env = ct.Reservoir(ct.Solution("air.xml"))
         # Initial volume of each reactor is 1.0, so...
+        self.np = np
         self.gas1_mass = gas1.density
         self.gas2_mass = gas2.density
-        self.gas1_mw = gas1.molecular_weights
-        self.gas2_mw = gas2.molecular_weights
-        self.np = np
+        self.gas1_mw = self.np.asarray(gas1.molecular_weights)
+        self.gas2_mw = self.np.asarray(gas2.molecular_weights)
 
     def __call__(self, t, y):
 
@@ -132,7 +132,8 @@ class ReactorSystemOde(object):
 
         # Mass fraction rate of change (via production
         # rates as is typical)
-        wdot_2 = self.gas2.get_net_production_rates(rho2, temp2, y[5:])
+        wdot_2 = self.gas2.get_net_production_rates(rho2, temp2,
+                self.np.asarray(y[5:]))
         dydt_2 = wdot_2 * self.gas2_mw * (1.0 / rho2)
 
         # Internal energy rate of change
