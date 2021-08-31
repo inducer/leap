@@ -321,7 +321,7 @@ def test_single_rate_identical(order=3, hist_length=3):
 
 @pytest.mark.parametrize("method_name", ["F", "Fqsr", "Srsf", "S"])
 def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
-        explainer=TextualSchemeExplainer()):
+        explainer=TextualSchemeExplainer()):  # noqa: B008
     method = TwoRateAdamsBashforthMethodBuilder(
             method_name, order=order, step_ratio=step_ratio)
 
@@ -330,7 +330,7 @@ def test_2rab_scheme_explainers(method_name, order=3, step_ratio=3,
 
 
 def test_mrab_scheme_explainers(order=3, step_ratio=3,
-        explainer=TextualSchemeExplainer()):
+        explainer=TextualSchemeExplainer()):  # noqa: B008
     method = MultiRateMultiStepMethodBuilder(
                 order,
                 (
@@ -350,7 +350,7 @@ def test_mrab_scheme_explainers(order=3, step_ratio=3,
 
 
 def test_mrab_with_derived_state_scheme_explainers(order=3, step_ratio=3,
-        explainer=TextualSchemeExplainer()):
+        explainer=TextualSchemeExplainer()):  # noqa: B008
     method = MultiRateMultiStepMethodBuilder(
                 order,
                 (
@@ -463,7 +463,7 @@ def test_two_rate_intervals(fast_interval, slow_interval, order=3):
                     s_times.append(event.t)
                     s_values.append(event.state_component)
                 else:
-                    assert False, event.component_id
+                    raise ValueError(event.component_id)
 
         f_times = np.array(f_times)
         s_times = np.array(s_times)
@@ -558,7 +558,7 @@ def test_dependent_state(order=3, step_ratio=3):
                     s_times.append(event.t)
                     s_values.append(event.state_component)
                 else:
-                    assert False, event.component_id
+                    raise ValueError(event.component_id)
 
         f_times = np.array(f_times)
         s_times = np.array(s_times)

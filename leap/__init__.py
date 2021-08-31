@@ -1,4 +1,6 @@
-"""Leap root module"""
+"""
+.. autoclass:: MethodBuilder
+"""
 
 
 __copyright__ = """
@@ -25,6 +27,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
+
+import dagrt.language
 
 
 # {{{ command-line generator
@@ -55,15 +60,19 @@ def run_script_from_commandline():
 # {{{ method builder base class
 
 class MethodBuilder:
+    """An abstract base class for method implementations that generate
+    code for :mod:`dagrt`.
 
-    def generate(self, *solver_hooks):
+    .. automethod:: generate
+    .. automethod:: implicit_expression
+    """
+
+    def generate(self, *solver_hooks) -> dagrt.language.DAGCode:
         """
         Generate a method description.
 
         :arg solver_hooks: A list of callbacks that generate expressions
-        for calling user-supplied implicit solvers
-
-        :return: A `DAGCode` instance
+            for calling user-supplied implicit solvers
         """
         raise NotImplementedError()
 
@@ -73,10 +82,9 @@ class MethodBuilder:
         instances will follow.
 
         :arg expression_tag: A name for the expression, if multiple
-        expressions are present in the generated code.
-
-        :return: A tuple consisting of :mod:`pymbolic` expressions and
-        the names of the free variables in the expressions.
+            expressions are present in the generated code.
+        :returns: A tuple consisting of :mod:`pymbolic` expressions and
+            the names of the free variables in the expressions.
         """
         raise NotImplementedError()
 
