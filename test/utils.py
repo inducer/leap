@@ -38,6 +38,20 @@ def python_method_impl_codegen(code, **kwargs):
 # }}}
 
 
+def solver(f, t, sub_y, coeff, guess):
+    from scipy.optimize import root
+    return root(lambda unk: unk - f(t=t, y=sub_y + coeff*unk), guess).x
+
+
+def solver_hook(solve_expr, solve_var, solver_id, guess):
+    from dagrt.expression import match, substitute
+
+    pieces = match("unk - <func>rhs(t=t, y=sub_y + coeff*unk)", solve_expr,
+                   pre_match={"unk": solve_var})
+    pieces["guess"] = guess
+    return substitute("<func>solver(t, sub_y, coeff, guess)", pieces)
+
+
 def execute_and_return_single_result(python_method_impl, code, initial_context=None,
                                      max_steps=1):
     if initial_context is None:
@@ -97,7 +111,7 @@ _default_dts = 2 ** -np.array(range(4, 7), dtype=np.float64)  # noqa pylint:disa
 
 def check_simple_convergence(method, method_impl, expected_order,
                              problem=None, dts=_default_dts,
-                             show_dag=False, plot_solution=False):
+                             show_dag=False, plot_solution=False, implicit=False):
     if problem is None:
         problem = DefaultProblem()
 
@@ -109,6 +123,10 @@ def check_simple_convergence(method, method_impl, expected_order,
         from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
 
+    if implicit:
+        from leap.implicit import replace_AssignImplicit
+        code = replace_AssignImplicit(code, {"solve": solver_hook})
+
     from pytools.convergence import EOCRecorder
     eocrec = EOCRecorder()
 
@@ -117,9 +135,16 @@ def check_simple_convergence(method, method_impl, expected_order,
         y = problem.initial()
         final_t = problem.t_end
 
-        interp = method_impl(code, function_map={
-            "<func>" + component_id: problem,
-            })
+        if implicit:
+            from functools import partial
+            interp = method_impl(code, function_map={
+                "<func>" + component_id: problem,
+                "<func>solver": partial(solver, problem),
+                })
+        else:
+            interp = method_impl(code, function_map={
+                "<func>" + component_id: problem,
+                })
         interp.set_up(t_start=t, dt_start=dt, context={component_id: y})
 
         times = []
@@ -150,7 +175,7 @@ def check_simple_convergence(method, method_impl, expected_order,
     print(eocrec.pretty_print())
 
     orderest = eocrec.estimate_order_of_convergence()[0, 1]
-    assert orderest > expected_order * 0.9
+    assert orderest > expected_order * 0.89
 
 
 # vim: foldmethod=marker

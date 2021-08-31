@@ -86,3 +86,27 @@ def replace_AssignImplicit(dag, solver_hooks):
         new_phases[phase_name] = phase.copy(statements=new_statements)
 
     return dag.copy(phases=new_phases)
+
+
+def generate_solve(cb, unknowns, equations, var_to_unknown, guess):
+
+    assert len(unknowns) == len(equations)
+    assignees = [unk.name for unk in unknowns]
+
+    from pymbolic import substitute
+    subst_dict = {
+            rhs_var.name: var_to_unknown[rhs_var]
+            for rhs_var in unknowns}
+
+    cb.assign_implicit(
+            assignees=assignees,
+            solve_components=[
+                var_to_unknown[unk].name
+                for unk in unknowns],
+            expressions=[
+                substitute(eq, subst_dict)
+                for eq in equations],
+
+            other_params={
+                "guess": guess},
+            solver_id="solve")
