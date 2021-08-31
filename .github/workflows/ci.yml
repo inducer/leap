@@ -79,24 +79,6 @@ jobs:
                 sudo apt install gfortran-7 liblapack-dev libblas-dev
                 sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
 
-                # crashes observed in https://github.com/inducer/leap/pull/17
-                # export CISUPPORT_PARALLEL_PYTEST=no
-
-        -   uses: mxschmitt/action-tmate@v3
-        -   name: "Main Script"
-            run: |
-                # We need to re-grab the CI support doodad for the test command to work
-                curl -L -O -k https://tiker.net/ci-support-v0
-                . ./ci-support-v0
-                
-                build_py_project_in_conda_env
-
-                sudo apt update
-                sudo apt install gfortran-7 liblapack-dev libblas-dev
-                sudo ln -sf /usr/bin/gfortran-7 /usr/bin/gfortran
-
-                # crashes observed in https://github.com/inducer/leap/pull/17
-                export CISUPPORT_PARALLEL_PYTEST=no
                 test_py_project
 
     examples:
