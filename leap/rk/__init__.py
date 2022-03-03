@@ -64,6 +64,10 @@ Strong Stability Preserving (SSP) Methods
 .. autoclass:: SSPRKMethodBuilder
 .. autoclass:: SSPRK22MethodBuilder
 .. autoclass:: SSPRK33MethodBuilder
+
+Computing a stability function
+------------------------------
+.. autofunction:: stability_function
 """
 
 
@@ -626,7 +630,7 @@ class ODE23MethodBuilder(EmbeddedButcherTableauMethodBuilder):
 
     Bogacki, Przemyslaw; Shampine, Lawrence F. (1989), "A 3(2) pair of
     Runge-Kutta formulas", Applied Mathematics Letters 2 (4): 321-325,
-    http://dx.doi.org/10.1016/0893-9659(89)90079-7
+    https://doi.org/10.1016/0893-9659(89)90079-7
 
     .. automethod:: __init__
     .. automethod:: generate
@@ -953,5 +957,30 @@ class SSPRK33MethodBuilder(SSPRKMethodBuilder):
             )
 
 # }}}
+
+
+def stability_function(rk_a, rk_b):
+    """Given the matrix *A* and the 'output coefficients' *b*
+    from a Butcher tableau, return the stability function
+    of the method as a :class:`sympy.core.expr.Expr`.
+    """
+    import sympy as sp
+    num_stages = len(rk_a)
+
+    rk_a_mat = [
+            list(row) + [0]*(num_stages-len(row))
+            for row in rk_a]
+    a = sp.Matrix(rk_a_mat)
+    b = sp.Matrix(rk_b)
+    eye = sp.eye(num_stages)
+    ones = sp.ones(num_stages, 1)
+
+    h_lambda = sp.Symbol("h_lambda")
+
+    # https://en.wikipedia.org/w/index.php?title=Runge%E2%80%93Kutta_methods&oldid=1065948515#Stability
+    return h_lambda, (
+            (eye - h_lambda * a + h_lambda * ones * b.T).det()
+            / (eye - h_lambda * a).det())
+
 
 # vim: foldmethod=marker

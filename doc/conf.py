@@ -23,4 +23,5 @@ intersphinx_mapping = {
     "https://numpy.org/doc/stable/": None,
     "https://documen.tician.de/pymbolic/": None,
     "https://documen.tician.de/dagrt/": None,
+    "https://docs.sympy.org/latest/": None,
     }
