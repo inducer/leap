@@ -30,7 +30,7 @@ import numpy as np
 import pytest
 import sys
 
-from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
+from leap.multistep import AdaptiveSBDFMethodBuilder
 from stiff_test_systems import KapsProblem
 
 from utils import (  # noqa
@@ -38,24 +38,31 @@ from utils import (  # noqa
         python_method_impl_codegen as pmi_cg)
 
 
-def solver(f, t, sub_y, coeff, guess):
+def solver(f, t, sub_y, coeff, guess, expl_rhs):
     from scipy.optimize import root
-    return root(lambda unk: unk - f(t=t, y=sub_y + coeff*unk), guess).x
+    return root(lambda unk: unk - expl_rhs - f(t=t, y=sub_y + coeff*unk), guess).x
 
 
 def solver_hook(solve_expr, solve_var, solver_id, guess):
     from dagrt.expression import match, substitute
 
-    pieces = match("unk - <func>rhs(t=t, y=sub_y + coeff*unk)", solve_expr,
-                   pre_match={"unk": solve_var})
+    pieces = match("unk - (expl_rhs + <func>rhs(t=t, y=sub_y + coeff*unk))",
+                   solve_expr, pre_match={"unk": solve_var})
     pieces["guess"] = guess
-    return substitute("<func>solver(t, sub_y, coeff, guess)", pieces)
+    return substitute("<func>solver(t, sub_y, coeff, guess, expl_rhs)", pieces)
 
 
 @pytest.mark.parametrize("problem, method, expected_order", [
-    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4MethodBuilder(
-        "y", use_high_order=False), 3],
-    [KapsProblem(epsilon=0.9), KennedyCarpenterIMEXARK4MethodBuilder("y"), 4],
+    [KapsProblem(epsilon=0.9), AdaptiveSBDFMethodBuilder(
+        "y", fixed_order=1, max_dt_growth=10), 1],
+    [KapsProblem(epsilon=0.9), AdaptiveSBDFMethodBuilder(
+        "y", fixed_order=2, max_dt_growth=10, bootstrap_factor=1), 2],
+    [KapsProblem(epsilon=0.9), AdaptiveSBDFMethodBuilder(
+        "y", fixed_order=3, max_dt_growth=10, bootstrap_factor=100), 3],
+    [KapsProblem(epsilon=0.9), AdaptiveSBDFMethodBuilder(
+        "y", fixed_order=4, max_dt_growth=10, bootstrap_factor=1000), 4],
+    [KapsProblem(epsilon=0.9), AdaptiveSBDFMethodBuilder(
+        "y", fixed_order=5, max_dt_growth=10, bootstrap_factor=10000), 5],
     ])
 def test_convergence(python_method_impl, problem, method, expected_order,
                      show_dag=False, plot_solution=False):
@@ -74,10 +81,11 @@ def test_convergence(python_method_impl, problem, method, expected_order,
                              solver_hook=solver_hook)
 
 
-@pytest.mark.parametrize("problem, method", [
-    [KapsProblem(epsilon=0.001), KennedyCarpenterIMEXARK4MethodBuilder],
+@pytest.mark.parametrize("problem, method, rhs_extrap", [
+    [KapsProblem(epsilon=0.001), AdaptiveSBDFMethodBuilder, True],
+    [KapsProblem(epsilon=0.001), AdaptiveSBDFMethodBuilder, False],
     ])
-def test_adaptive(python_method_impl, problem, method):
+def test_adaptive(python_method_impl, problem, method, rhs_extrap):
     pytest.importorskip("scipy")
 
     t_start = problem.t_start
@@ -91,10 +99,9 @@ def test_adaptive(python_method_impl, problem, method):
 
     # Test that tightening the tolerance will decrease the overall error.
     for atol in tols:
-        generator = method("y", atol=atol)
+        generator = method("y", atol=atol, rhs_extrap=rhs_extrap)
         code = generator.generate()
 
-        #sgen = ScipySolverGenerator(*generator.implicit_expression())
         from leap.implicit import replace_AssignImplicit
         code = replace_AssignImplicit(code, {"solve": solver_hook})
 

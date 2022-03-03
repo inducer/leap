@@ -68,6 +68,9 @@ jobs:
         -   name: "Main Script"
             run: |
                 CONDA_ENVIRONMENT=.test-conda-env-py3.yml
+                #echo "git+https://github.com/ecisneros8/pyrometheus.git#egg=pyrometheus" >> requirements.txt
+                echo "git+https://github.com/cmikida2/pyrometheus.git@jax#egg=pyrometheus" >> requirements.txt
+
                 curl -L -O -k https://tiker.net/ci-support-v0
                 . ./ci-support-v0
                 build_py_project_in_conda_env
@@ -109,6 +112,9 @@ jobs:
         -   name: "Main Script"
             run: |
                 CONDA_ENVIRONMENT=.test-conda-env-py3.yml
+                #echo "git+https://github.com/ecisneros8/pyrometheus.git#egg=pyrometheus" >> requirements.txt
+                echo "git+https://github.com/cmikida2/pyrometheus.git@jax#egg=pyrometheus" >> requirements.txt
+
                 curl -L -O -k https://tiker.net/ci-support-v0
                 . ./ci-support-v0
                 build_py_project_in_conda_env
