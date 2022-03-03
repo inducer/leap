@@ -4,7 +4,7 @@
 __copyright__ = """
 Copyright (C) 2007 Andreas Kloeckner
 Copyright (C) 2014, 2015 Matt Wala
-Copyright (C) 2015 Cory Mikida
+Copyright (C) 2015, 2021 Cory Mikida
 """
 
 __license__ = """
@@ -29,7 +29,7 @@ THE SOFTWARE.
 
 import numpy as np
 import numpy.linalg as la
-from leap import MethodBuilder
+from leap import MethodBuilder, AdaptiveOrderMethodBuilderMixin
 from pymbolic import var
 
 
@@ -37,6 +37,7 @@ __doc__ = """
 .. autoclass:: AdamsIntegrationFunctionFamily
 .. autoclass:: AdamsMonomialIntegrationFunctionFamily
 .. autoclass:: AdamsBashforthMethodBuilder
+.. autoclass:: AdaptiveBDFMethodBuilder
 """
 
 
@@ -202,6 +203,73 @@ def emit_adams_extrapolation(cb, name_gen,
     return _emit_func_family_operation(
             cb, name_gen, function_family, time_values, hist_vars,
             lambda i: function_family.evaluate(i, t_eval))
+
+# }}}
+
+# {{{ BDF/NDF helper functions
+
+
+def emit_R_computation(cb, order, factor, name_gen):
+    """Compute the matrix for changing the differences array.
+
+    Source: Shampine, Lawrence F., and Mark W. Reichelt.
+    "The matlab ode suite." Section 2.2"""
+    array = var("<builtin>array")
+    k = var(name_gen("m_k"))
+    i = var(name_gen("mat_I"))
+    cb(i, array(order))
+    cb(i[k-1], k, loops=[(k.name, 1, order+1)])
+    # I = np.arange(1, order + 1)[:, None]
+    j = var(name_gen("mat_J"))
+    cb(j, array(order))
+    cb(j[k-1], k, loops=[(k.name, 1, order+1)])
+    # J = np.arange(1, order + 1)
+    m = var(name_gen("M"))
+    cb(m, array((order + 1)*(order + 1)))
+    # M = np.zeros((order + 1, order + 1))
+    l_ind = var(name_gen("m_l"))
+    cb(m[k + l_ind*(order+1)], 0,
+        loops=[(l_ind.name, 0, order+1), (k.name, 0, order+1)])
+    cb(m[k+1 + (l_ind+1)*(order+1)], (i[l_ind] - 1 - factor * j[k]) / i[l_ind],
+        loops=[(l_ind.name, 0, order), (k.name, 0, order)])
+    cb(m[l_ind], 1, loops=[(l_ind.name, 0, order+1)])
+    # M[1:, 1:] = (I - 1 - factor * J) / I
+    transpose = var("<builtin>transpose")
+    r = var(name_gen("R"))
+    cb(r, array((order + 1)*(order + 1)))
+    cb(r[k], m[k], loops=[(k.name, 0, order+1)])
+    cb(r[k + (l_ind)*(order+1)], m[k + (l_ind)*(order+1)]
+        * r[k + (l_ind - 1)*(order+1)],
+        loops=[(l_ind.name, 1, order+1), (k.name, 0, order+1)])
+    cb(r, transpose(r, order+1))
+    # return np.cumprod(M, axis=0)
+    return r
+
+
+def change_D(cb, d, order, factor):
+    """Change differences array in-place when step size is changed.
+    Source: Shampine, Lawrence F., and Mark W. Reichelt.
+    "The matlab ode suite." Section 2.2"""
+    from pytools import UniqueNameGenerator
+    name_gen = UniqueNameGenerator()
+    r = emit_R_computation(cb, order, factor, name_gen)
+    u = emit_R_computation(cb, order, 1, name_gen)
+    ru = var(name_gen("RU"))
+    matmul = var("<builtin>matmul")
+    # RU = R.dot(U)
+    cb(ru, matmul(r, u, order+1, order+1))
+    i = var(name_gen("m_i"))
+    j = var(name_gen("m_j"))
+    array_utype = var("<builtin>array_utype")
+    d_out = var(name_gen("D_out"))
+    cb(d_out, array_utype(order+1, d[0]))
+    # D[:order + 1] = np.dot(RU.T, D[:order + 1])
+    cb(d_out[j], ru[j*(order+1)] * d[0],
+        loops=[(j.name, 0, order+1)])
+    cb(d_out[j], d_out[j] + ru[i + j*(order+1)] * d[i],
+        loops=[(i.name, 1, order+1), (j.name, 0, order+1)])
+    cb(d[j], d_out[j], loops=[(j.name, 0, order+1)])
+
 
 # }}}
 
@@ -413,6 +481,328 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
 
         # Assign the value of the new state.
         cb(self.state, state_est)
+
+# }}}
+
+# {{{ Scipy-esque adaptive BDF/NDF
+
+
+class AdaptiveBDFMethodBuilder(AdaptiveOrderMethodBuilderMixin):
+    """
+    Source: Shampine, Lawrence F., and Mark W. Reichelt.
+    "The matlab ode suite." SIAM journal on scientific
+    computing 18.1 (1997): 1-22.
+
+    User-supplied context:
+      <state> + component_id: The value that is integrated
+      <func> + component_id: The right hand side function
+    """
+
+    def __init__(self, component_id, state_filter_name=None, fixed_order=None,
+            use_high_order=True, atol=0, rtol=0, max_dt_growth=None,
+            min_dt_shrinkage=None, ndf=False, bootstrap_factor=None):
+
+        # For adaptive BDF/NDF, we fix maximum order of 5.
+        self.max_order = 5
+
+        self.component_id = component_id
+
+        # Declare variables
+        if fixed_order:
+            self.fixed_order = fixed_order
+        else:
+            self.fixed_order = 0
+        if self.fixed_order and atol != 0:
+            raise ValueError("Cannot run adaptively with fixed order")
+        if self.fixed_order and rtol != 0:
+            raise ValueError("Cannot run adaptively with fixed order")
+        # Take smaller faux-bootstrap steps
+        if self.fixed_order > 1:
+            if bootstrap_factor:
+                self.bootstrap_factor = bootstrap_factor
+            else:
+                self.bootstrap_factor = 1
+        self.step = var("<p>step")
+        self.step_factor = var("<p>step_factor")
+        self.equal_steps = var("<p>equal_steps")
+        self.order = var("<p>order")
+        self.function = var("<func>" + component_id)
+        self.history = var("<p>hist")
+        self.kappa = var("<p>kappa")
+        self.gamma = var("<p>gamma")
+        self.alpha = var("<p>alpha")
+        self.dt_monitor = var("<p>dt_monitor")
+        self.error_const = var("<p>error_const")
+
+        self.state = var("<state>" + component_id)
+        self.t = var("<t>")
+        self.dt = var("<dt>")
+        self.dt_save = var("<p>dt_save")
+
+        self.ndf = ndf
+
+        self.state_filter_name = state_filter_name
+        if state_filter_name is not None:
+            self.state_filter = var("<func>" + state_filter_name)
+        else:
+            self.state_filter = None
+
+        AdaptiveOrderMethodBuilderMixin.__init__(
+                self,
+                atol=atol,
+                rtol=rtol,
+                max_dt_growth=max_dt_growth,
+                min_dt_shrinkage=min_dt_shrinkage,
+                error_const=self.error_const)
+
+        self.atol = atol
+        self.rtol = rtol
+        self.use_high_order = use_high_order
+
+    def eval_rhs(self, t, y):
+        """Return a node that evaluates the RHS at the given time and
+        component value."""
+        from pymbolic.primitives import CallWithKwargs
+        return CallWithKwargs(function=self.function,
+                              parameters=(),
+                              kw_parameters={"t": t, self.component_id: y})
+
+    def generate(self):
+        """
+        :returns: :class:`dagrt.language.DAGCode`
+        """
+
+        from dagrt.language import DAGCode, CodeBuilder
+
+        # Initialization
+        with CodeBuilder(name="initialization") as cb_init:
+            j = var("j")
+            rhs_dummy = var("rhs_dummy")
+            array = var("<builtin>array")
+            array_utype = var("<builtin>array_utype")
+            cb_init(self.kappa, array(6))
+            cb_init(self.gamma, array(6))
+            cb_init(self.alpha, array(6))
+            cb_init(self.error_const, array(6))
+            cb_init(self.history, array_utype(8, self.state))
+            cb_init(self.order, 1)
+            cb_init(self.equal_steps, 0)
+            # Faux-bootstrap steps needed
+            if self.fixed_order > 1:
+                cb_init(self.dt_save, self.dt)
+                cb_init(self.dt, self.dt/self.bootstrap_factor)
+            # NDF vs. BDF:
+            if self.ndf:
+                # Optimized for minimal truncation error.
+                cb_init(self.kappa[0], 0)
+                cb_init(self.kappa[1], -0.1850)
+                cb_init(self.kappa[2], -1/9)
+                cb_init(self.kappa[3], -0.0823)
+                cb_init(self.kappa[4], -0.0415)
+                cb_init(self.kappa[5], 0)
+                cb_init(self.error_const[0], 1)
+                cb_init(self.error_const[1], 0.315)
+                cb_init(self.error_const[2], 0.16666667)
+                cb_init(self.error_const[3], 0.09911667)
+                cb_init(self.error_const[4], 0.11354167)
+                cb_init(self.error_const[5], 0.16666667)
+            else:
+                cb_init(self.kappa[j], 0, loops=[(j.name, 0, 6)])
+                cb_init(self.error_const[0], 1)
+                cb_init(self.error_const[1], 0.5)
+                cb_init(self.error_const[2], 0.33333333)
+                cb_init(self.error_const[3], 0.25)
+                cb_init(self.error_const[4], 0.2)
+                cb_init(self.error_const[5], 0.16666667)
+            cb_init(self.gamma[0], 0)
+            cb_init(self.gamma[1], 1)
+            cb_init(self.gamma[2], 1.5)
+            cb_init(self.gamma[3], 1.83333333)
+            cb_init(self.gamma[4], 2.08333333)
+            cb_init(self.gamma[5], 2.28333333)
+            cb_init(self.alpha, (1 - self.kappa) * self.gamma)
+            cb_init(self.history[0], self.state)
+            cb_init(rhs_dummy, self.dt * self.eval_rhs(self.t, self.state))
+            cb_init(self.history[1], rhs_dummy)
+            cb_init(self.step, 1)
+            cb_init(self.dt_monitor, self.dt)
+
+        # Primary
+        with CodeBuilder(name="primary") as cb_primary:
+            self.generate_primary(cb_primary)
+
+        # Based on an initialization at first order, and with
+        # a predictor-corrector formulation, we require no
+        # bootstrapping.
+        return DAGCode(
+            phases={
+                "initial": cb_init.as_execution_phase(next_phase="primary"),
+                "primary": cb_primary.as_execution_phase(next_phase="primary")
+                },
+            initial_phase="initial")
+
+    def rotate_history(self, cb, state_est_high, state_est_low):
+        # Rotate the history.
+        i = var("i")
+        cb(self.history[self.order + 2], (state_est_high - state_est_low)
+                - self.history[self.order + 1])
+        cb(self.history[self.order + 1], (state_est_high - state_est_low))
+        cb(self.history[self.order-i], self.history[self.order-i]
+                + self.history[self.order+1-i],
+                loops=[(i.name, 0, self.order+1)])
+
+    def rescale_interval(self, cb):
+        # Incorporate the scaling change
+        # required when the timestep changes.
+        change_D(cb, self.history, self.order, self.step_factor)
+
+    def yield_state(self, cb):
+        # Update state and time.
+        cb(self.t, self.t + self.dt)
+        # If fixed order specified, increase order
+        # after each step until we hit it ("quasi-bootstrap")
+        if self.fixed_order > 1:
+            from pymbolic.primitives import Comparison
+            with cb.if_(Comparison(self.order, "<", self.fixed_order)):
+                cb(self.order, self.order + 1)
+            with cb.if_(Comparison(self.dt, "!=", self.dt_save)):
+                cb(self.step_factor, 1.1)
+                with cb.if_(Comparison(self.t, "==", self.dt_save)):
+                    cb(self.step_factor, self.dt_save / self.dt)
+                    cb(self.dt, self.dt_save)
+                    cb(self.dt_monitor, self.dt)
+                    self.rescale_interval(cb)
+                with cb.else_():
+                    with cb.if_(Comparison(self.t + 1.1*self.dt, ">", self.dt_save)):
+                        cb(self.step_factor, (self.dt_save - self.t)/self.dt)
+                        cb(self.dt, self.dt_save - self.t)
+                        cb(self.dt_monitor, self.dt)
+                        self.rescale_interval(cb)
+                    with cb.else_():
+                        cb(self.dt, self.step_factor*self.dt)
+                        cb(self.dt_monitor, self.dt)
+                        self.rescale_interval(cb)
+        cb.yield_state(expression=self.state,
+                               component_id=self.component_id,
+                               time_id="", time=self.t)
+
+    def generate_primary(self, cb):
+
+        from pytools import UniqueNameGenerator
+        name_gen = UniqueNameGenerator()
+        rhs_next_var = var("rhs_next_var")
+        rhs_var_to_unknown = {}
+        unkvar = cb.fresh_var("unk")
+        rhs_var_to_unknown[rhs_next_var] = unkvar
+        equations = []
+        unknowns = set()
+        knowns = set()
+
+        unknowns.add(rhs_next_var)
+
+        # First, check to see if dt got modified out from
+        # under us in order to adhere to some end time.
+        from pymbolic.primitives import Comparison
+        with cb.if_(Comparison(self.dt, "!=", self.dt_monitor)):
+            cb(self.step_factor, self.dt/self.dt_monitor)
+            cb(self.dt_monitor, self.dt)
+            self.rescale_interval(cb)
+
+        # Use existing scaled histories to form prediction.
+        j = var(name_gen("m_j"))
+        y_predict = var("y_predict")
+        cb(y_predict, self.history[0])
+        cb(y_predict, y_predict + self.history[j],
+            loops=[(j.name, 1, self.order+1)])
+
+        state_est_low = y_predict
+
+        # Form expression(s) for correction.
+        psi = var("psi")
+        cb(psi, 0)
+        cb(psi, psi + (1 / self.alpha[self.order])
+                * self.gamma[j]*self.history[j],
+                loops=[(j.name, 1, self.order+1)])
+        state_est_high = (self.dt / self.alpha[self.order]) * \
+                rhs_next_var - psi + state_est_low
+
+        # Build the implicit solve expression.
+        from dagrt.expression import collapse_constants
+        from pymbolic.mapper.distributor import DistributeMapper as DistMap
+        solve_expression = collapse_constants(
+                rhs_next_var - self.eval_rhs(self.t + self.dt,
+                                             DistMap()(state_est_high)),
+                list(unknowns) + [self.state],
+                cb.assign, cb.fresh_var)
+        equations.append(solve_expression)
+
+        # {{{ emit solve if possible
+
+        if unknowns and len(unknowns) == len(equations):
+            # got a square system, let's solve
+            assignees = [unk.name for unk in unknowns]
+
+            from pymbolic import substitute
+            subst_dict = {
+                    rhs_var.name: rhs_var_to_unknown[rhs_var]
+                    for rhs_var in unknowns}
+
+            cb.assign_implicit(
+                    assignees=assignees,
+                    solve_components=[
+                        rhs_var_to_unknown[unk].name
+                        for unk in unknowns],
+                    expressions=[
+                        substitute(eq, subst_dict)
+                        for eq in equations],
+
+                    # TODO: Could supply a starting guess
+                    other_params={
+                        "guess": state_est_low},
+                    solver_id="solve")
+
+            del equations[:]
+            knowns.update(unknowns)
+            unknowns.clear()
+        elif len(unknowns) > len(equations):
+            raise ValueError("BDF/NDF implicit timestep has more "
+                    "unknowns than equations")
+        elif len(unknowns) < len(equations):
+            raise ValueError("BDF/NDF implicit timestep has more "
+                    "equations than unknowns")
+
+        # }}}
+
+        # Update the state now that we've solved.
+        if self.state_filter is not None:
+            state_est_low = self.state_filter(state_est_low)
+            state_est_high = self.state_filter(state_est_high)
+
+        # this is needed in case the order changes
+        high_est = var("high_est")
+        low_est = var("low_est")
+        cb(high_est, state_est_high)
+        cb(low_est, state_est_low)
+
+        self.finish(cb, high_est, low_est)
+
+    def finish(self, cb, high_est, low_est):
+        if not self.adaptive:
+            self.rotate_history(cb, high_est, low_est)
+            self.finish_nonadaptive(cb, high_est, low_est)
+        else:
+            self.finish_adaptive(cb, high_est, low_est, self.history,
+                                 self.order, self.step_factor,
+                                 self.equal_steps)
+
+    def finish_nonadaptive(self, cb, high_est, low_est):
+        if self.use_high_order:
+            est = high_est
+        else:
+            est = low_est
+
+        cb(self.state, est)
+        self.yield_state(cb)
 
 # }}}
 

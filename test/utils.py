@@ -21,6 +21,9 @@ THE SOFTWARE.
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # {{{ things to pass for python_method_impl
@@ -82,10 +85,10 @@ class DefaultProblem(Problem):
 
     def exact(self, t):
         inner = np.sqrt(3) / 2 * np.log(t)
-        return np.sqrt(t) * (
+        return np.array([np.sqrt(t) * (
                 5 * np.sqrt(3) / 3 * np.sin(inner)
-                + np.cos(inner)
-                )
+                + np.cos(inner)), (3*np.cos(inner)
+                    + np.sqrt(3) / 3 * np.sin(inner))/np.sqrt(t)], dtype=np.float64)
 
     def __call__(self, t, y):
         u, v = y
@@ -97,13 +100,14 @@ _default_dts = 2 ** -np.array(range(4, 7), dtype=np.float64)  # noqa pylint:disa
 
 def check_simple_convergence(method, method_impl, expected_order,
                              problem=None, dts=_default_dts,
-                             show_dag=False, plot_solution=False):
+                             show_dag=False, plot_solution=False,
+                             function_map=None, implicit=False,
+                             solver_hook=None):
     if problem is None:
         problem = DefaultProblem()
 
     component_id = method.component_id
     code = method.generate()
-    print(code)
 
     if show_dag:
         from dagrt.language import show_dependency_graph
@@ -112,14 +116,19 @@ def check_simple_convergence(method, method_impl, expected_order,
     from pytools.convergence import EOCRecorder
     eocrec = EOCRecorder()
 
+    if function_map is None:
+        function_map = {"<func>" + component_id: problem}
+
+    if implicit:
+        from leap.implicit import replace_AssignImplicit
+        code = replace_AssignImplicit(code, {"solve": solver_hook})
+
     for dt in dts:
         t = problem.t_start
         y = problem.initial()
         final_t = problem.t_end
 
-        interp = method_impl(code, function_map={
-            "<func>" + component_id: problem,
-            })
+        interp = method_impl(code, function_map=function_map)
         interp.set_up(t_start=t, dt_start=dt, context={component_id: y})
 
         times = []
@@ -127,12 +136,13 @@ def check_simple_convergence(method, method_impl, expected_order,
         for event in interp.run(t_end=final_t):
             if isinstance(event, interp.StateComputed):
                 assert event.component_id == component_id
-                values.append(event.state_component[0])
+                values.append(event.state_component)
                 times.append(event.t)
 
         assert abs(times[-1] - final_t) / final_t < 0.1
 
         times = np.array(times)
+        values = np.array(values)
 
         if plot_solution:
             import matplotlib.pyplot as pt
@@ -140,7 +150,7 @@ def check_simple_convergence(method, method_impl, expected_order,
             pt.plot(times, problem.exact(times), label="true")
             pt.show()
 
-        error = abs(values[-1] - problem.exact(final_t))
+        error = np.linalg.norm(values[-1] - problem.exact(final_t))
         eocrec.add_data_point(dt, error)
 
     print("------------------------------------------------------")
@@ -151,6 +161,91 @@ def check_simple_convergence(method, method_impl, expected_order,
 
     orderest = eocrec.estimate_order_of_convergence()[0, 1]
     assert orderest > expected_order * 0.9
+
+
+def check_adaptive_timestep(python_method_impl, method, ss_frac, bs_frac,
+                            ss_targ, bs_targ, show_dag=False, plot=False,
+                            implicit=False, solver=None,
+                            solver_hook=None):
+    # Use "DEBUG" to trace execution
+    logging.basicConfig(level=logging.INFO)
+
+    component_id = method.component_id
+    code = method.generate()
+
+    if implicit:
+        from leap.implicit import replace_AssignImplicit
+        code = replace_AssignImplicit(code, {"solve": solver_hook})
+
+    if show_dag:
+        from dagrt.language import show_dependency_graph
+        show_dependency_graph(code)
+
+    from stiff_test_systems import VanDerPolProblem
+    example = VanDerPolProblem()
+    y = example.initial()
+
+    if implicit:
+        interp = python_method_impl(code,
+                                    function_map={"<func>" + component_id: example,
+                                    "<func>solver": solver})
+    else:
+        interp = python_method_impl(code,
+                                    function_map={"<func>" + component_id: example})
+    interp.set_up(t_start=example.t_start, dt_start=1e-5, context={component_id: y})
+
+    times = []
+    values = []
+
+    new_times = []
+    new_values = []
+
+    last_t = 0
+    step_sizes = []
+
+    for event in interp.run(t_end=example.t_end):
+        if isinstance(event, interp.StateComputed):
+            assert event.component_id == component_id
+
+            new_values.append(event.state_component)
+            new_times.append(event.t)
+        elif isinstance(event, interp.StepCompleted):
+            if not new_times:
+                continue
+
+            step_sizes.append(event.t - last_t)
+            last_t = event.t
+
+            times.extend(new_times)
+            values.extend(new_values)
+            del new_times[:]
+            del new_values[:]
+        elif isinstance(event, interp.StepFailed):
+            del new_times[:]
+            del new_values[:]
+
+            logger.info("failed step at t=%s" % event.t)
+
+    times = np.array(times)
+    values = np.array(values)
+    step_sizes = np.array(step_sizes)
+
+    if plot:
+        import matplotlib.pyplot as pt
+        pt.clf()
+        pt.plot(times, values[:, 1], "x-")
+        pt.show()
+        pt.plot(times, step_sizes, "x-")
+        pt.show()
+
+    step_sizes = np.array(step_sizes)
+    small_step_frac = len(np.nonzero(step_sizes < ss_targ)[0]) / len(step_sizes)
+    big_step_frac = len(np.nonzero(step_sizes > bs_targ)[0]) / len(step_sizes)
+
+    print("small_step_frac (<%g): %g - big_step_frac (>%g): %g"
+            % (ss_targ, small_step_frac, bs_targ, big_step_frac))
+    assert small_step_frac <= ss_frac, small_step_frac
+    assert big_step_frac >= bs_frac, big_step_frac
 
 
 # vim: foldmethod=marker

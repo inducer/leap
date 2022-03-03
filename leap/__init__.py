@@ -163,6 +163,136 @@ class TwoOrderAdaptiveMethodBuilderMixin(MethodBuilder):
 # }}}
 
 
+# {{{ adaptivity w/order changing
+
+class AdaptiveOrderMethodBuilderMixin(MethodBuilder):
+    """
+    This class expected the following members to be defined: state, t, dt.
+    """
+
+    def __init__(self, atol=0, rtol=0, max_dt_growth=None,
+                 min_dt_shrinkage=None, error_const=None):
+        self.adaptive = bool(atol or rtol)
+        self.atol = atol
+        self.rtol = rtol
+
+        if max_dt_growth is None:
+            max_dt_growth = 5
+
+        if min_dt_shrinkage is None:
+            min_dt_shrinkage = 0.1
+
+        self.max_dt_growth = max_dt_growth
+        self.min_dt_shrinkage = min_dt_shrinkage
+
+        self.error_const = error_const
+
+    def finish_nonadaptive(self, cb, high_order_estimate, low_order_estimate):
+        raise NotImplementedError()
+
+    def rotate_history(self, cb, high_order_estimate, low_order_estimate):
+        raise NotImplementedError()
+
+    def rescale_interval(self, cb):
+        raise NotImplementedError()
+
+    def finish_adaptive(self, cb, high_order_estimate, low_order_estimate,
+                        hist, order, factor, equal_steps):
+        from pymbolic import var
+        from pymbolic.primitives import Comparison, LogicalOr, Max, Min
+        from dagrt.expression import IfThenElse
+
+        rel_error_raw = var("rel_error_raw")
+        rel_error = var("rel_error")
+        rel_error_p1 = var("rel_error_p1")
+        rel_error_m1 = var("rel_error_m1")
+        factor_p1 = var("factor_p1")
+        factor_m1 = var("factor_m1")
+
+        def norm(expr):
+            return var("<builtin>norm_2")(expr)
+
+        def weighted_norm(x, y):
+            # Weighted RMS norm.
+            # FIXME: need to support array of relative tolerances?
+            denom = self.rtol * var("<builtin>elementwise_abs")(y) + self.atol
+            length = var("<builtin>len")(y)
+            return norm(x/denom) / length ** 0.5
+
+        cb(rel_error_raw, weighted_norm(
+            self.error_const[order]*(high_order_estimate - low_order_estimate),
+            high_order_estimate))
+
+        cb(rel_error, IfThenElse(Comparison(rel_error_raw, "==", 0),
+                                 1.0e-14, rel_error_raw))
+
+        with cb.if_(LogicalOr((Comparison(rel_error, ">", 1),
+                               var("<builtin>isnan")(rel_error)))):
+
+            with cb.if_(var("<builtin>isnan")(rel_error)):
+                cb(self.dt, self.min_dt_shrinkage * self.dt)
+            with cb.else_():
+                # Default Scipy BDF safety factor.
+                cb(self.dt, Max((0.81 * self.dt
+                    * rel_error ** (-1.0 / (order + 1)),
+                    self.min_dt_shrinkage * self.dt)))
+                cb(factor, Max((0.81
+                    * rel_error ** (-1.0 / (order + 1)),
+                    self.min_dt_shrinkage)))
+                self.rescale_interval(cb)
+                cb(self.dt_monitor, self.dt)
+                cb(equal_steps, 0)
+            with cb.if_(self.t + self.dt, "==", self.t):
+                cb.raise_(TimeStepUnderflow)
+            with cb.else_():
+                cb.fail_step()
+
+        with cb.else_():
+            # Rotate state history.
+            self.rotate_history(cb, high_order_estimate, low_order_estimate)
+            cb(equal_steps, equal_steps+1)
+            cb(factor, 1)
+            cb(factor_p1, 0)
+            cb(factor_m1, 0)
+            with cb.if_(Comparison(equal_steps, ">=", order+1)):
+
+                # Now we need to use the history to determine if we should
+                # update order.
+                with cb.if_(Comparison(order, ">", 1)):
+                    cb(rel_error_m1, weighted_norm(
+                        self.error_const[order-1]*hist[order],
+                        high_order_estimate))
+                    cb(factor_m1, 0.81
+                        * rel_error_m1 ** (-1.0 / (order)))
+                with cb.else_():
+                    cb(factor_m1, 0)
+                with cb.if_(Comparison(order, "<", 5)):
+                    cb(rel_error_p1, weighted_norm(
+                        self.error_const[order+1]*hist[order+2],
+                        high_order_estimate))
+                    cb(factor_p1, 0.81
+                        * rel_error_p1 ** (-1.0 / (order + 2)))
+                with cb.else_():
+                    cb(rel_error_p1, 0)
+                # Based on these new error norms, do we modify the order?
+                cb(factor, 0.81 * rel_error ** (-1.0 / (order + 1)))
+                cb(factor, Max((factor, factor_p1, factor_m1)))
+                with cb.if_(Comparison(factor, "==", factor_p1)):
+                    cb(order, order + 1)
+                with cb.if_(Comparison(factor, "==", factor_m1)):
+                    cb(order, order - 1)
+                cb(factor, Min((self.max_dt_growth, factor)))
+                self.rescale_interval(cb)
+                cb(equal_steps, 0)
+            # This updates <t>: <dt> should not be set before this is called.
+            self.finish_nonadaptive(cb, high_order_estimate,
+                                    low_order_estimate)
+            cb(self.dt, self.dt * factor)
+            cb(self.dt_monitor, self.dt)
+
+# }}}
+
+
 # {{{ diagnostics
 
 class TimeStepUnderflow(RuntimeError):
