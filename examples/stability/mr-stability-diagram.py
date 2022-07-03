@@ -53,7 +53,7 @@ def main():
         evaluate = fast_evaluator(mat)
 
         def is_stable(major_eigval, dt):
-            smat = evaluate({
+            smat = evaluate({  # noqa: B023
                         "<dt>": dt,
                         "f2f": major_eigval,
                         "s2f": 1/speed_factor,

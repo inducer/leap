@@ -653,7 +653,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                         if self.is_ode_component[comp_name]:
                             return var("<state>" + comp_name)
                         else:
-                            return non_ode_states[comp_name]
+                            return non_ode_states[comp_name]  # noqa: B023
 
                     kwargs = {
                             self.comp_name_to_kwarg_name[arg_comp_name]:
