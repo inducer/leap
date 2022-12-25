@@ -152,7 +152,7 @@ def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
 
     # XXX: brittle
     dt = var("<dt>")
-    true_mat = np.eye(3, dtype=np.object) + dt * J
+    true_mat = np.eye(3, dtype=object) + dt * J
     assert (mat == true_mat).all()
 
 
@@ -201,7 +201,7 @@ def test_step_matrix_sparse():
     assert mat.shape == (3, 3)
     # https://github.com/PyCQA/pylint/issues/3388
     assert mat.indices == [(0, 0), (1, 1), (2, 2)]  # pylint: disable=no-member
-    true_mat = np.eye(3, dtype=np.object) + dt * J
+    true_mat = np.eye(3, dtype=object) + dt * J
     assert (mat.data == np.diag(true_mat)).all()
 
     eval_mat = fast_evaluator(mat, sparse=True)
