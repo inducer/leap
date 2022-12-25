@@ -204,7 +204,7 @@ class StepMatrixFinder:
         nv = len(components)
         shape = (nv, nv)
         if not sparse:
-            step_matrix = np.zeros(shape, dtype=np.object)
+            step_matrix = np.zeros(shape, dtype=object)
         else:
             indices = []
             data = []
