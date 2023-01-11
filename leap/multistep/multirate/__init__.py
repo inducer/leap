@@ -738,9 +738,9 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                         -rhs.interval*(rhs.history_length-1), 1, rhs.interval))
 
                     if self.static_dt:
-                        temp_time_vars[key] = list(
+                        temp_time_vars[key] = [
                                 rhs.interval*i/self.nsubsteps
-                                for i in range(-rhs.history_length+1, 0+1))
+                                for i in range(-rhs.history_length+1, 0+1)]
                     else:
                         temp_time_vars[key] = self.time_vars[key][:]
 
