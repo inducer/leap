@@ -557,9 +557,9 @@ def multirate_accuracy_experiment(errors_outf):
                             event.state_component
 
             results_by_substep_ratio.setdefault(substep_ratio, []).append(
-                    problem.full_solution(list(
+                    problem.full_solution([
                         state_components[component]
-                        for component in component_names)))
+                        for component in component_names]))
 
     rows = []
     rows.append(
