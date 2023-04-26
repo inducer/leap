@@ -19,9 +19,9 @@ release = ver_dic["VERSION_TEXT"]
 version = release
 
 intersphinx_mapping = {
-    "https://docs.python.org/3/": None,
-    "https://numpy.org/doc/stable/": None,
-    "https://documen.tician.de/pymbolic/": None,
-    "https://documen.tician.de/dagrt/": None,
-    "https://docs.sympy.org/latest/": None,
-    }
+        "python": ("https://docs.python.org/3/", None),
+        "numpy": ("https://numpy.org/doc/stable/", None),
+        "pymbolic": ("https://documen.tician.de/pymbolic/", None),
+        "dagrt": ("https://documen.tician.de/dagrt/", None),
+        "sympy": ("https://docs.sympy.org/latest/", None),
+        }
