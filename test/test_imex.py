@@ -26,16 +26,15 @@ THE SOFTWARE.
 # pylint: disable=not-callable
 
 
-import numpy as np
-import pytest
 import sys
 
-from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
+import numpy as np
+import pytest
 from stiff_test_systems import KapsProblem
-
 from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
+    python_method_impl_codegen as pmi_cg, python_method_impl_interpreter as pmi_int)
+
+from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
 
 
 def solver(f, t, sub_y, coeff, guess):

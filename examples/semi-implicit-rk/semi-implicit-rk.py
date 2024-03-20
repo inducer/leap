@@ -11,8 +11,9 @@ Source:
 """
 
 
-import numpy as np
 import logging
+
+import numpy as np
 
 
 logging.basicConfig(level=logging.INFO)

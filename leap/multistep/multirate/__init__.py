@@ -35,6 +35,7 @@ from pymbolic import var
 from leap import MethodBuilder
 from leap.multistep import _linear_comb
 
+
 __doc__ = """
 .. autoclass:: rhs_policy
 .. autoclass:: MultiRateHistory
@@ -830,9 +831,8 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                     dt_factor = self.dt
 
                 from leap.multistep import (
-                        AdamsMonomialIntegrationFunctionFamily,
-                        emit_adams_integration,
-                        emit_adams_extrapolation)
+                    AdamsMonomialIntegrationFunctionFamily, emit_adams_extrapolation,
+                    emit_adams_integration)
 
                 if self.is_ode_component[comp_name]:
                     contrib = dt_factor*emit_adams_integration(
@@ -1123,7 +1123,7 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
         if explainer is None:
             explainer = SchemeExplainerBase()
 
-        from dagrt.language import DAGCode, CodeBuilder
+        from dagrt.language import CodeBuilder, DAGCode
 
         with CodeBuilder(name="initialization") as cb_init:
             self.emit_initialization(cb_init)

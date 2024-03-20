@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
 import matplotlib
+
+
 matplotlib.use("Agg")  # noqa
 
+from functools import partial
+
+import matplotlib.pyplot as pt
 import numpy as np
 import numpy.linalg as la
+
 from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder
-import matplotlib.pyplot as pt
-from functools import partial
 
 
 def process_eigval(evaluate_mat, speed_factor, prec, major_eigval):
@@ -26,9 +30,9 @@ def process_eigval(evaluate_mat, speed_factor, prec, major_eigval):
 
 
 def main():
-    from leap.step_matrix import StepMatrixFinder
-
     from pymbolic import var
+
+    from leap.step_matrix import StepMatrixFinder
 
     speed_factor = 10
     method_name = "Fq"

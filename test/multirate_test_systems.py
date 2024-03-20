@@ -25,7 +25,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from numpy import sqrt, log, sin, cos, exp
+from numpy import cos, exp, log, sin, sqrt
 
 
 class LinearODESystemsBase():

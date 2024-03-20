@@ -29,8 +29,10 @@ THE SOFTWARE.
 
 import numpy as np
 import numpy.linalg as la
-from leap import MethodBuilder
+
 from pymbolic import var
+
+from leap import MethodBuilder
 
 
 __doc__ = """
@@ -43,8 +45,8 @@ __doc__ = """
 # {{{ Adams-Bashforth integration (with and without dynamic time steps)
 
 def _linear_comb(coefficients, vectors):
-    from operator import add
     from functools import reduce
+    from operator import add
     return reduce(add,
             (coeff * v for coeff, v in zip(coefficients, vectors)))
 
@@ -277,7 +279,7 @@ class AdamsBashforthMethodBuilder(MethodBuilder):
         from pytools import UniqueNameGenerator
         name_gen = UniqueNameGenerator()
 
-        from dagrt.language import DAGCode, CodeBuilder
+        from dagrt.language import CodeBuilder, DAGCode
 
         array = var("<builtin>array")
         rhs_var = var("rhs_var")

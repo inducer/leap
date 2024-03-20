@@ -26,23 +26,22 @@ THE SOFTWARE.
 # pylint: disable=not-callable
 
 import sys
+
 import pytest
 
 import dagrt.codegen.fortran as f
-from leap.rk import (
-        ODE23MethodBuilder, ODE45MethodBuilder, RK4MethodBuilder,
-        LSRK4MethodBuilder)
+from dagrt.utils import run_fortran
 
 from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder
-
-from dagrt.utils import run_fortran
+from leap.rk import (
+    LSRK4MethodBuilder, ODE23MethodBuilder, ODE45MethodBuilder, RK4MethodBuilder)
 
 
 #skip = pytest.mark.skipif(True, reason="not fully implemented")
 
 
 def read_file(rel_path):
-    from os.path import join, abspath, dirname
+    from os.path import abspath, dirname, join
     path = join(abspath(dirname(__file__)), rel_path)
     with open(path) as inf:
         return inf.read()
@@ -66,8 +65,7 @@ def test_rk_codegen(min_order, stepper, print_code=False):
     component_id = "y"
     rhs_function = "<func>y"
 
-    from dagrt.function_registry import (
-            base_function_registry, register_ode_rhs)
+    from dagrt.function_registry import base_function_registry, register_ode_rhs
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
     freg = freg.register_codegen(rhs_function, "fortran",
@@ -119,8 +117,7 @@ def test_rk_codegen_fancy():
             state_filter_name=state_filter_name)
 
     from dagrt.function_registry import (
-            base_function_registry, register_ode_rhs,
-            register_function, UserType)
+        UserType, base_function_registry, register_function, register_ode_rhs)
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
     freg = freg.register_codegen(rhs_function, "fortran",
@@ -248,8 +245,7 @@ def test_multirate_codegen(min_order, method_name):
     code = stepper.generate()
 
     from dagrt.function_registry import (
-            base_function_registry, register_ode_rhs,
-            UserType, register_function)
+        UserType, base_function_registry, register_function, register_ode_rhs)
 
     freg = base_function_registry
     for func_name in [
@@ -352,8 +348,7 @@ def test_adaptive_rk_codegen():
 
     stepper = ODE45MethodBuilder(component_id, use_high_order=False, rtol=1e-6)
 
-    from dagrt.function_registry import (
-            base_function_registry, register_ode_rhs)
+    from dagrt.function_registry import base_function_registry, register_ode_rhs
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
     freg = freg.register_codegen(rhs_function, "fortran",
@@ -390,8 +385,7 @@ def test_adaptive_rk_codegen_error():
 
     stepper = ODE45MethodBuilder(component_id, use_high_order=False, atol=1e-6)
 
-    from dagrt.function_registry import (
-            base_function_registry, register_ode_rhs)
+    from dagrt.function_registry import base_function_registry, register_ode_rhs
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
     freg = freg.register_codegen(rhs_function, "fortran",
@@ -427,8 +421,7 @@ def test_singlerate_squarewave(min_order, hist_length):
 
     stepper = AdamsBashforthMethodBuilder("y", min_order, hist_length=hist_length)
 
-    from dagrt.function_registry import (
-            base_function_registry, register_ode_rhs)
+    from dagrt.function_registry import base_function_registry, register_ode_rhs
     freg = register_ode_rhs(base_function_registry, component_id,
                             identifier=rhs_function)
     freg = freg.register_codegen(rhs_function, "fortran",
@@ -487,8 +480,7 @@ def test_multirate_squarewave(min_order, hist_length, method_name):
 
     code = stepper.generate()
 
-    from dagrt.function_registry import (
-            base_function_registry, register_ode_rhs)
+    from dagrt.function_registry import base_function_registry, register_ode_rhs
 
     freg = base_function_registry
     for func_name in [

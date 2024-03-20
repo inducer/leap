@@ -2,6 +2,7 @@
 
 
 from pymbolic import var
+
 from leap import TwoOrderAdaptiveMethodBuilderMixin
 from leap.rk import ButcherTableauMethodBuilder
 

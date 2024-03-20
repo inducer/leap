@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import matplotlib
+
+
 matplotlib.use("Agg")
 
 
@@ -24,8 +26,8 @@ def main(save_pdfs=True):
     pt.ylabel(r"Im $\lambda$ / RHS calls")
     pt.grid()
 
-    import leap.rk as rk
     import leap.multistep as multistep
+    import leap.rk as rk
 
     for label, method, factor in [
             #("ode23", rk.ODE23MethodBuilder("y", use_high_order=True), 1),

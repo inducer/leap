@@ -30,7 +30,7 @@ __doc__ = """
 
 
 def _elide_yield_state(statements):
-    from dagrt.language import YieldState, Nop
+    from dagrt.language import Nop, YieldState
     return [stmt
             if not isinstance(stmt, YieldState)
             else Nop(id=stmt.id, depends_on=stmt.depends_on)
@@ -40,7 +40,7 @@ def _elide_yield_state(statements):
 def _update_t_by_dt_factor(factor, statements):
     from dagrt.language import Assign, Nop
     from pymbolic import var
-    from pymbolic.mapper.substitutor import make_subst_func, SubstitutionMapper
+    from pymbolic.mapper.substitutor import SubstitutionMapper, make_subst_func
 
     mapper = SubstitutionMapper(
         make_subst_func({"<dt>": factor * var("<dt>")}))
@@ -69,7 +69,7 @@ def strang_splitting(dag1, dag2, stepping_phase):
     :returns: a :class:`dagrt.language.DAGCode`
     """
 
-    from pymbolic.mapper.substitutor import make_subst_func, SubstitutionMapper
+    from pymbolic.mapper.substitutor import SubstitutionMapper, make_subst_func
 
     # {{{ disambiguate
 
