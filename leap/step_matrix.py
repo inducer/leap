@@ -26,10 +26,11 @@ from typing import List, Tuple
 
 import numpy as np
 
-from dagrt.expression import EvaluationMapper
 from dagrt.exec_numpy import FailStepException
-from pymbolic.primitives import Expression
+from dagrt.expression import EvaluationMapper
 from pymbolic.interop.maxima import MaximaStringifyMapper
+from pymbolic.primitives import Expression
+
 
 __doc__ = """
 .. autoclass:: StepMatrixFinder
@@ -206,8 +207,8 @@ class StepMatrixFinder:
 
         components, initial_vals = self.run_symbolic_step(phase_name, shapes)
 
-        from pymbolic.mapper.differentiator import DifferentiationMapper
         from pymbolic.mapper.dependency import DependencyMapper
+        from pymbolic.mapper.differentiator import DifferentiationMapper
         dependencies = DependencyMapper()
 
         nv = len(components)
@@ -315,9 +316,10 @@ def fast_evaluator(matrix, sparse=False):
 
     substitutor = SubstitutionMapper(make_identifier)
 
-    from pymbolic import compile
     # functools.partial ensures the resulting object is picklable.
     from functools import partial
+
+    from pymbolic import compile
 
     if sparse:
         data = [substitutor(entry) for entry in matrix.data]

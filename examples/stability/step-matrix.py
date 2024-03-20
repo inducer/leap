@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 import numpy as np
 import numpy.linalg as la
-from leap.rk import RK4MethodBuilder  # noqa
+
 from leap.multistep import AdamsBashforthMethodBuilder  # noqa
+from leap.rk import RK4MethodBuilder  # noqa
 
 
 def main():
-    from leap.step_matrix import StepMatrixFinder
-
     from pymbolic import var
+
+    from leap.step_matrix import StepMatrixFinder
 
     #method = RK4MethodBuilder("y")
     method = AdamsBashforthMethodBuilder("y", order=3, static_dt=True)
@@ -42,8 +43,9 @@ def main():
 
         return (np.abs(eigvals) <= 1 + tol).all()
 
-    from leap.stability import find_truth_bdry
     from functools import partial
+
+    from leap.stability import find_truth_bdry
 
     prec = 1e-5
     print("stable imaginary timestep:",

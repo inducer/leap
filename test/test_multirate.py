@@ -29,18 +29,14 @@ THE SOFTWARE.
 import numpy as np
 import numpy.linalg as la
 import pytest
-from pytools import memoize_method
-from leap.multistep.multirate import (
-        rhs_policy,
-        MultiRateHistory as MRHistory,
-        MultiRateMultiStepMethodBuilder,
-        TwoRateAdamsBashforthMethodBuilder,
-        TextualSchemeExplainer)
-
-
 from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
+    python_method_impl_codegen as pmi_cg, python_method_impl_interpreter as pmi_int)
+
+from pytools import memoize_method
+
+from leap.multistep.multirate import (
+    MultiRateHistory as MRHistory, MultiRateMultiStepMethodBuilder,
+    TextualSchemeExplainer, TwoRateAdamsBashforthMethodBuilder, rhs_policy)
 
 
 class MultirateTimestepperAccuracyChecker:
@@ -212,10 +208,11 @@ def test_multirate_accuracy(method_name, order, hist_length,
 
 
 def test_single_rate_identical(order=3, hist_length=3):
-    from leap.multistep import AdamsBashforthMethodBuilder
+    from multirate_test_systems import Full
+
     from dagrt.exec_numpy import NumpyInterpreter
 
-    from multirate_test_systems import Full
+    from leap.multistep import AdamsBashforthMethodBuilder
     ode = Full()
 
     t_start = 0

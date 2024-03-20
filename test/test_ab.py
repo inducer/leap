@@ -27,12 +27,12 @@ THE SOFTWARE.
 # pylint: disable=not-callable
 
 import sys
-import pytest
-from leap.multistep import AdamsBashforthMethodBuilder
 
+import pytest
 from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
+    python_method_impl_codegen as pmi_cg, python_method_impl_interpreter as pmi_int)
+
+from leap.multistep import AdamsBashforthMethodBuilder
 
 
 @pytest.mark.parametrize(("method", "expected_order"), [

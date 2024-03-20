@@ -1,8 +1,9 @@
 #! /usr/bin/env python
 
-import pytest
 import sys
+
 import numpy as np
+import pytest
 
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner, Matt Wala"

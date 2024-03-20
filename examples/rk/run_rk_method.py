@@ -26,8 +26,9 @@ THE SOFTWARE.
 """
 
 
-from leap.rk import ODE23MethodBuilder
 import numpy as np
+
+from leap.rk import ODE23MethodBuilder
 
 
 def main(show_dag=False, plot_solution=False):

@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 """Implicit Euler timestepper"""
 
-from leap import MethodBuilder
-from dagrt.language import DAGCode, CodeBuilder
+from dagrt.language import CodeBuilder, DAGCode
 from pymbolic import var
 from pymbolic.primitives import CallWithKwargs
+
+from leap import MethodBuilder
+
 
 __copyright__ = "Copyright (C) 2014 Matt Wala"
 

@@ -1,18 +1,21 @@
 #!/usr/bin/env python
 
 import matplotlib
+
+
 matplotlib.use("Agg")  # noqa
 
+import matplotlib.pyplot as pt
 import numpy as np
 import numpy.linalg as la
+
 from leap.multistep.multirate import TwoRateAdamsBashforthMethodBuilder
-import matplotlib.pyplot as pt
 
 
 def main():
-    from leap.step_matrix import StepMatrixFinder
-
     from pymbolic import var
+
+    from leap.step_matrix import StepMatrixFinder
 
     speed_factor = 10
     method_name = "Fq"
@@ -65,8 +68,9 @@ def main():
 
             return (np.abs(eigvals) <= 1 + tol).all()
 
-        from leap.stability import find_truth_bdry
         from functools import partial
+
+        from leap.stability import find_truth_bdry
 
         points = []
 

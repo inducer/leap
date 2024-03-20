@@ -25,14 +25,14 @@ THE SOFTWARE.
 # avoid spurious: pytest.mark.parametrize is not callable
 # pylint: disable=not-callable
 
+import logging
 import sys
+
+import numpy as np
+import numpy.linalg as la
 import pytest
 
 from leap.rk import ODE23MethodBuilder, ODE45MethodBuilder
-import numpy as np
-import numpy.linalg as la
-
-import logging
 
 
 logger = logging.getLogger(__name__)
@@ -54,9 +54,9 @@ def test_step_matrix(method, show_matrix=True, show_dag=False):
         from dagrt.language import show_dependency_graph
         show_dependency_graph(code)
     from dagrt.exec_numpy import NumpyInterpreter
-    from leap.step_matrix import StepMatrixFinder
-
     from pymbolic import var
+
+    from leap.step_matrix import StepMatrixFinder
 
     # {{{ build matrix
 
@@ -127,8 +127,9 @@ def euler(component_id, show_dag):
 
 
 def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
-    from leap.step_matrix import StepMatrixFinder
     from pymbolic import var
+
+    from leap.step_matrix import StepMatrixFinder
 
     component_id = "y"
     code = euler(component_id, show_dag)
@@ -178,8 +179,9 @@ def test_step_matrix_fast_eval():
 
 
 def test_step_matrix_sparse():
-    from leap.step_matrix import StepMatrixFinder, fast_evaluator
     from pymbolic import var
+
+    from leap.step_matrix import StepMatrixFinder, fast_evaluator
 
     component_id = "y"
     code = euler(component_id, show_dag=False)

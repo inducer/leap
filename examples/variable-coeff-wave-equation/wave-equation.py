@@ -12,13 +12,12 @@ with piecewise constant coefficients c(x) using a multirate multistep method.
 import argparse
 import fnmatch
 import logging
+import os
+from contextlib import contextmanager
+
 import matplotlib
 import numpy as np
 import numpy.linalg as la
-import os
-
-
-from contextlib import contextmanager
 
 
 logging.basicConfig(level=logging.INFO)
@@ -261,7 +260,7 @@ def make_3_component_multirate_method(
 
     """
     from leap.multistep.multirate import (
-            MultiRateMultiStepMethodBuilder, MultiRateHistory)
+        MultiRateHistory, MultiRateMultiStepMethodBuilder)
 
     ncomponents = 3
     assert problem.ncomponents == ncomponents

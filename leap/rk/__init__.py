@@ -27,10 +27,11 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from leap import MethodBuilder, TwoOrderAdaptiveMethodBuilderMixin
-from dagrt.language import CodeBuilder, DAGCode
 
+from dagrt.language import CodeBuilder, DAGCode
 from pymbolic import var
+
+from leap import MethodBuilder, TwoOrderAdaptiveMethodBuilderMixin
 
 
 __doc__ = """

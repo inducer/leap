@@ -22,11 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import logging
 import sys
 
 import numpy as np
-
-import logging
 
 
 logger = logging.getLogger(__name__)

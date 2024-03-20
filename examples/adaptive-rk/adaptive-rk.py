@@ -14,7 +14,9 @@ The same functionality is supported using leap.rk.ODE23MethodBuilder.
 """
 
 import logging
+
 import numpy as np
+
 
 logging.basicConfig(level=logging.INFO)
 

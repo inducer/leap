@@ -113,9 +113,9 @@ class TwoOrderAdaptiveMethodBuilderMixin(MethodBuilder):
         raise NotImplementedError()
 
     def finish_adaptive(self, cb, high_order_estimate, low_order_estimate):
+        from dagrt.expression import IfThenElse
         from pymbolic import var
         from pymbolic.primitives import Comparison, LogicalOr, Max, Min
-        from dagrt.expression import IfThenElse
 
         norm_start_state = var("norm_start_state")
         norm_end_state = var("norm_end_state")

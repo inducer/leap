@@ -25,25 +25,20 @@ THE SOFTWARE.
 # avoid spurious: pytest.mark.parametrize is not callable
 # pylint: disable=not-callable
 
+import logging
 import sys
+
+import numpy as np
 import pytest
+from utils import (  # noqa
+    python_method_impl_codegen as pmi_cg, python_method_impl_interpreter as pmi_int)
 
 from leap.rk import (
-        ODE23MethodBuilder, ODE45MethodBuilder,
-        ForwardEulerMethodBuilder,
-        MidpointMethodBuilder, HeunsMethodBuilder,
-        RK3MethodBuilder, RK4MethodBuilder, RK5MethodBuilder,
-        LSRK4MethodBuilder,
-        SSPRK22MethodBuilder, SSPRK33MethodBuilder,
-        )
+    ForwardEulerMethodBuilder, HeunsMethodBuilder, LSRK4MethodBuilder,
+    MidpointMethodBuilder, ODE23MethodBuilder, ODE45MethodBuilder, RK3MethodBuilder,
+    RK4MethodBuilder, RK5MethodBuilder, SSPRK22MethodBuilder, SSPRK33MethodBuilder)
 from leap.rk.imex import KennedyCarpenterIMEXARK4MethodBuilder
-import numpy as np
 
-import logging
-
-from utils import (  # noqa
-        python_method_impl_interpreter as pmi_int,
-        python_method_impl_codegen as pmi_cg)
 
 logger = logging.getLogger(__name__)
 
