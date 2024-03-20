@@ -21,23 +21,32 @@ THE SOFTWARE.
 """
 
 from collections import namedtuple
-from dagrt.expression import EvaluationMapper
+from dataclasses import dataclass, replace
+from typing import List, Tuple
+
 import numpy as np
+
+from dagrt.expression import EvaluationMapper
 from dagrt.exec_numpy import FailStepException
+from pymbolic.primitives import Expression
 from pymbolic.interop.maxima import MaximaStringifyMapper
-from pytools import Record
 
 __doc__ = """
-
 .. autoclass:: StepMatrixFinder
 .. autofunction:: fast_evaluator
 """
 
 
-class SparseStepMatrix(Record):
-
-    def __init__(self, shape, indices, data):
-        Record.__init__(self, shape=shape, indices=indices, data=data)
+@dataclass(frozen=True)
+class SparseStepMatrix:
+    shape: Tuple[int, int]
+    """The shape of the step matrix."""
+    indices: List[Tuple[int, int]]
+    """A list of ``(i, j)`` tuples given the index in the matrix for each element
+    in :attr:`data`.
+    """
+    data: List[Expression]
+    """A list of matrix entries."""
 
 
 class LeapMaximaStringifyMapper(MaximaStringifyMapper):
@@ -314,7 +323,7 @@ def fast_evaluator(matrix, sparse=False):
         data = [substitutor(entry) for entry in matrix.data]
         var_order, renamed_vars = get_var_order_from_name_map()
         compiled_entries = [compile(entry, renamed_vars) for entry in data]
-        compiled_matrix = matrix.copy(data=compiled_entries)
+        compiled_matrix = replace(matrix, data=compiled_entries)
     else:
         matrix = substitutor(matrix)
         var_order, renamed_vars = get_var_order_from_name_map()
@@ -333,7 +342,7 @@ def _eval_compiled_matrix(compiled_matrix, var_order, var_assignments):
     arguments = [var_assignments[name] for name in var_order]
     if isinstance(compiled_matrix, SparseStepMatrix):
         evaluated_data = [entry(*arguments) for entry in compiled_matrix.data]
-        return compiled_matrix.copy(data=evaluated_data)
+        return replace(compiled_matrix, data=evaluated_data)
     else:
         return compiled_matrix(*arguments)
 

@@ -27,17 +27,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from pytools import Record
-from leap import MethodBuilder
+from dataclasses import dataclass, replace
+from typing import Any, Optional, Tuple
+
 from pymbolic import var
 
+from leap import MethodBuilder
 from leap.multistep import _linear_comb
 
-
 __doc__ = """
-
 .. autoclass:: rhs_policy
 .. autoclass:: MultiRateHistory
+    :members:
 .. autoclass:: MultiRateMultiStepMethodBuilder
 
 .. autoclass:: SchemeExplainerBase
@@ -47,7 +48,7 @@ __doc__ = """
 
 # {{{ system description
 
-class rhs_policy:  # noqa
+class rhs_policy:  # noqa: N801
     """
     .. attribute:: late
     .. attribute:: early
@@ -58,43 +59,46 @@ class rhs_policy:  # noqa
     early_and_late = 2
 
 
-class MultiRateHistory(Record):
+@dataclass(frozen=True)
+class MultiRateHistory:
+    interval: int
+    """An integer indicating the interval (relative to the smallest available
+    time step) at which the history is to be update, where an update will typically
+    involve a call to :attr:`func_name`.
     """
-    .. automethod:: __init__
+    func_name: str
+    """The name of the function to call on history updates."""
+    arguments: Tuple[str, ...]
+    """A tuple of component names which are passed to :attr:`func_name`."""
+    order: Optional[int] = None
+    """The approximation order of the Adams method to be used for this history.
+    If *None*, the default method is assumed.
     """
-    def __init__(self, interval, func_name, arguments, order=None,
-            rhs_policy=rhs_policy.late, invalidate_computed_state=False,
-            hist_length=None):
-        """
-        :arg interval: An integer indicating the interval (relative to the
-            smallest available timestep) at which this history is to be
-            updated.
-            (where each update will typically involve a call to *func_name*)
-        :arg arguments: A tuple of component names
-            (see :class:`MultiRateMultiStepMethodBuilder`)
-            which are passed to this right-hand side function.
-        :arg order: The Adams approximation order to be used for this
-            history, or None if the method default is to be used.
-        :arg rhs_policy: One of the constants in :class:`rhs_policy`
-        :arg invalidate_dependent_state: Whether evaluating this
-            right-hand side should force a recomputation of any
-            state that depended upon now-superseded state.
-        :arg hist_length: history length.  If greater than order, we use a
-            least-squares solve rather than a linear solve to obtain the Adams
-            coefficients for this history
-        """
-        super().__init__(
-                interval=interval,
-                func_name=func_name,
-                arguments=arguments,
-                order=order,
-                rhs_policy=rhs_policy,
-                invalidate_computed_state=invalidate_computed_state,
-                hist_length=hist_length)
+    rhs_policy: int = rhs_policy.late
+    """One of the constants in :class:`rhs_policy`."""
+    invalidate_computed_state: bool = False
+    """A flag that denotes whether evaluating the right-hand side :attr:`func_name`
+    should force a recomputation of any state that depended upon now-superseded
+    state.
+    """
+    hist_length: Optional[int] = None
+    """The length of the history. If the length is greater than :attr:`order`,
+    we use a least-squares solve rather than a linear sole to obtain the
+    Adams coefficients for this history.
+    """
 
     @property
     def history_length(self):
         return self.hist_length
+
+    def copy(self, **kwargs: Any) -> "MultiRateHistory":
+        from warnings import warn
+
+        warn(f"{type(self).__name__}.copy is deprecated and will be removed in "
+             "2025. This is now a dataclass and should use the replace function",
+             DeprecationWarning, stacklevel=2)
+
+        return replace(self, **kwargs)
 
 
 class RHS(MultiRateHistory):
@@ -323,8 +327,9 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
                 if hist_length is None:
                     hist_length = order
 
-                new_component_rhss.append(rhs.copy(order=order,
-                    hist_length=hist_length))
+                new_component_rhss.append(
+                    replace(rhs, order=order, hist_length=hist_length)
+                )
 
             new_rhss.append(tuple(new_component_rhss))
 
@@ -711,8 +716,13 @@ class MultiRateMultiStepMethodBuilder(MethodBuilder):
 
     # }}}
 
-    class StateContribExplanation(Record):
-        pass
+    @dataclass(frozen=True)
+    class StateContribExplanation:
+        rhs: str
+        """Name of the right-hand side function to call."""
+        from_substeps: int
+        using: Tuple[str, ...]
+        """A tuple of variables used."""
 
     # {{{ main method generation
 
