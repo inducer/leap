@@ -154,7 +154,9 @@ def test_step_matrix_vector_state(show_matrix=True, show_dag=False):
     # XXX: brittle
     dt = var("<dt>")
     true_mat = np.eye(3, dtype=object) + dt * J
-    assert (mat == true_mat).all()
+
+    from pymbolic import flatten
+    assert (flatten(mat) == flatten(true_mat)).all()
 
 
 def test_step_matrix_fast_eval():

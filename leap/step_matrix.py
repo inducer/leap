@@ -227,6 +227,9 @@ class StepMatrixFinder:
             else:
                 expr = self.context[v]
 
+            from pymbolic import flatten
+            expr = flatten(expr)
+
             # Selectively evaluate the derivative only for components that are
             # actually present in the expression. This takes advantage of
             # sparsity.
