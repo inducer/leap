@@ -34,7 +34,7 @@ def main():
             "Topic :: Utilities",
         ],
         packages=find_packages(),
-        python_requires="~=3.8",
+        python_requires="~=3.10",
         install_requires=[
             "numpy>=1.5",
             "pytools>=2014.1",
